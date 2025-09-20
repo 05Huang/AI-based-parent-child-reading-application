@@ -1,0 +1,267 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/role-select/role-select",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/login/login",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/register/register",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/intimacy-ranking/intimacy-ranking",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/child/login/login",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/home/home",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/bookshelf/bookshelf",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/video/video",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/ai-chat/ai-chat",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/profile/profile",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/readTheTranscript",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读记录"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/favorites",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/history",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读历史"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/report",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读报告"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/setting",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/profile",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "个人资料"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/security",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "账号安全"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/notification",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "消息通知"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/reading-mode",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读模式"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/font-setting",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "字体设置"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/reading-visibility",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读记录可见性"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/friend-permission",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "好友权限"
+      }
+    },
+    {
+      "path": "pages/parent/profile/details/about",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "关于我们"
+      }
+    },
+    {
+      "path": "pages/parent/notification/notification",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "消息通知"
+      }
+    },
+    {
+      "path": "pages/parent/chat/private-chat",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/parent/chat/group-chat",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/parent/search/search",
+      "style": {
+        "navigationStyle": "custom",
+        "animationType": "fade-in",
+        "animationDuration": 200,
+        "app-plus": {
+          "animationType": "fade-in",
+          "animationDuration": 200,
+          "bounce": "none"
+        }
+      }
+    },
+    {
+      "path": "pages/parent/reading/reading",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "阅读",
+        "app-plus": {
+          "bounce": "none",
+          "scrollIndicator": "none"
+        }
+      }
+    },
+    {
+      "path": "pages/parent/reading/paragraph-comment",
+      "style": {
+        "navigationStyle": "custom",
+        "app-plus": {
+          "titleNView": false
+        }
+      }
+    },
+    {
+      "path": "pages/parent/reading/article-comments",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "评论",
+        "app-plus": {
+          "bounce": "none"
+        }
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#4080ff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/parent/home/home",
+        "text": "首页",
+        "iconPath": "static/images/tabbar/home.png",
+        "selectedIconPath": "static/images/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/parent/bookshelf/bookshelf",
+        "text": "阅读",
+        "iconPath": "static/images/tabbar/book.png",
+        "selectedIconPath": "static/images/tabbar/book-active.png"
+      },
+      {
+        "pagePath": "pages/parent/video/video",
+        "text": "视频",
+        "iconPath": "static/images/tabbar/video.png",
+        "selectedIconPath": "static/images/tabbar/video-active.png"
+      },
+      {
+        "pagePath": "pages/parent/ai-chat/ai-chat",
+        "text": "AI对话",
+        "iconPath": "static/images/tabbar/chat.png",
+        "selectedIconPath": "static/images/tabbar/chat-active.png"
+      },
+      {
+        "pagePath": "pages/parent/profile/profile",
+        "text": "我的",
+        "iconPath": "static/images/tabbar/user.png",
+        "selectedIconPath": "static/images/tabbar/user-active.png"
+      }
+    ]
+  }
+} 

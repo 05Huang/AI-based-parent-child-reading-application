@@ -1,0 +1,69 @@
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/*.xml   # mapper文件的位置:resources/mapper/*.xml
+  type-aliases-package: com.qz.sns
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/qz_sns?useSSL=false&useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 114.55.233.139
+      password: Lb040212
+      port: 6379
+      database: 1
+      timeout: 50000
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+  mail:
+    #smtp服务主机
+    host: smtp.163.com
+    #端口号
+    port: 25
+    #服务协议
+    protocol: smtp
+    # 编码集
+    default-encoding: UTF-8
+    #发送邮件的账户
+    username: qzreadapp@163.com
+    #授权码，刚刚生成的授权码
+    password: DPxi4ErsKKwPTntx
+    test-connection: true
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+aliyun:
+  sms:
+    enabled: true
+    access-key-id: LTAI5tM59apoUsDjGqmG5eYb
+    access-key-secret: D7txrDw3VvqCq23nAu8ioNaNL0RMfu
+    sign-name: 亲子阅读APP
+    template-code: SMS_474930088
+    region-id: cn-hangzhou
+
+dashscope:
+  apikey: sk-82186eaa4879454dadb57fd5007fd1f4 # 替换为实际的API Key
+
+minio:
+  endpoint: http://114.55.233.139:9000 #内网地址
+  domain: http://114.55.233.139:9000  #外网访问地址
+  accessKey: minio
+  secretKey: minio123
+  bucketName: qz-sns
+  imagePath: image
+  filePath: file
+  videoPath: video

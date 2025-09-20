@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/qz_sns?useSSL=false&useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 114.55.233.139
+      password: Lb040212
+      port: 6379
+      database: 1
+
+minio:
+  endpoint: http://114.55.233.139:9000 #内网地址
+  domain: http://114.55.233.139:9000  #外网访问地址
+  accessKey: minio
+  secretKey: minio123
+  bucketName: qz-sns
+  imagePath: image
+  filePath: file
+  videoPath: video
+
+webrtc:
+  max-channel: 9 # 多人通话最大通道数量，最大不能超过16,建议值:4,9,16
+  iceServers:
+    - urls: stun:stun.l.google.com:19302
+
+

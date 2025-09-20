@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.ContentMapper">
+
+    <!-- 内容详情结果映射 -->
+    <resultMap id="ContentRequestMap" type="com.qz.sns.model.dto.ContentRequest">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="content" property="content" />
+        <result column="type" property="type" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="media_url" property="mediaUrl" />
+        <result column="category_id" property="categoryId" />
+        <result column="tags" property="tags" />
+        <result column="view_count" property="viewCount" />
+        <result column="like_count" property="likeCount" />
+        <result column="comment_count" property="commentCount" />
+        <result column="share_count" property="shareCount" />
+        <result column="status" property="status" />
+        <result column="creator_id" property="creatorId" />
+        <result column="creator_name" property="creatorName" />
+        <result column="creator_avatar" property="creatorAvatar" />
+        <result column="created_time" property="createdTime" />
+        <result column="updated_time" property="updatedTime" />
+    </resultMap>
+
+    <!-- 基础查询字段 -->
+    <sql id="Base_Column_List">
+        c.id, c.title, c.content, c.type, c.cover_url, c.media_url, c.category_id, c.tags,
+        c.view_count, c.like_count, c.comment_count, c.share_count, c.status, c.creator_id,
+        c.created_time, c.updated_time, u.nickname as creator_name, u.avatar as creator_avatar
+    </sql>
+
+    <sql id="Base_Where_Clause">
+        WHERE u.status = 1
+        <choose>
+            <!-- 如果指定了状态，则按指定状态查询 -->
+            <when test="query.status != null">
+                AND c.status = #{query.status}
+            </when>
+            <!-- 如果没有指定状态，默认查询正常状态 -->
+            <otherwise>
+                AND c.status = 1
+            </otherwise>
+        </choose>
+        <if test="query.title != null and query.title != ''">
+            AND c.title LIKE CONCAT('%', #{query.title}, '%')
+        </if>
+        <if test="query.type != null">
+            AND c.type = #{query.type}
+        </if>
+        <if test="query.categoryId != null">
+            AND c.category_id = #{query.categoryId}
+        </if>
+        <if test="query.tags != null and query.tags != ''">
+            AND c.tags LIKE CONCAT('%', #{query.tags}, '%')
+        </if>
+        <if test="query.creatorId != null">
+            AND c.creator_id = #{query.creatorId}
+        </if>
+        <if test="query.minViewCount != null">
+            AND c.view_count >= #{query.minViewCount}
+        </if>
+        <if test="query.maxViewCount != null">
+            AND c.view_count &lt;= #{query.maxViewCount}
+        </if>
+        <if test="query.minLikeCount != null">
+            AND c.like_count >= #{query.minLikeCount}
+        </if>
+        <if test="query.maxLikeCount != null">
+            AND c.like_count &lt;= #{query.maxLikeCount}
+        </if>
+        <if test="query.minPopularityScore != null">
+            AND c.popularity_score >= #{query.minPopularityScore}
+        </if>
+        <if test="query.maxPopularityScore != null">
+            AND c.popularity_score &lt;= #{query.maxPopularityScore}
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND c.created_time >= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND c.created_time &lt;= #{query.endTime}
+        </if>
+    </sql>
+
+
+    <!-- 排序条件 -->
+    <sql id="Order_By_Clause">
+        ORDER BY
+        <choose>
+            <when test="query.sortField != null and query.sortField != ''">
+                <choose>
+                    <when test="query.sortField == 'view_count'">c.view_count</when>
+                    <when test="query.sortField == 'like_count'">c.like_count</when>
+                    <when test="query.sortField == 'created_time'">c.created_time</when>
+                    <when test="query.sortField == 'popularity_score'">c.popularity_score</when>
+                    <otherwise>c.created_time</otherwise>
+                </choose>
+                <choose>
+                    <when test="query.sortOrder != null and query.sortOrder.toLowerCase() == 'asc'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <otherwise>c.created_time DESC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 分页查询内容列表 -->
+    <select id="selectContentPage" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        <include refid="Base_Where_Clause" />
+        <include refid="Order_By_Clause" />
+    </select>
+
+    <!-- 根据ID获取内容详情 -->
+    <select id="selectContentById" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.id = #{id} AND c.status = 1 AND u.status = 1
+    </select>
+
+    <!-- 获取热门内容列表 -->
+    <select id="selectHotContent" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.status = 1 AND u.status = 1
+        ORDER BY c.popularity_score DESC, c.view_count DESC, c.like_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据分类获取内容列表 -->
+    <select id="selectContentByCategory" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.category_id = #{categoryId} AND c.status = 1 AND u.status = 1
+        ORDER BY c.created_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据创建者获取内容列表 -->
+    <select id="selectContentByCreator" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.creator_id = #{creatorId} AND c.status = 1 AND u.status = 1
+        ORDER BY c.created_time DESC
+    </select>
+
+    <!-- 搜索内容 -->
+    <select id="searchContent" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.status = 1 AND u.status = 1
+        AND (c.title LIKE CONCAT('%', #{keyword}, '%') OR c.content LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY c.popularity_score DESC, c.created_time DESC
+    </select>
+
+    <!-- 根据标签获取内容列表 -->
+    <select id="selectContentByTag" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.status = 1 AND u.status = 1
+        AND c.tags LIKE CONCAT('%', #{tag}, '%')
+        ORDER BY c.created_time DESC
+    </select>
+    <!-- 根据ID获取内容详情（不过滤状态） -->
+    <select id="selectContentByIdWithoutStatusFilter" resultMap="ContentRequestMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM content c
+        LEFT JOIN user u ON c.creator_id = u.id
+        WHERE c.id = #{id} AND u.status = 1
+    </select>
+</mapper>

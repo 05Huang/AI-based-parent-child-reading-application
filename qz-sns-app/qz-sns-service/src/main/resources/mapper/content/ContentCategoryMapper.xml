@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.ContentCategoryMapper">
+
+    <!-- 基础查询字段 -->
+    <sql id="Base_Column_List">
+        id, name, sort_order, status
+    </sql>
+
+    <!-- 基础查询条件 -->
+    <sql id="Base_Where_Clause">
+        <where>
+            <choose>
+                <when test="queryDTO.status != null">
+                    status = #{queryDTO.status}
+                </when>
+                <otherwise>
+                    status = 1
+                </otherwise>
+            </choose>
+            <if test="queryDTO.name != null and queryDTO.name != ''">
+                AND name LIKE CONCAT('%', #{queryDTO.name}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 分页查询分类列表 -->
+    <select id="selectCategoryPage" resultType="com.qz.sns.model.entity.ContentCategory">
+        SELECT <include refid="Base_Column_List" />
+        FROM content_category
+        <include refid="Base_Where_Clause" />
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 检查分类名称是否已存在 -->
+    <select id="checkNameExists" resultType="int">
+        SELECT COUNT(*)
+        FROM content_category
+        WHERE name = #{name}
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <!-- 获取所有正常状态的分类 -->
+    <select id="selectAllActiveCategories" resultType="com.qz.sns.model.entity.ContentCategory">
+        SELECT <include refid="Base_Column_List" />
+        FROM content_category
+        WHERE status = 1
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+</mapper>

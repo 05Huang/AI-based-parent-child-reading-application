@@ -1,0 +1,14 @@
+{
+  "name": "parent-child-reading-app-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for parent-child reading application",
+  "scripts": {
+    "convert-icons": "node scripts/convert-icons.js"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.2"
+  },
+  "dependencies": {
+    "echarts": "^5.6.0"
+  }
+}

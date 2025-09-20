@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.CommentMapper">
+
+    <!-- 批量逻辑删除指定内容的所有评论 -->
+    <update id="deleteCommentsByContentId">
+        UPDATE comment
+        SET status = 0
+        WHERE content_id = #{contentId} AND status = 1
+    </update>
+
+    <!-- 批量逻辑删除多个内容的所有评论 -->
+    <update id="deleteCommentsByContentIds">
+        UPDATE comment
+        SET status = 0
+        WHERE status = 1 AND content_id IN
+        <foreach collection="contentIds" item="contentId" open="(" separator="," close=")">
+            #{contentId}
+        </foreach>
+    </update>
+
+    <!-- 恢复指定内容的所有评论状态 -->
+    <update id="restoreCommentsByContentId">
+        UPDATE comment
+        SET status = 1
+        WHERE content_id = #{contentId} AND status = 0
+    </update>
+
+    <!-- 简化的评论响应结果映射 -->
+    <resultMap id="SimpleCommentResponseMap" type="com.qz.sns.model.dto.SimpleCommentResponseDTO">
+        <id column="id" property="id" />
+        <result column="content_id" property="contentId" />
+        <result column="content_title" property="contentTitle" />
+        <result column="user_id" property="userId" />
+        <result column="user_nickname" property="userNickname" />
+        <result column="user_avatar" property="userAvatar" />
+        <result column="parent_id" property="parentId" />
+        <result column="root_id" property="rootId" />
+        <result column="content" property="content" />
+        <result column="like_count" property="likeCount" />
+        <result column="reply_count" property="replyCount" />
+        <result column="status" property="status" />
+        <result column="created_time" property="createdTime" />
+        <result column="comment_type" property="commentType" />
+        <result column="paragraph_id" property="paragraphId" />
+    </resultMap>
+
+    <!-- 简化的查询字段 -->
+    <sql id="Simple_Column_List">
+        c.id, c.content_id, c.user_id, c.parent_id, c.root_id, c.content,
+        c.like_count, c.reply_count, c.status, c.created_time, c.comment_type, c.paragraph_id,
+        ct.title as content_title,
+        u.nickname as user_nickname, u.avatar as user_avatar
+    </sql>
+
+    <!-- 基础查询条件 -->
+    <sql id="Simple_Where_Clause">
+        WHERE u.status = 1 AND ct.status = 1
+        <choose>
+            <when test="query.status != null">
+                AND c.status = #{query.status}
+            </when>
+            <otherwise>
+                AND c.status = 1
+            </otherwise>
+        </choose>
+        <if test="query.contentId != null">
+            AND c.content_id = #{query.contentId}
+        </if>
+        <if test="query.userId != null">
+            AND c.user_id = #{query.userId}
+        </if>
+        <if test="query.content != null and query.content != ''">
+            AND c.content LIKE CONCAT('%', #{query.content}, '%')
+        </if>
+        <if test="query.commentType != null">
+            AND c.comment_type = #{query.commentType}
+        </if>
+        <if test="query.paragraphId != null and query.paragraphId != ''">
+            AND c.paragraph_id = #{query.paragraphId}
+        </if>
+        <if test="query.startTime != null and query.startTime != ''">
+            AND c.created_time >= #{query.startTime}
+        </if>
+        <if test="query.endTime != null and query.endTime != ''">
+            AND c.created_time &lt;= #{query.endTime}
+        </if>
+    </sql>
+
+    <!-- 排序条件 -->
+    <sql id="Simple_Order_By_Clause">
+        ORDER BY
+        <choose>
+            <when test="query.sortField != null and query.sortField != ''">
+                <choose>
+                    <when test="query.sortField == 'created_time'">c.created_time</when>
+                    <when test="query.sortField == 'like_count'">c.like_count</when>
+                    <otherwise>c.created_time</otherwise>
+                </choose>
+                <choose>
+                    <when test="query.sortOrder != null and query.sortOrder.toLowerCase() == 'asc'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <otherwise>c.created_time DESC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 分页查询评论列表 -->
+    <select id="selectSimpleCommentPage" resultMap="SimpleCommentResponseMap">
+        SELECT <include refid="Simple_Column_List" />
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN content ct ON c.content_id = ct.id
+        <include refid="Simple_Where_Clause" />
+        <include refid="Simple_Order_By_Clause" />
+    </select>
+
+    <!-- 根据ID获取评论详情 -->
+    <select id="selectSimpleCommentById" resultMap="SimpleCommentResponseMap">
+        SELECT <include refid="Simple_Column_List" />
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN content ct ON c.content_id = ct.id
+        WHERE c.id = #{id} AND c.status = 1 AND u.status = 1 AND ct.status = 1
+    </select>
+
+    <!-- 根据ID获取评论详情（不过滤状态） -->
+    <select id="selectSimpleCommentByIdWithoutStatusFilter" resultMap="SimpleCommentResponseMap">
+        SELECT <include refid="Simple_Column_List" />
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN content ct ON c.content_id = ct.id
+        WHERE c.id = #{id} AND u.status = 1 AND ct.status = 1
+    </select>
+
+    <!-- 获取子评论列表 -->
+    <select id="selectChildComments" resultType="com.qz.sns.model.entity.Comment">
+        SELECT id, content_id, comment_type, paragraph_id, status
+        FROM comment
+        WHERE parent_id = #{parentId} OR root_id = #{parentId}
+    </select>
+
+    <!-- 递归删除评论及其所有子评论 -->
+    <update id="deleteCommentAndReplies">
+        UPDATE comment
+        SET status = 0
+        WHERE status = 1 AND (id = #{commentId} OR root_id = #{commentId} OR parent_id = #{commentId})
+    </update>
+
+    <!-- 递归恢复评论及其所有子评论 -->
+    <update id="restoreCommentAndReplies">
+        UPDATE comment
+        SET status = 1
+        WHERE status = 0 AND (id = #{commentId} OR root_id = #{commentId} OR parent_id = #{commentId})
+    </update>
+
+</mapper>

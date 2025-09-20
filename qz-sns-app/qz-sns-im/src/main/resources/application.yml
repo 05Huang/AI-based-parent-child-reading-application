@@ -1,0 +1,17 @@
+spring:
+  profiles: #作用：用于指定当前环境
+    active: dev
+  application:
+    name: im
+
+websocket:
+  enable: true
+  port: 8878
+
+tcpsocket: #作用：用于IM消息的推送
+  enable: false # 暂时不开启
+  port: 8879
+
+jwt: #作用：用于用户登录的token
+  accessToken:
+    secret: MIIBIjANBgkq

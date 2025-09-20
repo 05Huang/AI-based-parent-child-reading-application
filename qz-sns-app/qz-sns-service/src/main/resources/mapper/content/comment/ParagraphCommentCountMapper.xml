@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.ParagraphCommentCountMapper">
+
+    <!-- 更新段落评论计数 -->
+    <update id="updateCommentCount">
+        INSERT INTO paragraph_comment_count (content_id, paragraph_id, comment_count, created_time, updated_time)
+        VALUES (#{contentId}, #{paragraphId}, #{increment}, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                                 comment_count = comment_count + #{increment},
+                                 updated_time = NOW()
+    </update>
+
+    <!-- 获取段落评论计数 -->
+    <select id="getCommentCount" resultType="java.lang.Integer">
+        SELECT COALESCE(comment_count, 0)
+        FROM paragraph_comment_count
+        WHERE content_id = #{contentId} AND paragraph_id = #{paragraphId}
+    </select>
+
+</mapper>

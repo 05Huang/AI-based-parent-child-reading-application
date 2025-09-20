@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.ViewHistoryMapper">
+
+    <!-- 浏览历史响应结果映射 -->
+    <resultMap id="ViewHistoryResponseMap" type="com.qz.sns.model.dto.UserViewHistoryResponseDTO">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="content_id" property="contentId" />
+        <result column="content_title" property="contentTitle" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="content_type" property="contentType" />
+        <result column="category_id" property="categoryId" />
+        <result column="category_name" property="categoryName" />
+        <result column="creator_name" property="creatorName" />
+        <result column="view_time" property="viewTime" />
+        <result column="content_status" property="contentStatus" />
+    </resultMap>
+
+    <!-- 查询字段 -->
+    <sql id="View_History_Column_List">
+        vh.id, vh.user_id, vh.content_id, vh.view_time,
+        c.title as content_title, c.cover_url, c.type as content_type,
+        c.category_id, c.status as content_status,
+        cat.name as category_name,
+        u.nickname as creator_name
+    </sql>
+
+    <!-- 查询条件 -->
+    <sql id="View_History_Where_Clause">
+        WHERE vh.user_id = #{queryDTO.userId}
+        <if test="queryDTO.contentType != null">
+            AND c.type = #{queryDTO.contentType}
+        </if>
+        <if test="queryDTO.categoryId != null">
+            AND c.category_id = #{queryDTO.categoryId}
+        </if>
+        <if test="queryDTO.startTime != null and queryDTO.startTime != ''">
+            AND vh.view_time >= #{queryDTO.startTime}
+        </if>
+        <if test="queryDTO.endTime != null and queryDTO.endTime != ''">
+            AND vh.view_time &lt;= #{queryDTO.endTime}
+        </if>
+    </sql>
+
+    <!-- 分页查询用户浏览历史 -->
+    <select id="selectViewHistoryPage" resultMap="ViewHistoryResponseMap">
+        SELECT <include refid="View_History_Column_List" />
+        FROM user_view_history vh
+        LEFT JOIN content c ON vh.content_id = c.id
+        LEFT JOIN content_category cat ON c.category_id = cat.id
+        LEFT JOIN user u ON c.creator_id = u.id
+        <include refid="View_History_Where_Clause" />
+        ORDER BY vh.view_time DESC
+    </select>
+
+    <!-- 检查用户是否已经浏览过某个内容 -->
+    <select id="checkUserViewHistory" resultType="java.lang.Long">
+        SELECT id
+        FROM user_view_history
+        WHERE user_id = #{userId} AND content_id = #{contentId}
+            LIMIT 1
+    </select>
+
+    <!-- 更新浏览时间 -->
+    <update id="updateViewTime">
+        UPDATE user_view_history
+        SET view_time = NOW()
+        WHERE user_id = #{userId} AND content_id = #{contentId}
+    </update>
+
+    <!-- 批量删除用户浏览历史 -->
+    <delete id="batchDeleteByUserAndIds">
+        DELETE FROM user_view_history
+        WHERE user_id = #{userId} AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 清空用户所有浏览历史 -->
+    <delete id="deleteAllByUser">
+        DELETE FROM user_view_history
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

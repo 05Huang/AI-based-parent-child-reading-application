@@ -1,0 +1,69 @@
+/* 底部导航栏图标 */
+.tab-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  font-size: 48rpx;
+  margin-bottom: 6rpx;
+}
+
+/* 移除旧的Font Awesome相关样式 */
+.ri-home-line::before {
+  content: "\ee0a";
+}
+
+.ri-book-open-line::before {
+  content: "\eb0c";
+}
+
+.ri-play-circle-line::before {
+  content: "\ef7c";
+}
+
+.ri-message-3-line::before {
+  content: "\ef0e";
+}
+
+.ri-user-line::before {
+  content: "\f264";
+}
+
+.ri-search-line::before {
+  content: "\f0d1";
+}
+
+.ri-mail-line::before {
+  content: "\eef6";
+}
+
+.ri-qr-code-line::before {
+  content: "\f0a5";
+}
+
+.ri-star-line::before {
+  content: "\f186";
+}
+
+.ri-crown-line::before {
+  content: "\ec4d";
+}
+
+.ri-history-line::before {
+  content: "\ee0f";
+}
+
+.ri-calendar-line::before {
+  content: "\eb1f";
+}
+
+.ri-eye-line::before {
+  content: "\ed5d";
+}
+
+/* 基础样式 */
+[class^="ri-"], [class*=" ri-"] {
+  font-family: 'remixicon' !important;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} 

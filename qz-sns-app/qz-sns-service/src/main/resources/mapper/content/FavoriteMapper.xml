@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.FavoriteMapper">
+
+    <!-- 收藏响应结果映射 -->
+    <resultMap id="UserFavoriteResponseMap" type="com.qz.sns.model.dto.UserFavoriteResponseDTO">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="content_id" property="contentId" />
+        <result column="note" property="note" />
+        <result column="created_time" property="createdTime" />
+        <result column="content_title" property="contentTitle" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="type" property="contentType" />
+        <result column="status" property="contentStatus" />
+    </resultMap>
+
+    <!-- 查询字段 -->
+    <sql id="Favorite_Column_List">
+        f.id, f.user_id, f.content_id, f.note, f.created_time,
+        c.title as content_title, c.cover_url, c.type as content_type, c.status as content_status
+    </sql>
+
+    <!-- 查询条件 -->
+    <sql id="Favorite_Where_Clause">
+        WHERE f.user_id = #{queryDTO.userId}
+        <if test="queryDTO.contentId != null">
+            AND f.content_id = #{queryDTO.contentId}
+        </if>
+        <if test="queryDTO.note != null and queryDTO.note != ''">
+            AND f.note LIKE CONCAT('%', #{queryDTO.note}, '%')
+        </if>
+        <if test="queryDTO.startTime != null and queryDTO.startTime != ''">
+            AND f.created_time >= #{queryDTO.startTime}
+        </if>
+        <if test="queryDTO.endTime != null and queryDTO.endTime != ''">
+            AND f.created_time &lt;= #{queryDTO.endTime}
+        </if>
+    </sql>
+
+    <!-- 分页查询用户收藏内容 -->
+    <select id="selectFavoritePage" resultMap="UserFavoriteResponseMap">
+        SELECT <include refid="Favorite_Column_List" />
+        FROM user_favorite f
+        LEFT JOIN content c ON f.content_id = c.id
+        <include refid="Favorite_Where_Clause" />
+        ORDER BY f.created_time DESC
+    </select>
+
+    <!-- 检查用户是否已经收藏某个内容 -->
+    <select id="checkUserFavorite" resultType="java.lang.Long">
+        SELECT id
+        FROM user_favorite
+        WHERE user_id = #{userId} AND content_id = #{contentId}
+            LIMIT 1
+    </select>
+
+    <!-- 批量删除用户收藏记录 -->
+    <delete id="batchDeleteByUserAndIds">
+        DELETE FROM user_favorite
+        WHERE user_id = #{userId} AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>
