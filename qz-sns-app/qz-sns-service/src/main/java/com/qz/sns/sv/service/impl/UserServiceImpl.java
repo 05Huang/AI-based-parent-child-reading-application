@@ -392,8 +392,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         user.setRole(dto.getRole() != null ? dto.getRole() : 1);
         user.setAvatar(dto.getAvatar() != null ? dto.getAvatar() : "http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif");
         user.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
-        user.setInterests(dto.getInterests()); // 设置用户兴趣爱好
-        this.save(user);//功能：保存用户信息
+        
+        // 设置用户兴趣爱好
+        log.info("设置用户兴趣爱好：{}", dto.getInterests());
+        user.setInterests(dto.getInterests());
+        
+        // 保存用户信息
+        log.info("即将保存的用户信息：{}", user);
+        this.save(user);
         user = this.findUserByPhone(dto.getPhone());
         // 生成token
         UserSession session = BeanUtils.copyProperties(user, UserSession.class);//功能：将user对象转换为session对象

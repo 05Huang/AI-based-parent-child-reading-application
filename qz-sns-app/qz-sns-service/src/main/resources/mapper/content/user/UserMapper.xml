@@ -16,14 +16,15 @@
         <result column="role" property="role" />
         <result column="status" property="status" />
         <result column="wechat_id" property="wechatId" />
+        <result column="interests" property="interests" />
         <result column="created_time" property="createdTime" />
         <result column="updated_time" property="updatedTime" />
     </resultMap>
 
     <!-- 基础字段列表 -->
     <sql id="Base_Column_List">
-        id, username, phone, password, nickname, avatar, avatar_thumb, sex,
-        user_type, role, status, wechat_id, created_time, updated_time
+        id, username, phone, email, password, nickname, avatar, avatar_thumb, sex,
+        user_type, role, status, wechat_id, interests, created_time, updated_time
     </sql>
 
     <!-- 分页查询用户列表 -->
@@ -76,5 +77,14 @@
         FROM user
         WHERE wechat_id = #{wechatId} AND status = 1
     </select>
+
+    <!-- 插入新用户 -->
+    <insert id="insert" parameterType="com.qz.sns.model.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (
+            username, phone, email, password, nickname, avatar, role, status, interests
+        ) VALUES (
+            #{username}, #{phone}, #{email}, #{password}, #{nickname}, #{avatar}, #{role}, #{status}, #{interests}
+        )
+    </insert>
 
 </mapper>

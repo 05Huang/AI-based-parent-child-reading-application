@@ -109,7 +109,7 @@ const avatarFile = ref(null)
 
 // 兴趣标签
 const interests = ref([
-  { name: '文学', active: true },
+  { name: '文学', active: false },
   { name: '科普', active: false },
   { name: '历史', active: false },
   { name: '艺术', active: false },
@@ -123,6 +123,22 @@ const togglePassword = () => {
 
 const toggleInterest = (index) => {
   interests.value[index].active = !interests.value[index].active
+  
+  // 使用JSON.stringify来打印更清晰的状态
+  const currentTag = interests.value[index]
+  console.log(`切换兴趣标签：${JSON.stringify({
+    name: currentTag.name,
+    active: currentTag.active
+  }, null, 2)}`)
+  
+  // 打印所有标签的当前状态
+  console.log('当前所有兴趣标签状态：', JSON.stringify(
+    interests.value.map(tag => ({
+      name: tag.name,
+      active: tag.active
+    })),
+    null, 2
+  ))
 }
 
 // 验证手机号格式
@@ -256,15 +272,46 @@ const handleRegister = async () => {
      }
      
      // 获取选中的兴趣标签
-     const selectedInterests = interests.value
-       .filter(tag => tag.active)
-       .map(tag => tag.name)
+     console.log('注册前所有兴趣标签状态：', JSON.stringify(
+       interests.value.map(tag => ({
+         name: tag.name,
+         active: tag.active
+       })),
+       null, 2
+     ))
+     
+     // 过滤出选中的标签
+     const activeInterests = interests.value.filter(tag => tag.active)
+     console.log('选中的标签：', JSON.stringify(
+       activeInterests.map(tag => ({
+         name: tag.name,
+         active: tag.active
+       })),
+       null, 2
+     ))
+     
+     // 提取标签名称
+     const selectedInterests = activeInterests.map(tag => tag.name)
+     console.log('选中的标签名称：', selectedInterests)
+     
+     // 检查是否至少选择了一个兴趣标签
+     if (selectedInterests.length === 0) {
+       uni.showToast({
+         title: '请至少选择一个兴趣标签',
+         icon: 'none'
+       })
+       return
+     }
+     
+     // 将选中的标签转换为字符串
+     const interestsString = selectedInterests.join(',')
+     console.log('最终的兴趣标签字符串：', interestsString)
      
      // 生成用户名（使用昵称+随机数）
      const username = `user_${Math.floor(Math.random() * 10000)}`;
      
-     // 调用后端注册接口
-     const res = await request.post('/api/user/register-by-phone', {
+     // 构建请求数据
+     const requestData = {
        username: username,
        nickname: nickname.value,
        phone: phoneNumber.value,
@@ -273,8 +320,14 @@ const handleRegister = async () => {
        avatar: avatarUrl.value, // 使用上传后的头像URL
        role: 1, // 家长角色
        status: 1, // 正常状态
-       interests: selectedInterests.join(',') // 将兴趣爱好数组转为逗号分隔的字符串
-     })
+       interests: interestsString // 将兴趣爱好数组转为逗号分隔的字符串
+     }
+     
+     // 打印请求数据
+     console.log('发送注册请求数据：', JSON.stringify(requestData, null, 2))
+     
+     // 调用后端注册接口
+     const res = await request.post('/api/user/register-by-phone', requestData)
     
     console.log('注册响应：', res)
     

@@ -99,6 +99,8 @@ public class UserController {
      */
     @PostMapping("/register-by-phone")
     public Result<LoginVO> registerByPhone(@RequestBody RgisterByPhoneDTO dto) {
+        log.info("接收手机号注册请求，请求数据：{}", dto);
+        
         if (dto.getPhone() == null || dto.getPhone().isEmpty()) {
             return ResultUtils.error(400, "手机号不能为空");
         }
@@ -109,6 +111,8 @@ public class UserController {
 
         // 为email设置一个默认值（使用手机号作为临时邮箱）
         dto.setEmail(dto.getPhone() + "@temp.com");
+        
+        log.info("处理后的注册数据：{}", dto);
 
         try {
             LoginVO loginVO = userService.registerByPhone(dto);
