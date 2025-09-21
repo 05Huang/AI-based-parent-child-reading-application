@@ -103,7 +103,7 @@ const countdown = ref(0)
 const timer = ref(null)
 
 // 头像相关
-const defaultAvatarUrl = 'http://127.0.0.1:9000/qz-sns/image/default-avatar.jpg'
+const defaultAvatarUrl = 'http://127.0.0.1:9000/qz-sns/image/register/avatar/default-avatar.jpg'
 const avatarUrl = ref('')
 const avatarFile = ref(null)
 
@@ -375,7 +375,8 @@ const chooseAvatar = () => {
             filePath: tempFilePath,
             name: 'file',
             formData: {
-              type: 'image'
+              type: 'image',
+              path: 'register/avatar' // 指定上传到的子目录
             },
             success: (res) => {
               if (res.statusCode === 200) {

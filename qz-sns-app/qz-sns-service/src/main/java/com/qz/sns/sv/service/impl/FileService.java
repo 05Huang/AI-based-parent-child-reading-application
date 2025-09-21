@@ -94,6 +94,10 @@ public class FileService {
     }
 
     public UploadImageVO uploadImage(MultipartFile file) {
+        return uploadImage(file, null);
+    }
+
+    public UploadImageVO uploadImage(MultipartFile file, String customPath) {
         try {
 //            Long userId = SessionContext.getSession().getUserId();//获取当前用户id--必须要登录
             // 大小校验
@@ -104,23 +108,32 @@ public class FileService {
             if (!FileUtil.isImage(file.getOriginalFilename())) {
                 throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片格式不合法");
             }
+            
+            // 构建完整的上传路径
+            String uploadPath = minioConfig.getImagePath();
+            if (StringUtils.isNotEmpty(customPath)) {
+                uploadPath = uploadPath + "/" + customPath;
+            }
+            log.info("上传路径：{}", uploadPath);
+            
             // 上传原图
             UploadImageVO vo = new UploadImageVO();
-            String fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getImagePath(), file);
+            String fileName = minioUtil.upload(minioConfig.getBucketName(), uploadPath, file);
             if (StringUtils.isEmpty(fileName)) {
                 throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片上传失败");
             }
-            vo.setOriginUrl(generUrl(FileType.IMAGE, fileName));
+            vo.setOriginUrl(generUrl(FileType.IMAGE, fileName, customPath));
+            
             // 大于30K的文件需上传缩略图
             if (file.getSize() > 30 * 1024) {
                 byte[] imageByte = ImageUtil.compressForScale(file.getBytes(), 30);
-                fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getImagePath(), Objects.requireNonNull(file.getOriginalFilename()), imageByte, file.getContentType());
+                fileName = minioUtil.upload(minioConfig.getBucketName(), uploadPath, Objects.requireNonNull(file.getOriginalFilename()), imageByte, file.getContentType());
                 if (StringUtils.isEmpty(fileName)) {
                     throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片上传失败");
                 }
             }
-            vo.setThumbUrl(generUrl(FileType.IMAGE, fileName));
-            log.info("文件图片成功，用户id:{},url:{}",2, vo.getOriginUrl());
+            vo.setThumbUrl(generUrl(FileType.IMAGE, fileName, customPath));
+            log.info("文件图片上传成功，url:{}", vo.getOriginUrl());
             return vo;
         } catch (IOException e) {
             log.error("上传图片失败，{}", e.getMessage(), e);
@@ -166,6 +179,10 @@ public class FileService {
 
 
     public String generUrl(FileType fileTypeEnum, String fileName) {
+        return generUrl(fileTypeEnum, fileName, null);
+    }
+
+    public String generUrl(FileType fileTypeEnum, String fileName, String customPath) {
         String url = minioConfig.getDomain() + "/" + minioConfig.getBucketName();
         switch (fileTypeEnum) {
             case FILE:
@@ -173,6 +190,9 @@ public class FileService {
                 break;
             case IMAGE:
                 url += "/" + minioConfig.getImagePath() + "/";
+                if (StringUtils.isNotEmpty(customPath)) {
+                    url += customPath + "/";
+                }
                 break;
             case VIDEO:
                 url += "/" + minioConfig.getVideoPath() + "/";

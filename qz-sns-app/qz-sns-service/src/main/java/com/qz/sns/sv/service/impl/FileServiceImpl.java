@@ -22,13 +22,22 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public UploadImageVO uploadImage(MultipartFile file) throws Exception {
+        return uploadImage(file, null);
+    }
+
+    @Override
+    public UploadImageVO uploadImage(MultipartFile file, String customPath) throws Exception {
         // 生成文件名
         String originalFilename = file.getOriginalFilename();
         String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         String fileName = UUID.randomUUID().toString() + extension;
         
         // 构建存储路径
-        String objectName = minioConfig.getImagePath() + "/" + fileName;
+        String objectName = minioConfig.getImagePath();
+        if (customPath != null && !customPath.isEmpty()) {
+            objectName = objectName + "/" + customPath;
+        }
+        objectName = objectName + "/" + fileName;
         
         try (InputStream inputStream = file.getInputStream()) {
             // 上传文件
