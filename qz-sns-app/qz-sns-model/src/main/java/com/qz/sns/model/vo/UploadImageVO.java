@@ -1,15 +1,26 @@
 package com.qz.sns.model.vo;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@Schema(description = "图片上传VO")
 public class UploadImageVO {
-
-    @Schema(description = "原图")
+    /**
+     * 原图URL
+     */
     private String originUrl;
 
-    @Schema(description = "缩略图")
+    /**
+     * 缩略图URL（如果有）
+     */
     private String thumbUrl;
+
+    /**
+     * 文件名
+     */
+    private String fileName;
+
+    /**
+     * 文件大小（字节）
+     */
+    private Long fileSize;
 }

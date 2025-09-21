@@ -40,7 +40,8 @@ public class AuthInterceptor implements HandlerInterceptor {
             "/api/user/send-email-code", // 获取邮箱验证码接口
             "/api/user/check-email/**",  // 检查邮箱是否已注册接口
             "/api/user/check-phone/**",  // 检查手机号是否已注册接口
-            "/api/user/reset-password"   // 重置密码接口
+            "/api/user/reset-password",  // 重置密码接口
+            "/api/file/upload"           // 文件上传接口
     );
 
     @Override

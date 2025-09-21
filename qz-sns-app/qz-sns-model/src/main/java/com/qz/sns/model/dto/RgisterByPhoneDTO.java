@@ -20,4 +20,5 @@ public class RgisterByPhoneDTO {
     private Integer role = 1; // 默认为家长角色
     private Integer status = 1; // 默认为正常状态
     private Integer terminal = 1; // 默认为1
+    private String interests; // 用户兴趣爱好，逗号分隔的字符串
 }

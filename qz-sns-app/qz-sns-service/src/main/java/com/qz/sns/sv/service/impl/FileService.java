@@ -3,7 +3,7 @@ package com.qz.sns.sv.service.impl;
 import com.qz.sns.common.utils.BeanUtils;
 import com.qz.sns.model.dto.VideoUploadRequest;
 import com.qz.sns.model.entity.Content;
-import com.qz.sns.sv.config.props.MinioProperties;
+import com.qz.sns.sv.config.MinioConfig;
 import com.qz.sns.common.constant.Constant;
 import com.qz.sns.common.enums.FileType;
 import com.qz.sns.common.enums.ResultCode;
@@ -49,16 +49,30 @@ import java.util.Objects;
 public class FileService {
     private final MinioUtil minioUtil;
     private final ContentMapper contentMapper;
-    private  final MinioProperties minioProps;
+    private final MinioConfig minioConfig;
 
 
-    @PostConstruct// 初始化bucket
+    @PostConstruct
     public void init() {
-        if (!minioUtil.bucketExists(minioProps.getBucketName())) {
-            // 创建bucket
-            minioUtil.makeBucket(minioProps.getBucketName());
-            // 公开bucket
-            minioUtil.setBucketPublic(minioProps.getBucketName());
+        String bucketName = minioConfig.getBucketName();
+        log.info("正在初始化MinIO存储桶: {}", bucketName);
+        
+        try {
+            // 检查存储桶是否存在
+            if (!minioUtil.bucketExists(bucketName)) {
+                log.info("存储桶{}不存在，开始创建", bucketName);
+                // 创建存储桶
+                minioUtil.makeBucket(bucketName);
+                log.info("存储桶{}创建成功", bucketName);
+            }
+            
+            // 无论存储桶是否存在，都设置公开访问策略
+            minioUtil.setBucketPublic(bucketName);
+            
+            log.info("MinIO存储桶{}初始化完成", bucketName);
+        } catch (Exception e) {
+            log.error("初始化MinIO存储桶{}失败: {}", bucketName, e.getMessage(), e);
+            throw new RuntimeException("初始化MinIO存储桶失败", e);
         }
     }
 
@@ -70,7 +84,7 @@ public class FileService {
             throw new GlobalException(ResultCode.PROGRAM_ERROR, "文件大小不能超过20M");
         }
         // 上传
-        String fileName = minioUtil.upload(minioProps.getBucketName(), minioProps.getFilePath(), file);
+        String fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getFilePath(), file);
         if (StringUtils.isEmpty(fileName)) {
             throw new GlobalException(ResultCode.PROGRAM_ERROR, "文件上传失败");
         }
@@ -92,7 +106,7 @@ public class FileService {
             }
             // 上传原图
             UploadImageVO vo = new UploadImageVO();
-            String fileName = minioUtil.upload(minioProps.getBucketName(), minioProps.getImagePath(), file);
+            String fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getImagePath(), file);
             if (StringUtils.isEmpty(fileName)) {
                 throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片上传失败");
             }
@@ -100,7 +114,7 @@ public class FileService {
             // 大于30K的文件需上传缩略图
             if (file.getSize() > 30 * 1024) {
                 byte[] imageByte = ImageUtil.compressForScale(file.getBytes(), 30);
-                fileName = minioUtil.upload(minioProps.getBucketName(), minioProps.getImagePath(), Objects.requireNonNull(file.getOriginalFilename()), imageByte, file.getContentType());
+                fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getImagePath(), Objects.requireNonNull(file.getOriginalFilename()), imageByte, file.getContentType());
                 if (StringUtils.isEmpty(fileName)) {
                     throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片上传失败");
                 }
@@ -130,7 +144,7 @@ public class FileService {
                     throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频大小不能超过200M");
                 }
                 // 上传
-                String fileName = minioUtil.upload(minioProps.getBucketName(), minioProps.getVideoPath(), videoFile);
+                String fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getVideoPath(), videoFile);
                 if (StringUtils.isEmpty(fileName)) {
                     throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频上传失败");
                 }
@@ -152,16 +166,16 @@ public class FileService {
 
 
     public String generUrl(FileType fileTypeEnum, String fileName) {
-        String url = minioProps.getDomain() + "/" + minioProps.getBucketName();
+        String url = minioConfig.getDomain() + "/" + minioConfig.getBucketName();
         switch (fileTypeEnum) {
             case FILE:
-                url += "/" + minioProps.getFilePath() + "/";
+                url += "/" + minioConfig.getFilePath() + "/";
                 break;
             case IMAGE:
-                url += "/" + minioProps.getImagePath() + "/";
+                url += "/" + minioConfig.getImagePath() + "/";
                 break;
             case VIDEO:
-                url += "/" + minioProps.getVideoPath() + "/";
+                url += "/" + minioConfig.getVideoPath() + "/";
                 break;
             default:
                 break;
@@ -186,7 +200,7 @@ public class FileService {
         BufferedImage resizedImage = resizeImage(file);
 
         // 上传处理后的图片
-        String fileName = minioUtil.upload(minioProps.getBucketName(), minioProps.getImagePath(), convertToMultipartFile(resizedImage));
+        String fileName = minioUtil.upload(minioConfig.getBucketName(), minioConfig.getImagePath(), convertToMultipartFile(resizedImage));
         if (StringUtils.isEmpty(fileName)) {
             throw new GlobalException(ResultCode.PROGRAM_ERROR, "图片上传失败");
         }
@@ -235,14 +249,14 @@ public class FileService {
             if (fileUrl == null || fileUrl.isEmpty()) {
                 return false;
             }
-            String basePath = minioProps.getImagePath(); // 比如 "images/"
+            String basePath = minioConfig.getImagePath(); // 比如 "images/"
             int baseIndex = fileUrl.indexOf(basePath);
             if (baseIndex == -1) {
                 return false;
             }
             String objectKey = fileUrl.substring(baseIndex); // 得到 images/xxx.jpg
             System.out.println("删除对象key: " + objectKey);
-            return minioUtil.remove(minioProps.getBucketName(), objectKey);
+            return minioUtil.remove(minioConfig.getBucketName(), objectKey);
         } catch (Exception e) {
             log.error("删除文件失败，{}", e.getMessage(), e);
             return false;

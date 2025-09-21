@@ -50,21 +50,22 @@ public class MinioUtil {
      */
     public void setBucketPublic(String bucketName) {
         try {
-            // 设置公开
-            String sb = "{\"Version\":\"2012-10-17\"," +
-                    "\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":" +
-                    "{\"AWS\":[\"*\"]},\"Action\":[\"s3:ListBucket\",\"s3:ListBucketMultipartUploads\"," +
-                    "\"s3:GetBucketLocation\"],\"Resource\":[\"arn:aws:s3:::" + bucketName +
-                    "\"]},{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:PutObject\",\"s3:AbortMultipartUpload\",\"s3:DeleteObject\",\"s3:GetObject\",\"s3:ListMultipartUploadParts\"],\"Resource\":[\"arn:aws:s3:::" +
-                    bucketName +
-                    "/*\"]}]}";
+            // 设置公开读取权限的策略
+            String readOnlyPolicy = String.format(
+                "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::%s/*\"]}]}",
+                bucketName
+            );
+            
+            log.info("正在设置存储桶{}的公开访问策略", bucketName);
             minioClient.setBucketPolicy(
-                    SetBucketPolicyArgs.builder()
-                            .bucket(bucketName)
-                            .config(sb)
-                            .build());
+                SetBucketPolicyArgs.builder()
+                    .bucket(bucketName)
+                    .config(readOnlyPolicy)
+                    .build()
+            );
+            log.info("存储桶{}的公开访问策略设置成功", bucketName);
         } catch (Exception e) {
-            log.error("创建bucket失败,", e);
+            log.error("设置存储桶{}的公开访问策略失败: {}", bucketName, e.getMessage(), e);
         }
     }
 

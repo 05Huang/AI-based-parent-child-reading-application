@@ -62,6 +62,9 @@ public class User implements Serializable {
     @ApiModelProperty("微信openid")
     private String wechatId;
 
+    @ApiModelProperty("兴趣爱好（逗号分隔的字符串）")
+    private String interests;
+
     private LocalDateTime createdTime;
 
     private LocalDateTime updatedTime;

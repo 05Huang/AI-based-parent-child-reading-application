@@ -15,12 +15,12 @@
       <!-- 头像上传 -->
       <view class="avatar-section" @click="chooseAvatar">
         <view class="avatar-container">
-          <image class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+          <image class="avatar-img" :src="avatarUrl || defaultAvatarUrl" mode="aspectFill"></image>
           <view class="camera-btn">
             <text class="fas fa-camera"></text>
           </view>
         </view>
-        <text class="avatar-tip">点击更换头像</text>
+        <text class="avatar-tip">{{ avatarUrl ? '点击更换头像' : '点击上传头像' }}</text>
       </view>
 
       <!-- 注册表单 -->
@@ -103,7 +103,8 @@ const countdown = ref(0)
 const timer = ref(null)
 
 // 头像相关
-const avatarUrl = ref('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop&q=60')
+const defaultAvatarUrl = 'http://127.0.0.1:9000/qz-sns/image/default-avatar.jpg'
+const avatarUrl = ref('')
 const avatarFile = ref(null)
 
 // 兴趣标签
@@ -245,6 +246,15 @@ const handleRegister = async () => {
    try {
      console.log('发送注册请求')
      
+     // 检查头像是否已上传
+     if (!avatarUrl.value) {
+       uni.showToast({
+         title: '请上传头像',
+         icon: 'none'
+       })
+       return
+     }
+     
      // 获取选中的兴趣标签
      const selectedInterests = interests.value
        .filter(tag => tag.active)
@@ -260,9 +270,10 @@ const handleRegister = async () => {
        phone: phoneNumber.value,
        verificationCode: verifyCode.value,
        password: password.value,
-       avatar: 'http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif', // 默认头像
+       avatar: avatarUrl.value, // 使用上传后的头像URL
        role: 1, // 家长角色
-       status: 1 // 正常状态
+       status: 1, // 正常状态
+       interests: selectedInterests.join(',') // 将兴趣爱好数组转为逗号分隔的字符串
      })
     
     console.log('注册响应：', res)
@@ -297,11 +308,58 @@ const chooseAvatar = () => {
     count: 1,
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
-    success: (res) => {
+    success: async (res) => {
       console.log('选择头像成功：', res)
       const tempFilePath = res.tempFilePaths[0]
-      avatarUrl.value = tempFilePath
-      avatarFile.value = res.tempFiles[0]
+      
+      try {
+        console.log('开始上传头像')
+        
+        // 上传文件到MinIO
+        const uploadRes = await new Promise((resolve, reject) => {
+          uni.uploadFile({
+            url: 'http://127.0.0.1:8888/api/file/upload',
+            filePath: tempFilePath,
+            name: 'file',
+            formData: {
+              type: 'image'
+            },
+            success: (res) => {
+              if (res.statusCode === 200) {
+                try {
+                  const data = JSON.parse(res.data)
+                  if (data.code === 200) {
+                    resolve(data)
+                  } else {
+                    reject(new Error(data.message || '上传失败'))
+                  }
+                } catch (e) {
+                  reject(new Error('解析响应失败'))
+                }
+              } else {
+                reject(new Error('上传失败'))
+              }
+            },
+            fail: (err) => {
+              reject(err)
+            }
+          })
+        })
+        
+        console.log('头像上传响应：', uploadRes)
+        
+        avatarUrl.value = uploadRes.data.originUrl
+        uni.showToast({
+          title: '头像上传成功',
+          icon: 'success'
+        })
+      } catch (error) {
+        console.error('头像上传失败：', error)
+        uni.showToast({
+          title: '头像上传失败',
+          icon: 'none'
+        })
+      }
     },
     fail: (err) => {
       console.error('选择头像失败：', err)
@@ -311,38 +369,6 @@ const chooseAvatar = () => {
       })
     }
   })
-}
-
-// 上传头像
-const uploadAvatar = async () => {
-  if (!avatarFile.value) {
-    return null
-  }
-
-  try {
-    console.log('开始上传头像')
-    
-    // 创建FormData对象
-    const formData = new FormData()
-    formData.append('file', avatarFile.value)
-    
-    // 调用后端上传接口
-    const res = await request.post('/api/user/upload-avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    
-    console.log('头像上传响应：', res)
-    return res.data.url
-  } catch (error) {
-    console.error('头像上传失败：', error)
-    uni.showToast({
-      title: '头像上传失败',
-      icon: 'none'
-    })
-    return null
-  }
 }
 
 const goBack = () => {
