@@ -6,7 +6,7 @@
         <text class="fa-solid fa-book-reader"></text>
       </view>
       <text class="title">亲子阅读</text>
-      <text class="subtitle">与AI一起探索阅读的乐趣</text>h
+      <text class="subtitle">与AI一起探索阅读的乐趣</text>
     </view>
 
     <!-- 登录表单 -->
@@ -131,10 +131,38 @@ const getVerifyCode = async () => {
     }, 1000)
   } catch (error) {
     console.error('获取验证码出错：', error)
+    
+    // 解析错误信息
+    let errorMessage = '获取验证码失败，请稍后重试'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      
+      // 根据后端返回的错误码或消息显示不同的提示
+      if (responseData.code === 400) {
+        if (responseData.message.includes('手机号')) {
+          errorMessage = responseData.message || '手机号格式不正确'
+        }
+      } else if (responseData.code === 429) {
+        errorMessage = '发送过于频繁，请稍后再试'
+      }
+    }
+    
+    // 显示错误提示
     uni.showToast({
-      title: '获取验证码失败，请稍后重试',
-      icon: 'none'
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
     })
+    
+    // 如果是发送频繁的错误，重置倒计时
+    if (errorMessage.includes('频繁')) {
+      countdown.value = 0
+      if (timer.value) {
+        clearInterval(timer.value)
+        timer.value = null
+      }
+    }
   }
 }
 
@@ -173,31 +201,83 @@ const handleLogin = async () => {
     // 调用后端登录接口
     const res = await request.post('/api/user/login-by-phone', {
       phone: phoneNumber.value,
-      verificationCode: verifyCode.value
+      verificationCode: verifyCode.value,
+      terminal: 1  // 终端类型：1表示移动端
     })
     
     console.log('登录响应：', res)
     
-    // 保存token
-    uni.setStorageSync('token', res.data.token)
+    // 保存token和登录状态
+    console.log('登录成功，保存token：', res.data)
+    uni.setStorageSync('token', res.data.accessToken)
+    uni.setStorageSync('isLoggedIn', true)
     
-    // 显示登录成功提示
+    // 显示登录成功提示并跳转
     uni.showToast({
       title: '登录成功',
-      icon: 'success'
+      icon: 'success',
+      duration: 1500,
+      success: () => {
+        // 等待提示显示完毕后跳转
+        setTimeout(() => {
+          console.log('准备跳转到首页')
+          // 尝试使用switchTab跳转
+          uni.switchTab({
+            url: '/pages/parent/home/home',
+            success: () => {
+              console.log('跳转到首页成功')
+            },
+            fail: (error) => {
+              console.error('switchTab跳转失败，尝试使用navigateTo', error)
+              // 如果switchTab失败，尝试使用navigateTo
+              uni.navigateTo({
+                url: '/pages/parent/home/home',
+                success: () => {
+                  console.log('navigateTo跳转成功')
+                },
+                fail: (navError) => {
+                  console.error('所有跳转方式都失败', navError)
+                  // 最后尝试使用reLaunch
+                  uni.reLaunch({
+                    url: '/pages/parent/home/home'
+                  })
+                }
+              })
+            }
+          })
+        }, 1500)
+      }
     })
-    
-    // 跳转到首页
-    setTimeout(() => {
-      uni.reLaunch({
-        url: '/pages/parent/home/home'
-      })
-    }, 1500)
   } catch (error) {
     console.error('登录出错：', error)
+    
+    // 解析错误信息
+    let errorMessage = '登录失败，请稍后重试'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      
+      // 根据后端返回的错误码或消息显示不同的提示
+      if (responseData.code === 400) {
+        if (responseData.message.includes('验证码')) {
+          errorMessage = responseData.message || '验证码错误或已过期'
+        } else if (responseData.message.includes('手机号')) {
+          errorMessage = responseData.message || '手机号格式不正确'
+        } else if (responseData.message.includes('不存在')) {
+          errorMessage = '该手机号尚未注册，请先注册'
+        }
+      } else if (responseData.code === 500) {
+        if (responseData.message.includes('禁用')) {
+          errorMessage = '账号已被禁用，请联系客服'
+        }
+      }
+    }
+    
+    // 显示错误提示
     uni.showToast({
-      title: '登录失败，请稍后重试',
-      icon: 'none'
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
     })
   }
 }

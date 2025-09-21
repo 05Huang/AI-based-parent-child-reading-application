@@ -166,6 +166,28 @@ public class UserController {
     /**
      * 邮箱验证码登录
      */
+    /**
+     * 手机号验证码登录
+     */
+    @PostMapping("/login-by-phone")
+    public Result<LoginVO> loginByPhone(@RequestBody PhoneLoginDTO dto) {
+        if (dto.getPhone() == null || dto.getPhone().isEmpty()) {
+            return ResultUtils.error(400, "手机号不能为空");
+        }
+
+        if (dto.getVerificationCode() == null || dto.getVerificationCode().isEmpty()) {
+            return ResultUtils.error(400, "验证码不能为空");
+        }
+
+        try {
+            LoginVO loginVO = userService.loginByPhone(dto);
+            return ResultUtils.success(loginVO);
+        } catch (Exception e) {
+            log.error("手机号登录失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, e.getMessage());
+        }
+    }
+
     @PostMapping("/login-by-email")
     public Result<LoginVO> loginByEmail(@RequestBody EmailLoginDTO dto) {
         if (dto.getEmail() == null || dto.getEmail().isEmpty()) {

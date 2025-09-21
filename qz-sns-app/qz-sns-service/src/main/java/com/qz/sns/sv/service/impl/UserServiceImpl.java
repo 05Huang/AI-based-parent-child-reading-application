@@ -235,6 +235,54 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
+    public LoginVO loginByPhone(PhoneLoginDTO dto) {
+        // 1. 校验手机号格式
+        if (!RegexUtil.isPhone(dto.getPhone())) {
+            throw new GlobalException("手机号格式不正确");
+        }
+
+        // 2. 检查验证码是否正确
+        String code = redisTemplate.opsForValue().get(REDIS_SMS_CODE + dto.getPhone());
+        if (!dto.getVerificationCode().equals(code)) {
+            throw new GlobalException("验证码错误或过期");
+        }
+
+        // 3. 获取用户
+        User user = this.findUserByPhone(dto.getPhone());
+        if (Objects.isNull(user)) {
+            throw new GlobalException("用户不存在");
+        }
+
+        if (user.getStatus() == 0) {
+            throw new GlobalException("您的账号已被管理员封禁,请联系客服!");
+        }
+
+        // 4. 生成token
+        UserSession session = BeanUtils.copyProperties(user, UserSession.class);
+        session.setUserId(user.getId());
+        session.setTerminal(dto.getTerminal());
+        session.setUserType(user.getUserType());
+
+        String strJson = JSON.toJSONString(session);
+        String accessToken = JwtUtil.sign(user.getId(), strJson, jwtProperties.getAccessTokenExpireIn(),
+                jwtProperties.getAccessTokenSecret());
+        String refreshToken = JwtUtil.sign(user.getId(), strJson, jwtProperties.getRefreshTokenExpireIn(),
+                jwtProperties.getRefreshTokenSecret());
+
+        // 5. 删除Redis中的验证码
+        redisTemplate.delete(REDIS_SMS_CODE + dto.getPhone());
+
+        // 6. 返回登录信息
+        LoginVO vo = new LoginVO();
+        vo.setAccessToken(accessToken);
+        vo.setAccessTokenExpiresIn(jwtProperties.getAccessTokenExpireIn());
+        vo.setRefreshToken(refreshToken);
+        vo.setRefreshTokenExpiresIn(jwtProperties.getRefreshTokenExpireIn());
+        vo.setRole(user.getRole());
+        return vo;
+    }
+
+    @Override
     public LoginVO loginByEmail(EmailLoginDTO dto) {
         // 1. 校验邮箱格式
         if (!RegexUtil.isEmail(dto.getEmail())) {

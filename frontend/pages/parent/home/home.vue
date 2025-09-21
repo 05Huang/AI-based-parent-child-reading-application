@@ -171,11 +171,19 @@ import { onMounted, ref, nextTick } from 'vue'
 
 // 页面加载时检查登录状态
 onMounted(() => {
+  console.log('首页加载，检查登录状态')
   const token = uni.getStorageSync('token')
-  if (!token) {
+  const isLoggedIn = uni.getStorageSync('isLoggedIn')
+  
+  console.log('当前登录状态：', { token, isLoggedIn })
+  
+  if (!token || !isLoggedIn) {
+    console.log('未登录，跳转到登录页')
     uni.redirectTo({
       url: '/pages/parent/login/login'
     })
+  } else {
+    console.log('已登录，停留在首页')
   }
 })
 

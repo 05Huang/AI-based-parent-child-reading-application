@@ -157,6 +157,13 @@ public interface IUserService extends IService<User> {
     Result<String> sendEmailVerifyCode(String email);
     LoginVO registerByEmail(RegisterByEmailDTO dto);
     LoginVO loginByEmail(EmailLoginDTO dto);
+
+    /**
+     * 手机号验证码登录
+     * @param dto 登录参数
+     * @return 登录结果
+     */
+    LoginVO loginByPhone(PhoneLoginDTO dto);
     User findByEmail(String email);
     User findByUsername(String username);
     Result<String> resetPassword(ResetPasswordRequest request);
