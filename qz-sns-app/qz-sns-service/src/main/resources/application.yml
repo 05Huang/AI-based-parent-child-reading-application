@@ -15,8 +15,7 @@ spring:
     password: 123456
   data:
     redis:
-      host: 114.55.233.139
-      password: Lb040212
+      host: 127.0.0.1
       port: 6379
       database: 1
       timeout: 50000
@@ -59,10 +58,10 @@ dashscope:
   apikey: sk-82186eaa4879454dadb57fd5007fd1f4 # 替换为实际的API Key
 
 minio:
-  endpoint: http://114.55.233.139:9000 #内网地址
-  domain: http://114.55.233.139:9000  #外网访问地址
-  accessKey: minio
-  secretKey: minio123
+  endpoint: http://127.0.0.1:9000 #内网地址
+  domain: http://127.0.0.1:9000  #外网访问地址
+  accessKey: admin
+  secretKey: admin123456
   bucketName: qz-sns
   imagePath: image
   filePath: file

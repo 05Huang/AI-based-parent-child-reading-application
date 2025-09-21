@@ -1,0 +1,28 @@
+发送短信验证码
+适用场景
+用户注册、登录验证、找回密码、支付确认等需要身份验证的场景
+📋 配置步骤
+1
+创建消息模板
+点击"消息模板" -> "新建"
+2
+获取模板编号
+复制已创建的消息模板编号
+3
+拼接请求URL
+根据模板编号拼接请求URL，例如：`https://push.spug.cc/send/A27L****bgEY`
+4
+调用接口
+根据选择的模板传递模板参数，调用接口
+
+ 代码调用示例
+curl 示例
+curl https://push.spug.cc/send/A27L****bgEY -d "name=推送助手&code=153146&targets=186xxxx9898"
+Python 示例
+import requests
+
+body = {'name': '推送助手', 'code': '153146', 'targets': '186xxxx9898'}
+requests.post('https://push.spug.cc/send/A27L****bgEY', json=body)
+JavaScript 示例
+let body = JSON.stringify({name: '推送助手', code: 153146, targets: '186xxxx9898'})
+fetch('https://push.spug.cc/send/LQj4EKrl', {method: 'post', body: body})
