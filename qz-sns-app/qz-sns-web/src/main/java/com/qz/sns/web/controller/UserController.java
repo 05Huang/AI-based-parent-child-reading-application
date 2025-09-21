@@ -95,6 +95,50 @@ public class UserController {
     }
 
     /**
+     * 使用手机号验证码注册
+     */
+    @PostMapping("/register-by-phone")
+    public Result<LoginVO> registerByPhone(@RequestBody RgisterByPhoneDTO dto) {
+        if (dto.getPhone() == null || dto.getPhone().isEmpty()) {
+            return ResultUtils.error(400, "手机号不能为空");
+        }
+
+        if (dto.getVerificationCode() == null || dto.getVerificationCode().isEmpty()) {
+            return ResultUtils.error(400, "验证码不能为空");
+        }
+
+        // 为email设置一个默认值（使用手机号作为临时邮箱）
+        dto.setEmail(dto.getPhone() + "@temp.com");
+
+        try {
+            LoginVO loginVO = userService.registerByPhone(dto);
+            return ResultUtils.success(loginVO);
+        } catch (Exception e) {
+            log.error("手机号注册失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 上传头像
+     */
+    @PostMapping("/upload-avatar")
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResultUtils.error(400, "请选择要上传的头像");
+        }
+
+        try {
+            // TODO: 实现文件上传到MinIO的逻辑
+            String avatarUrl = "https://example.com/default-avatar.png"; // 临时返回默认头像
+            return ResultUtils.success(avatarUrl);
+        } catch (Exception e) {
+            log.error("上传头像失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "上传头像失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 用户名密码登录
      */
     @PostMapping("/login")

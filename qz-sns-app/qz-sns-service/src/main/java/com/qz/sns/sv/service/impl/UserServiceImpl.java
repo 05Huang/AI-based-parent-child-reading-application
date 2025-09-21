@@ -385,12 +385,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 4. 注册。设置默认信息
         User user = new User();
         user.setPhone(dto.getPhone());
-        user.setRole(1);
-        user.setAvatar("http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif");
-        user.setStatus(1);
-        user.setUsername(generateRandomUsername(dto.getPhone())); // 生成随机用户名
-        user.setNickname(generateRandomUsername(dto.getPhone()));
-        user.setPassword(passwordEncoder.encode("123456")); // 默认密码
+        user.setUsername(dto.getUsername());
+        user.setNickname(dto.getNickname());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEmail(dto.getPhone() + "@temp.com"); // 使用手机号作为临时邮箱
+        user.setRole(dto.getRole() != null ? dto.getRole() : 1);
+        user.setAvatar(dto.getAvatar() != null ? dto.getAvatar() : "http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif");
+        user.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
         this.save(user);//功能：保存用户信息
         user = this.findUserByPhone(dto.getPhone());
         // 生成token

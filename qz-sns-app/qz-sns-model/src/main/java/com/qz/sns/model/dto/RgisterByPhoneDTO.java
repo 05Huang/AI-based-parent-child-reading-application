@@ -10,7 +10,14 @@ import lombok.Data;
  **/
 @Data
 public class RgisterByPhoneDTO {
+    private String username;
     private String phone;
     private String verificationCode;
-    private Integer terminal;
+    private String password;
+    private String email;
+    private String nickname;
+    private String avatar;
+    private Integer role = 1; // 默认为家长角色
+    private Integer status = 1; // 默认为正常状态
+    private Integer terminal = 1; // 默认为1
 }

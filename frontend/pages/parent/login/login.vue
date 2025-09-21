@@ -22,7 +22,13 @@
       <view class="input-box">
         <view class="verify-input">
           <input type="text" placeholder="请输入验证码" class="verify-code" v-model="verifyCode" />
-          <text class="verify-btn" @click="getVerifyCode" :disabled="countdown > 0">{{ countdown > 0 ? `${countdown}s后重新获取` : '获取验证码' }}</text>
+          <text 
+            class="verify-btn" 
+            :class="{ 'verify-btn-active': phoneNumber.length === 11 && countdown === 0, 'verify-btn-disabled': countdown > 0 }"
+            @click="getVerifyCode"
+          >
+            {{ countdown > 0 ? `${countdown}s后重新获取` : '获取验证码' }}
+          </text>
         </view>
       </view>
 
@@ -290,14 +296,20 @@ const goToRegister = () => {
 }
 
 .verify-btn {
-  color: rgb(59, 130, 246);
+  color: #9CA3AF;
   font-size: 28rpx;
   flex-shrink: 0;
   padding-left: 16rpx;
   transition: all 0.3s ease;
+  cursor: not-allowed;
 }
 
-.verify-btn[disabled] {
+.verify-btn-active {
+  color: rgb(59, 130, 246);
+  cursor: pointer;
+}
+
+.verify-btn-disabled {
   color: #9CA3AF;
   cursor: not-allowed;
 }

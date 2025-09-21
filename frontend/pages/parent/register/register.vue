@@ -13,9 +13,9 @@
     <!-- 主要内容区域 -->
     <view class="main-content">
       <!-- 头像上传 -->
-      <view class="avatar-section">
+      <view class="avatar-section" @click="chooseAvatar">
         <view class="avatar-container">
-          <image class="avatar-img" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop&q=60" mode="aspectFill"></image>
+          <image class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
           <view class="camera-btn">
             <text class="fas fa-camera"></text>
           </view>
@@ -26,27 +26,33 @@
       <!-- 注册表单 -->
       <view class="form-container">
         <view class="input-box">
-          <input type="text" placeholder="请输入昵称" class="input-field" />
+          <input type="text" placeholder="请输入昵称" class="input-field" v-model="nickname" />
         </view>
 
         <view class="input-box">
           <view class="phone-input">
             <text class="country-code">+86</text>
             <text class="divider">|</text>
-            <input type="number" placeholder="请输入手机号" class="input-field" />
+            <input type="number" placeholder="请输入手机号" class="input-field" v-model="phoneNumber" />
           </view>
         </view>
 
         <view class="input-box">
           <view class="verify-input">
-            <input type="text" placeholder="请输入验证码" class="input-field" />
-            <text class="verify-btn" @click="getVerifyCode">获取验证码</text>
+            <input type="text" placeholder="请输入验证码" class="input-field" v-model="verifyCode" />
+            <text 
+              class="verify-btn" 
+              :class="{ 'verify-btn-active': phoneNumber.length === 11 && countdown === 0, 'verify-btn-disabled': countdown > 0 }"
+              @click="getVerifyCode"
+            >
+              {{ countdown > 0 ? `${countdown}s后重新获取` : '获取验证码' }}
+            </text>
           </view>
         </view>
 
         <view class="input-box">
           <view class="password-input">
-            <input :type="showPassword ? 'text' : 'password'" placeholder="请设置密码（不少于8位）" class="input-field" />
+            <input :type="showPassword ? 'text' : 'password'" placeholder="请设置密码（不少于8位）" class="input-field" v-model="password" />
             <text class="eye-btn" @click="togglePassword">
               <text :class="['far', showPassword ? 'fa-eye-slash' : 'fa-eye']"></text>
             </text>
@@ -85,8 +91,22 @@
 
 <script setup>
 import { ref } from 'vue'
+import request from '@/utils/request'
 
+// 表单数据
+const nickname = ref('')
+const phoneNumber = ref('')
+const verifyCode = ref('')
+const password = ref('')
 const showPassword = ref(false)
+const countdown = ref(0)
+const timer = ref(null)
+
+// 头像相关
+const avatarUrl = ref('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop&q=60')
+const avatarFile = ref(null)
+
+// 兴趣标签
 const interests = ref([
   { name: '文学', active: true },
   { name: '科普', active: false },
@@ -104,14 +124,225 @@ const toggleInterest = (index) => {
   interests.value[index].active = !interests.value[index].active
 }
 
-const getVerifyCode = () => {
-  // TODO: 实现获取验证码逻辑
-  console.log('获取验证码')
+// 验证手机号格式
+const validatePhone = (phone) => {
+  const phoneRegex = /^1[3-9]\d{9}$/
+  return phoneRegex.test(phone)
 }
 
-const handleRegister = () => {
-  // TODO: 实现注册逻辑
-  console.log('注册')
+// 验证密码格式
+const validatePassword = (pwd) => {
+  return pwd.length >= 8
+}
+
+// 获取验证码
+const getVerifyCode = async () => {
+  console.log('开始获取验证码流程')
+  
+  // 验证手机号
+  if (!phoneNumber.value) {
+    uni.showToast({
+      title: '请输入手机号',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!validatePhone(phoneNumber.value)) {
+    uni.showToast({
+      title: '请输入正确的手机号格式',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('发送获取验证码请求，手机号：', phoneNumber.value)
+    
+    // 调用后端接口获取验证码
+    const res = await request.get('/api/user/smscode', {
+      phone: phoneNumber.value
+    })
+    
+    console.log('获取验证码响应：', res)
+    
+    uni.showToast({
+      title: '验证码已发送',
+      icon: 'success'
+    })
+    
+    // 开始倒计时
+    countdown.value = 60
+    timer.value = setInterval(() => {
+      if (countdown.value > 0) {
+        countdown.value--
+      } else {
+        clearInterval(timer.value)
+      }
+    }, 1000)
+  } catch (error) {
+    console.error('获取验证码出错：', error)
+    uni.showToast({
+      title: '获取验证码失败，请稍后重试',
+      icon: 'none'
+    })
+  }
+}
+
+// 注册处理
+const handleRegister = async () => {
+  console.log('开始注册流程')
+  
+  // 验证输入
+  if (!nickname.value) {
+    uni.showToast({
+      title: '请输入昵称',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!phoneNumber.value) {
+    uni.showToast({
+      title: '请输入手机号',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!validatePhone(phoneNumber.value)) {
+    uni.showToast({
+      title: '请输入正确的手机号格式',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!verifyCode.value) {
+    uni.showToast({
+      title: '请输入验证码',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!password.value) {
+    uni.showToast({
+      title: '请设置密码',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!validatePassword(password.value)) {
+    uni.showToast({
+      title: '密码长度不能少于8位',
+      icon: 'none'
+    })
+    return
+  }
+
+   try {
+     console.log('发送注册请求')
+     
+     // 获取选中的兴趣标签
+     const selectedInterests = interests.value
+       .filter(tag => tag.active)
+       .map(tag => tag.name)
+     
+     // 生成用户名（使用昵称+随机数）
+     const username = `user_${Math.floor(Math.random() * 10000)}`;
+     
+     // 调用后端注册接口
+     const res = await request.post('/api/user/register-by-phone', {
+       username: username,
+       nickname: nickname.value,
+       phone: phoneNumber.value,
+       verificationCode: verifyCode.value,
+       password: password.value,
+       avatar: 'http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif', // 默认头像
+       role: 1, // 家长角色
+       status: 1 // 正常状态
+     })
+    
+    console.log('注册响应：', res)
+    
+    // 保存token
+    uni.setStorageSync('token', res.data.token)
+    
+    // 显示注册成功提示
+    uni.showToast({
+      title: '注册成功',
+      icon: 'success'
+    })
+    
+    // 跳转到首页
+    setTimeout(() => {
+      uni.reLaunch({
+        url: '/pages/parent/home/home'
+      })
+    }, 1500)
+  } catch (error) {
+    console.error('注册出错：', error)
+    uni.showToast({
+      title: '注册失败，请稍后重试',
+      icon: 'none'
+    })
+  }
+}
+
+// 选择头像
+const chooseAvatar = () => {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      console.log('选择头像成功：', res)
+      const tempFilePath = res.tempFilePaths[0]
+      avatarUrl.value = tempFilePath
+      avatarFile.value = res.tempFiles[0]
+    },
+    fail: (err) => {
+      console.error('选择头像失败：', err)
+      uni.showToast({
+        title: '选择头像失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
+// 上传头像
+const uploadAvatar = async () => {
+  if (!avatarFile.value) {
+    return null
+  }
+
+  try {
+    console.log('开始上传头像')
+    
+    // 创建FormData对象
+    const formData = new FormData()
+    formData.append('file', avatarFile.value)
+    
+    // 调用后端上传接口
+    const res = await request.post('/api/user/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('头像上传响应：', res)
+    return res.data.url
+  } catch (error) {
+    console.error('头像上传失败：', error)
+    uni.showToast({
+      title: '头像上传失败',
+      icon: 'none'
+    })
+    return null
+  }
 }
 
 const goBack = () => {
@@ -243,11 +474,23 @@ const goBack = () => {
 }
 
 .verify-btn {
-  color: rgb(59, 130, 246);
+  color: #9CA3AF;
   font-size: 28rpx;
   padding-left: 16rpx;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+  cursor: not-allowed;
+}
+
+.verify-btn-active {
+  color: rgb(59, 130, 246);
+  cursor: pointer;
+}
+
+.verify-btn-disabled {
+  color: #9CA3AF;
+  cursor: not-allowed;
 }
 
 .eye-btn {
