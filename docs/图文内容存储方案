@@ -1,0 +1,16 @@
+图文内容的存储方案：
+在数据库中存储：
+标题（title字段）
+文章的文字内容（content字段，使用longtext类型支持富文本）
+封面图URL（cover_url字段）
+浏览量、点赞量、评论量等统计数据
+在MinIO中存储：
+封面图文件
+文章中的图片文件
+这些文件在MinIO中存储后，URL会被保存在数据库中：
+封面图URL保存在content表的cover_url字段
+文章中的图片URL保存在content_image表中，并通过content_id关联到具体文章
+
+minio里面的文件路径：
+封面图文件：/qz-sns/image/article/article_id/article_cover.jpg
+文章中的图片文件：/qz-sns/image/article/article_id/article_image_1.jpg
