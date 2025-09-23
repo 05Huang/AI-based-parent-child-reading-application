@@ -1,6 +1,6 @@
 
 package com.qz.sns.model.vo;
-;
+
 import com.qz.sns.model.entity.ContentImage;
 import lombok.Data;
 import java.time.LocalDateTime;

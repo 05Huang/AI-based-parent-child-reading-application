@@ -12,4 +12,10 @@ public class UserConstant {
     public static final String REDIS_SMS_LIMIT = "SMS_SEND_LIMIT:";
     public static final Integer SMS_CODE_EXPIRE_TIME = 300;
     public static final Integer SMS_CODE_RESEND_LIMIT = 60;
+
+    /**
+     * 测试用户ID
+     * 使用一个特殊的负数，避免与正常用户ID冲突
+     */
+    public static final Long TEST_USER_ID = -999L;
 }

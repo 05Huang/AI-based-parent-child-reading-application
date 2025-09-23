@@ -23,10 +23,11 @@ public class FileController {
     @PostMapping("/upload")
     public Result<UploadImageVO> uploadFile(@RequestParam("file") MultipartFile file, 
                                           @RequestParam(value = "type", defaultValue = "image") String type,
-                                          @RequestParam(value = "path", required = false) String path) {
+                                          @RequestParam(value = "path", required = false) String path,
+                                          @RequestParam(value = "fileName", required = false) String fileName) {
         try {
-            log.info("开始上传文件，类型：{}，路径：{}", type, path);
-            UploadImageVO result = fileService.uploadImage(file, path);
+            log.info("开始上传文件，类型：{}，路径：{}，文件名：{}", type, path, fileName);
+            UploadImageVO result = fileService.uploadImage(file, path, fileName);
             return ResultUtils.success(result);
         } catch (Exception e) {
             log.error("文件上传失败：{}", e.getMessage(), e);

@@ -74,6 +74,15 @@ const request = {
       method: 'POST',
       data
     });
+  },
+
+  // PUT请求
+  put(url, data) {
+    return this.request({
+      url,
+      method: 'PUT',
+      data
+    });
   }
 };
 

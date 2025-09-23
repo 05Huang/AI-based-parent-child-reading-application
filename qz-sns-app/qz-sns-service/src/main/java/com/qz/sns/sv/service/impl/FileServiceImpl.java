@@ -27,15 +27,37 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public UploadImageVO uploadImage(MultipartFile file, String customPath) throws Exception {
+        return uploadImage(file, customPath, null);
+    }
+
+    @Override
+    public UploadImageVO uploadImage(MultipartFile file, String customPath, String customFileName) throws Exception {
         // 生成文件名
-        String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String fileName = UUID.randomUUID().toString() + extension;
+        String fileName;
+        if (customFileName != null && !customFileName.isEmpty()) {
+            fileName = customFileName;
+        } else {
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            fileName = UUID.randomUUID().toString() + extension;
+        }
         
         // 构建存储路径
-        String objectName = minioConfig.getImagePath();
+        String objectName;
         if (customPath != null && !customPath.isEmpty()) {
-            objectName = objectName + "/" + customPath;
+            // 如果自定义路径以 qz-sns/image 开头，直接使用自定义路径
+            if (customPath.startsWith(minioConfig.getBucketName() + "/" + minioConfig.getImagePath())) {
+                objectName = customPath;
+            } else {
+                // 否则，在 imagePath 后面添加自定义路径
+                objectName = minioConfig.getImagePath() + "/" + customPath;
+            }
+            // 移除开头的斜杠以避免双斜杠
+            if (objectName.startsWith("/")) {
+                objectName = objectName.substring(1);
+            }
+        } else {
+            objectName = minioConfig.getImagePath();
         }
         objectName = objectName + "/" + fileName;
         

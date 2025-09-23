@@ -220,6 +220,12 @@
           "bounce": "none"
         }
       }
+    },
+    {
+      "path": "pages/admin/content-manage",
+      "style": {
+        "navigationBarTitleText": "内容管理"
+      }
     }
   ],
   "globalStyle": {

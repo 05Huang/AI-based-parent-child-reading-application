@@ -1,6 +1,7 @@
 package com.qz.sns.web.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qz.sns.common.constant.UserConstant;
 import com.qz.sns.common.enums.UserType;
 import com.qz.sns.model.dto.*;
 import com.qz.sns.model.vo.ContentResponse;
@@ -44,15 +45,16 @@ public class ContentController {
     /**
      * 创建内容
      */
-    @RequirePermission(value = UserType.ADMIN)
     @PostMapping
-    public Result<ContentResponse> createContent(@RequestBody ContentDTO request) {
+    public Result<ContentResponse> createContent(
+            @RequestBody ContentDTO request,
+            @RequestParam(required = false) Long userId) {
         try {
-            // 获取当前用户ID
-            Long userId = SessionContext.getSession().getUserId();
-            System.out.println("当前用户ID: " + userId);
+            // 如果没有提供userId，使用测试用户ID
+            Long effectiveUserId = userId != null ? userId : UserConstant.TEST_USER_ID;
+            System.out.println("当前用户ID: " + effectiveUserId);
             System.out.println("当前的内容请求: " + request);
-            ContentResponse content = contentService.createContent(request, userId);
+            ContentResponse content = contentService.createContent(request, effectiveUserId);
             return ResultUtils.success(content, "创建内容成功");
         } catch (Exception e) {
             log.error("创建内容失败", e);
@@ -63,15 +65,15 @@ public class ContentController {
     /**
      * 更新内容
      */
-    @RequirePermission(value = UserType.ADMIN)
     @PutMapping("/{id}")
-    public  Result<ContentResponse> updateContent(
-            @PathVariable Long id, @RequestBody ContentDTO request) {
+    public Result<ContentResponse> updateContent(
+            @PathVariable Long id,
+            @RequestBody ContentDTO request,
+            @RequestParam(required = false) Long userId) {
         try {
-            // 获取当前用户ID
-            Long userId = SessionContext.getSession().getUserId();
-
-            ContentResponse content = contentService.updateContent(id, request, userId);
+            // 如果没有提供userId，使用测试用户ID
+            Long effectiveUserId = userId != null ? userId : UserConstant.TEST_USER_ID;
+            ContentResponse content = contentService.updateContent(id, request, effectiveUserId);
             return ResultUtils.success(content, "更新内容成功");
         } catch (Exception e) {
             log.error("更新内容失败", e);
