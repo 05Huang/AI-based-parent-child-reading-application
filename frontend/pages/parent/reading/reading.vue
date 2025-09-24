@@ -57,97 +57,59 @@
           </view>
 
           <view class="article-body">
-            <!-- 导语 -->
-            <view class="paragraph-wrapper">
-              <text class="lead-paragraph">在育儿的过程中，我们经常会遇到孩子闹情绪的情况。作为家长，如何在短时间内有效地安抚孩子的情绪，是一个值得深入探讨的话题。本文将从心理学的角度，为大家介绍几个实用的方法。
-                <text class="comment-icon" @click.stop="navigateToComment('p0', '在育儿的过程中，我们经常会遇到孩子闹情绪的情况。作为家长，如何在短时间内有效地安抚孩子的情绪，是一个值得深入探讨的话题。本文将从心理学的角度，为大家介绍几个实用的方法。')">
-                  <text class="fas fa-comments"></text>
-                </text>
-              </text>
+            <!-- 加载状态 -->
+            <view v-if="loading" class="loading-content">
+              <text class="loading-text">加载中...</text>
             </view>
-
-            <!-- 第一部分 -->
-            <view class="section">
-              <text class="section-title">理解孩子的情绪根源</text>
-              <image 
-                class="section-image"
-                src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&auto=format&fit=crop"
-                mode="widthFix"
-              ></image>
-              <text class="image-caption">孩子的情绪表达往往直接而真实</text>
-              <view class="paragraph-wrapper">
-                <text class="paragraph">首先，我们要理解孩子产生情绪的原因。通常来说，孩子的情绪波动可能源于以下几个方面：生理需求未得到满足、想要得到关注和认可、感到不安全或害怕、对环境变化的不适应等。
-                  <text class="comment-icon" @click.stop="navigateToComment('p1', '首先，我们要理解孩子产生情绪的原因。通常来说，孩子的情绪波动可能源于以下几个方面：生理需求未得到满足、想要得到关注和认可、感到不安全或害怕、对环境变化的不适应等。')">
-                    <text class="fas fa-comments"></text>
-                  </text>
-                </text>
+            
+            <!-- 错误状态 -->
+            <view v-else-if="error" class="error-content">
+              <text class="error-text">{{ error }}</text>
+              <view class="retry-btn" @click="loadArticleData">
+                <text>重试</text>
               </view>
             </view>
-
-            <!-- 第二部分 -->
-            <view class="section">
-              <text class="section-title">共情倾听的重要性</text>
-              <view class="paragraph-wrapper">
-                <text class="paragraph">当孩子情绪激动时，首要任务是让孩子感受到我们的理解和支持。研究表明，当孩子感受到被理解时，他们的情绪会很快得到缓解。这种方法不仅能够快速安抚孩子，还能增进亲子关系。
-                  <text class="comment-icon" @click.stop="navigateToComment('p2', '当孩子情绪激动时，首要任务是让孩子感受到我们的理解和支持。研究表明，当孩子感受到被理解时，他们的情绪会很快得到缓解。这种方法不仅能够快速安抚孩子，还能增进亲子关系。')">
-                    <text class="fas fa-comments"></text>
-                  </text>
-                </text>
+            
+            <!-- 文章内容 -->
+            <view v-else-if="article.content" class="content-wrapper">
+              <!-- 功能提示 -->
+              <view v-if="!hasShownTip" class="function-tip">
+                <view class="tip-content">
+                  <text class="fas fa-lightbulb"></text>
+                  <text class="tip-text">💡 点击段落右侧的评论按钮可以对该段落进行评论，长按段落可以复制内容</text>
+                  <view class="tip-close" @click="closeTip">
+                    <text class="fas fa-times"></text>
+                  </view>
+                </view>
               </view>
-              <image 
-                class="section-image"
-                src="https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=800&auto=format&fit=crop"
-                mode="widthFix"
-              ></image>
-              <text class="image-caption">通过倾听和陪伴建立情感连接</text>
-            </view>
-
-            <!-- 第三部分 -->
-            <view class="section">
-              <text class="section-title">有效的转移注意力技巧</text>
-              <text class="quote">"转移注意力不是逃避问题，而是给孩子一个情绪缓冲的机会。"</text>
-              <text class="paragraph">在孩子情绪稍微平静后，我们可以通过以下方式转移他们的注意力：讲一个有趣的小故事、提出一个简单的游戏建议、展示一个新奇的物品等。这些方法都能有效地帮助孩子走出负面情绪。</text>
-              <image 
-                class="section-image"
-                src="https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=800&auto=format&fit=crop"
-                mode="widthFix"
-              ></image>
-              <text class="image-caption">通过游戏和互动转移注意力</text>
-            </view>
-
-            <!-- 第四部分 -->
-            <view class="section">
-              <text class="section-title">情绪表达引导</text>
-              <image 
-                class="section-image"
-                src="https://images.unsplash.com/photo-1536640712-4d4c36ff0e4e?w=800&auto=format&fit=crop"
-                mode="widthFix"
-              ></image>
-              <text class="image-caption">引导孩子学会表达自己的感受</text>
-              <text class="paragraph">教会孩子正确表达情绪是很重要的。我们可以通过以下方式帮助孩子：</text>
-              <view class="tips-box">
-                <text class="tip-item">• 帮助孩子说出感受："你是不是觉得很生气？"</text>
-                <text class="tip-item">• 教导表达方式："生气的时候可以告诉妈妈"</text>
-                <text class="tip-item">• 示范情绪管理："妈妈有时也会生气，但是..."</text>
+              
+              <!-- 渲染解析后的段落内容 -->
+              <view v-for="(paragraph, index) in parsedParagraphs" :key="index" 
+                    :class="['paragraph-container', { 'has-comments': paragraph.commentCount > 0, 'is-image': paragraph.isImage }]">
+                <!-- 段落内容 -->
+                <view class="paragraph-content" 
+                      @longpress="!paragraph.isImage ? onParagraphLongPress(paragraph) : null"
+                      @click="paragraph.isImage ? onImageClick(paragraph) : null">
+                  <rich-text 
+                    :nodes="paragraph.content" 
+                    class="paragraph-rich-text"
+                  ></rich-text>
+                </view>
+                
+                <!-- 段落评论按钮和计数（只显示给非图片段落） -->
+                <view v-if="paragraph.id && !paragraph.isImage" class="paragraph-actions">
+                  <view class="comment-btn" @click="navigateToComment(paragraph.id, paragraph.text)">
+                    <text class="fas fa-comment"></text>
+                    <text class="comment-count">{{ paragraph.commentCount || 0 }}</text>
+                    <text v-if="paragraph.commentCount === 0" class="comment-hint">评论</text>
+                  </view>
+                </view>
               </view>
             </view>
-
-            <!-- 第五部分 -->
-            <view class="section">
-              <text class="section-title">建立情绪安全区</text>
-              <text class="paragraph">在家中设置一个专门的区域，让孩子在情绪波动时可以安静地待一会，做一些深呼吸，抱着心爱的玩具，或者画画发泄情绪。这个安全区域能帮助孩子学会自我调节。</text>
-              <image 
-                class="section-image"
-                src="https://images.unsplash.com/photo-1577896851231-70ef18881754?w=800&auto=format&fit=crop"
-                mode="widthFix"
-              ></image>
-              <text class="image-caption">为孩子创造安全舒适的情绪释放空间</text>
-            </view>
-
-            <!-- 总结部分 -->
-            <view class="section">
-              <text class="section-title">总结与建议</text>
-              <text class="paragraph">安抚孩子情绪是一个需要耐心和技巧的过程。记住以下几点：保持冷静和耐心、给予足够的理解和支持、采用适合孩子年龄的方法、保持一致性和持续性。最后，每个孩子都是独特的个体，需要我们用心观察，找到最适合的方法。</text>
+            
+            <!-- 无内容提示 -->
+            <view v-else class="no-content">
+              <text class="no-content-text">暂无内容</text>
             </view>
           </view>
         </view>
@@ -185,16 +147,123 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { contentApi, commentApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
-  title: '如何在3分钟内安抚孩子的小情绪',
-  author: '育儿专家 王老师',
-  date: '2024-03-20',
-  views: '2.1万',
-  likes: '2.3k',
-  comments: '128'
+  id: null,
+  title: '加载中...',
+  author: '',
+  date: '',
+  views: '0',
+  likes: '0',
+  comments: '0',
+  content: '',
+  coverUrl: '',
+  creatorName: '',
+  createdTime: null,
+  viewCount: 0,
+  likeCount: 0,
+  commentCount: 0
 })
+
+// 加载状态
+const loading = ref(true)
+const error = ref('')
+
+// 解析后的段落数据
+const parsedParagraphs = ref([])
+const paragraphCommentCounts = ref({})
+
+// 功能提示
+const hasShownTip = ref(false)
+
+// 页面加载时获取文章ID并加载数据
+onLoad(async (option) => {
+  console.log('阅读页面参数：', option)
+  
+  // 检查是否已经显示过提示
+  const tipShown = uni.getStorageSync('reading_tip_shown')
+  hasShownTip.value = !!tipShown
+  
+  if (option.id) {
+    article.value.id = parseInt(option.id)
+    await loadArticleData()
+  } else {
+    error.value = '文章ID不存在'
+    console.error('缺少文章ID参数')
+  }
+})
+
+// 加载文章数据
+const loadArticleData = async () => {
+  try {
+    loading.value = true
+    console.log('开始加载文章数据，ID：', article.value.id)
+    
+    const response = await contentApi.getContentDetail(article.value.id)
+    
+    if (response && response.data) {
+      const data = response.data
+      article.value = {
+        id: data.id,
+        title: data.title || '无标题',
+        author: data.creatorName || '匿名作者',
+        date: formatDate(data.createdTime),
+        views: formatViewCount(data.viewCount),
+        likes: formatViewCount(data.likeCount),
+        comments: formatViewCount(data.commentCount),
+        content: data.content || '',
+        coverUrl: data.coverUrl || '',
+        creatorName: data.creatorName || '匿名作者',
+        createdTime: data.createdTime,
+        viewCount: data.viewCount || 0,
+        likeCount: data.likeCount || 0,
+        commentCount: data.commentCount || 0
+      }
+      
+      console.log('文章数据加载成功：', article.value)
+      
+      // 解析文章内容为段落
+      await parseArticleContent()
+      
+      // 加载段落评论数量
+      await loadParagraphCommentCounts()
+    } else {
+      throw new Error('文章数据格式异常')
+    }
+  } catch (error) {
+    console.error('加载文章数据失败：', error)
+    error.value = '加载文章数据失败'
+    uni.showToast({
+      title: '加载失败，请重试',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('zh-CN')
+  } catch (error) {
+    console.error('日期格式化失败：', error)
+    return ''
+  }
+}
+
+// 格式化浏览量显示
+const formatViewCount = (count) => {
+  if (!count || count === 0) return '0'
+  if (count < 1000) return count.toString()
+  if (count < 10000) return (count / 1000).toFixed(1) + 'k'
+  return (count / 10000).toFixed(1) + '万'
+}
 
 // 交互状态
 const scrollTop = ref(0)
@@ -285,16 +354,237 @@ const toggleLike = () => {
 
 // 跳转到评论页面
 const navigateToComment = (paragraphId, content) => {
+  if (!article.value.id) {
+    uni.showToast({
+      title: '文章数据未加载',
+      icon: 'none'
+    })
+    return
+  }
   uni.navigateTo({
-    url: `/pages/parent/reading/paragraph-comment?id=${paragraphId}&content=${encodeURIComponent(content)}`
+    url: `/pages/parent/reading/paragraph-comment?contentId=${article.value.id}&paragraphId=${paragraphId}&content=${encodeURIComponent(content)}`
   })
 }
 
 // 跳转到文章评论页面
 const navigateToComments = () => {
+  if (!article.value.id) {
+    uni.showToast({
+      title: '文章数据未加载',
+      icon: 'none'
+    })
+    return
+  }
   uni.navigateTo({
-    url: '/pages/parent/reading/article-comments'
+    url: `/pages/parent/reading/article-comments?contentId=${article.value.id}`
   })
+}
+
+// 解析文章内容为段落
+const parseArticleContent = async () => {
+  try {
+    console.log('开始解析文章内容')
+    
+    if (!article.value.content) {
+      parsedParagraphs.value = []
+      return
+    }
+    
+    const paragraphs = []
+    let paragraphIndex = 0
+    let lastIndex = 0
+    
+    const htmlContent = article.value.content
+    
+    // 匹配段落标签和图片标签
+    const elementRegex = /<(p|h1|h2|h3|h4|h5|h6|blockquote|pre|div|section|article|img)[^>]*>(?:(.*?)<\/\1>)?/gi
+    
+    let match
+    while ((match = elementRegex.exec(htmlContent)) !== null) {
+      const [fullMatch, tagName, innerContent = ''] = match
+      
+      // 如果是图片标签，单独处理
+      if (tagName.toLowerCase() === 'img') {
+        // 为图片统一样式
+        const processedImgTag = fullMatch.replace(
+          /(<img[^>]*)(style="[^"]*")?([^>]*>)/i, 
+          '$1 style="width: 100%; height: auto; max-width: 600px; border-radius: 8px; margin: 16px 0; display: block;"$3'
+        )
+        
+        paragraphs.push({
+          id: null, // 图片不需要评论功能
+          content: processedImgTag,
+          text: '', 
+          tagName: 'img',
+          commentCount: 0,
+          isImage: true // 标记为图片
+        })
+      } else {
+        // 处理文本段落
+        // 提取id属性
+        const idMatch = fullMatch.match(/id=["']([^"']+)["']/i)
+        const paragraphId = idMatch ? idMatch[1] : `para-temp-${paragraphIndex++}`
+        
+        // 提取纯文本内容
+        const textContent = innerContent.replace(/<[^>]*>/g, '').trim()
+        
+        // 如果段落有文本内容才添加评论功能
+        if (textContent) {
+          paragraphs.push({
+            id: paragraphId,
+            content: fullMatch,
+            text: textContent,
+            tagName: tagName.toLowerCase(),
+            commentCount: 0,
+            isImage: false
+          })
+        } else if (fullMatch.includes('<img')) {
+          // 如果段落包含图片但没有文本，也要保留但不添加评论功能
+          paragraphs.push({
+            id: null,
+            content: fullMatch,
+            text: '',
+            tagName: tagName.toLowerCase(),
+            commentCount: 0,
+            isImage: true
+          })
+        }
+      }
+    }
+    
+    // 如果没有解析到任何内容，使用整个内容
+    if (paragraphs.length === 0) {
+      // 处理整体内容中的图片样式
+      const processedContent = htmlContent.replace(
+        /<img([^>]*?)(?:style="[^"]*")?([^>]*?)>/gi,
+        '<img$1 style="width: 100%; height: auto; max-width: 600px; border-radius: 8px; margin: 16px 0; display: block;"$2>'
+      )
+      
+      const textContent = htmlContent.replace(/<[^>]*>/g, '').trim()
+      paragraphs.push({
+        id: textContent ? 'para-fallback-0' : null,
+        content: processedContent,
+        text: textContent,
+        tagName: 'div',
+        commentCount: 0,
+        isImage: !textContent
+      })
+    }
+    
+    parsedParagraphs.value = paragraphs
+    console.log('文章内容解析完成，段落数量：', paragraphs.length)
+    console.log('解析结果：', paragraphs.map(p => ({ tagName: p.tagName, hasText: !!p.text, isImage: p.isImage })))
+    
+  } catch (error) {
+    console.error('解析文章内容失败：', error)
+    // 降级处理：使用原始内容
+    const processedContent = article.value.content.replace(
+      /<img([^>]*?)(?:style="[^"]*")?([^>]*?)>/gi,
+      '<img$1 style="width: 100%; height: auto; max-width: 600px; border-radius: 8px; margin: 16px 0; display: block;"$2>'
+    )
+    
+    parsedParagraphs.value = [{
+      id: 'para-fallback-0',
+      content: processedContent,
+      text: '文章内容',
+      tagName: 'div',
+      commentCount: 0,
+      isImage: false
+    }]
+  }
+}
+
+// 加载段落评论数量
+const loadParagraphCommentCounts = async () => {
+  try {
+    console.log('开始加载段落评论数量')
+    
+    if (!article.value.id) return
+    
+    const response = await commentApi.getParagraphCommentCounts(article.value.id)
+    
+    if (response && response.data) {
+      paragraphCommentCounts.value = response.data
+      
+      // 更新段落的评论数量
+      parsedParagraphs.value.forEach(paragraph => {
+        if (paragraph.id && paragraphCommentCounts.value[paragraph.id]) {
+          paragraph.commentCount = paragraphCommentCounts.value[paragraph.id]
+        }
+      })
+      
+      console.log('段落评论数量加载完成：', paragraphCommentCounts.value)
+    }
+  } catch (error) {
+    console.error('加载段落评论数量失败：', error)
+    // 不影响主要功能，只是评论数量显示可能不准确
+  }
+}
+
+// 段落长按事件
+const onParagraphLongPress = (paragraph) => {
+  if (paragraph.isImage) return // 图片不响应长按
+  
+  console.log('长按段落：', paragraph.id)
+  uni.showActionSheet({
+    itemList: ['评论这段内容', '复制段落内容'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        // 评论段落
+        navigateToComment(paragraph.id, paragraph.text)
+      } else if (res.tapIndex === 1) {
+        // 复制内容
+        uni.setClipboardData({
+          data: paragraph.text,
+          success: () => {
+            uni.showToast({
+              title: '已复制到剪贴板',
+              icon: 'success'
+            })
+          }
+        })
+      }
+    }
+  })
+}
+
+// 关闭功能提示
+const closeTip = () => {
+  hasShownTip.value = true
+  uni.setStorageSync('reading_tip_shown', true)
+}
+
+// 图片点击事件
+const onImageClick = (paragraph) => {
+  console.log('点击图片段落：', paragraph)
+  
+  // 提取图片URL
+  const imgMatch = paragraph.content.match(/src=["']([^"']+)["']/i)
+  if (imgMatch && imgMatch[1]) {
+    const imageUrl = imgMatch[1]
+    
+    // 预览图片
+    uni.previewImage({
+      urls: [imageUrl],
+      current: imageUrl,
+      success: () => {
+        console.log('图片预览成功')
+      },
+      fail: (err) => {
+        console.error('图片预览失败：', err)
+        uni.showToast({
+          title: '图片预览失败',
+          icon: 'none'
+        })
+      }
+    })
+  }
+}
+
+// 处理富文本点击事件
+const onRichTextClick = (event) => {
+  console.log('富文本点击事件：', event)
+  // 这里可以处理图片点击等事件
 }
 </script>
 
@@ -675,5 +965,291 @@ const navigateToComments = () => {
 /* 调整段落样式 */
 .paragraph, .lead-paragraph {
   display: inline;
+}
+
+/* 新增样式 */
+.loading-content, .error-content, .no-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx;
+  color: #6b7280;
+}
+
+.loading-text, .error-text, .no-content-text {
+  font-size: 32rpx;
+  margin-bottom: 20rpx;
+}
+
+.retry-btn {
+  padding: 20rpx 40rpx;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+}
+
+.content-wrapper {
+  min-height: 200rpx;
+}
+
+.rich-content {
+  line-height: 1.8;
+  font-size: 32rpx;
+  color: #374151;
+}
+
+/* 富文本内容样式 */
+.rich-content p {
+  margin-bottom: 20rpx;
+  line-height: 1.8;
+}
+
+.rich-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 20rpx 0;
+  border-radius: 12rpx;
+}
+
+/* 统一图片样式 */
+.paragraph-rich-text img {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 600px !important;
+  border-radius: 8px !important;
+  margin: 16rpx auto !important;
+  display: block !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.paragraph-rich-text img:hover {
+  transform: scale(1.02);
+}
+
+/* 段落容器样式 */
+.paragraph-container {
+  position: relative;
+  margin-bottom: 16rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  transition: background-color 0.2s ease;
+}
+
+.paragraph-container:hover {
+  background-color: #f9fafb;
+}
+
+.paragraph-content {
+  position: relative;
+}
+
+.paragraph-rich-text {
+  line-height: 1.8;
+  font-size: 32rpx;
+  color: #374151;
+}
+
+.paragraph-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 8rpx;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+.paragraph-container:hover .paragraph-actions {
+  opacity: 1;
+}
+
+.comment-btn {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 6rpx 12rpx;
+  background-color: #f3f4f6;
+  border-radius: 16rpx;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  transform: scale(0.9);
+}
+
+.comment-btn:hover {
+  background-color: #e5e7eb;
+  border-color: #3b82f6;
+  transform: scale(1);
+}
+
+.comment-btn:active {
+  transform: scale(0.85);
+}
+
+.comment-btn .fas {
+  font-size: 20rpx;
+  color: #6b7280;
+  transition: color 0.2s ease;
+}
+
+.comment-btn:hover .fas {
+  color: #3b82f6;
+}
+
+.comment-count {
+  font-size: 20rpx;
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 16rpx;
+  text-align: center;
+}
+
+.comment-hint {
+  font-size: 18rpx;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.comment-btn:hover .comment-count,
+.comment-btn:hover .comment-hint {
+  color: #3b82f6;
+}
+
+/* 当段落有评论时的样式 */
+.paragraph-container.has-comments {
+  border-left: 3px solid #3b82f6;
+  background-color: #f8fafc;
+}
+
+.paragraph-container.has-comments .comment-btn {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+  transform: scale(0.95);
+}
+
+.paragraph-container.has-comments .comment-btn .fas,
+.paragraph-container.has-comments .comment-btn .comment-count {
+  color: #3b82f6;
+}
+
+/* 图片段落的特殊样式 */
+.paragraph-container.is-image {
+  padding: 4rpx 8rpx;
+  margin-bottom: 8rpx;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.paragraph-container.is-image:hover {
+  background-color: transparent;
+}
+
+.paragraph-container.is-image .paragraph-rich-text {
+  text-align: center;
+  position: relative;
+}
+
+.paragraph-container.is-image .paragraph-content::after {
+  content: '点击查看大图';
+  position: absolute;
+  bottom: 8rpx;
+  right: 8rpx;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4rpx 8rpx;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.paragraph-container.is-image:hover .paragraph-content::after {
+  opacity: 1;
+}
+
+/* 功能提示样式 */
+.function-tip {
+  margin-bottom: 32rpx;
+  padding: 0 24rpx;
+}
+
+.tip-content {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 12rpx;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.2);
+  position: relative;
+}
+
+.tip-content .fas {
+  color: #fbbf24;
+  font-size: 28rpx;
+}
+
+.tip-text {
+  flex: 1;
+  color: #ffffff;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.tip-close {
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.tip-close .fas {
+  color: #ffffff;
+  font-size: 24rpx;
+}
+
+.tip-close:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .paragraph-container {
+    margin-bottom: 12rpx;
+    padding: 6rpx 12rpx;
+  }
+  
+  .comment-btn {
+    padding: 4rpx 8rpx;
+    gap: 2rpx;
+    transform: scale(0.85);
+  }
+  
+  .comment-btn .fas {
+    font-size: 18rpx;
+  }
+  
+  .comment-count {
+    font-size: 18rpx;
+  }
+  
+  .comment-hint {
+    font-size: 16rpx;
+  }
+  
+  .tip-content {
+    padding: 16rpx 20rpx;
+  }
+  
+  .tip-text {
+    font-size: 24rpx;
+  }
 }
 </style> 

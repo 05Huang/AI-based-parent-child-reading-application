@@ -95,6 +95,7 @@
                     <when test="query.sortField == 'like_count'">c.like_count</when>
                     <when test="query.sortField == 'created_time'">c.created_time</when>
                     <when test="query.sortField == 'popularity_score'">c.popularity_score</when>
+                    <when test="query.sortField == 'recommendation_score'">c.recommendation_score</when>
                     <otherwise>c.created_time</otherwise>
                 </choose>
                 <choose>

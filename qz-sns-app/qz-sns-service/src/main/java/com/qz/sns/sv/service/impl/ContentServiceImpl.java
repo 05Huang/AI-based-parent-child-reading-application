@@ -18,6 +18,7 @@ import com.qz.sns.sv.mapper.ContentMapper;
 import com.qz.sns.sv.mapper.UserMapper;
 import com.qz.sns.sv.service.IContentService;
 import com.qz.sns.sv.session.SessionContext;
+import com.qz.sns.sv.session.UserSession;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.velocity.exception.ResourceNotFoundException;
 import org.jsoup.Jsoup;
@@ -252,21 +253,35 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
     @Override
     @Transactional
     public void incrementViewCount(Long id) {
-
+        log.info("增加文章浏览量，文章ID：{}", id);
+        
+        // 增加浏览量
         contentMapper.incrementViewCount(id);
-        // 添加浏览记录（需要获取当前用户ID）
-        Long currentUserId = getCurrentUserId(); // 假设您已经有这个方法
+        
+        // 尝试添加浏览记录（需要获取当前用户ID）
+        Long currentUserId = getCurrentUserId();
         if (currentUserId != null) {
-            viewHistoryService.addViewHistory(currentUserId, id);
+            log.info("为用户{}添加浏览记录，文章ID：{}", currentUserId, id);
+            try {
+                viewHistoryService.addViewHistory(currentUserId, id);
+            } catch (Exception e) {
+                log.warn("添加浏览记录失败：{}", e.getMessage());
+                // 不抛出异常，确保浏览量增加操作成功
+            }
+        } else {
+            log.info("用户未登录，跳过浏览记录添加");
         }
     }
 
     private Long getCurrentUserId() {
         try {
             // 尝试从SessionContext获取当前用户ID
-            return SessionContext.getSession().getUserId();
+            UserSession session = SessionContext.getSession();
+            if (session != null) {
+                return session.getUserId();
+            }
         } catch (Exception e) {
-            log.warn("获取当前用户ID失败，可能是Session未初始化或已过期", e);
+            log.debug("获取当前用户ID失败，可能是Session未初始化或已过期：{}", e.getMessage());
         }
         // 如果SessionContext不可用，返回null
         return null;

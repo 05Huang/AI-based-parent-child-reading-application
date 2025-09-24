@@ -130,48 +130,149 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { contentApi, commentApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
-  title: '如何在3分钟内安抚孩子的小情绪',
-  author: '育儿专家 王老师',
-  date: '2024-03-20'
+  id: null,
+  title: '加载中...',
+  author: '',
+  date: ''
 })
 
-// 评论数据
-const comments = ref([
-  {
-    id: 1,
-    username: '快乐妈妈',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-    content: '这篇文章写得非常实用，特别是关于情绪安全区的建议，我已经在家里实践了，效果很好！',
-    time: '2小时前',
-    likes: 28,
-    isLiked: false,
-    replies: [
-      {
-        id: 11,
-        username: '阳光爸爸',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-        content: '同感，我家也设置了一个小角落，放了些玩具和画画工具',
-        time: '1小时前',
-        likes: 12,
-        isLiked: false
-      }
-    ],
-    totalReplies: 5
-  },
-  {
-    id: 2,
-    username: '育儿达人',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop',
-    content: '文中提到的共情倾听确实很重要，但有时候执行起来还是有难度的，特别是当自己也很疲惫的时候。',
-    time: '3小时前',
-    likes: 15,
-    isLiked: false,
-    replies: []
+// 页面参数
+const contentId = ref(null)
+
+// 页面加载时获取参数
+onLoad(async (option) => {
+  console.log('评论页面参数：', option)
+  if (option.contentId) {
+    contentId.value = parseInt(option.contentId)
+    article.value.id = contentId.value
+    await loadArticleInfo()
+    await loadComments()
+  } else {
+    console.error('缺少文章ID参数')
+    uni.showToast({
+      title: '参数错误',
+      icon: 'none'
+    })
   }
-])
+})
+
+// 加载文章信息
+const loadArticleInfo = async () => {
+  try {
+    const response = await contentApi.getContentDetail(contentId.value)
+    if (response && response.data) {
+      const data = response.data
+      article.value = {
+        id: data.id,
+        title: data.title || '无标题',
+        author: data.creatorName || '匿名作者',
+        date: formatDate(data.createdTime)
+      }
+      console.log('文章信息加载成功：', article.value)
+    }
+  } catch (error) {
+    console.error('加载文章信息失败：', error)
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('zh-CN')
+  } catch (error) {
+    console.error('日期格式化失败：', error)
+    return ''
+  }
+}
+
+// 评论数据
+const comments = ref([])
+const currentPage = ref(1)
+const pageSize = ref(10)
+const hasMore = ref(true)
+
+// 加载评论列表
+const loadComments = async (refresh = false) => {
+  if (loading.value && !refresh) return
+  
+  try {
+    loading.value = true
+    console.log('开始加载评论列表，页码：', refresh ? 1 : currentPage.value)
+    
+    const response = await commentApi.getContentComments(
+      contentId.value, 
+      refresh ? 1 : currentPage.value, 
+      pageSize.value
+    )
+    
+    if (response && response.data) {
+      const { records, current, total, pages } = response.data
+      
+      // 转换数据格式
+      const formattedComments = records.map(comment => ({
+        id: comment.id,
+        username: comment.userNickname || '匿名用户',
+        avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+        content: comment.content,
+        time: formatCommentTime(comment.createdTime),
+        likes: comment.likeCount || 0,
+        isLiked: false, // TODO: 从后端获取点赞状态
+        replies: [], // TODO: 加载回复
+        totalReplies: comment.replyCount || 0
+      }))
+      
+      if (refresh) {
+        comments.value = formattedComments
+        currentPage.value = 1
+      } else {
+        comments.value.push(...formattedComments)
+      }
+      
+      currentPage.value = current
+      hasMore.value = current < pages
+      
+      console.log('评论加载成功：', formattedComments.length, '条')
+    }
+  } catch (error) {
+    console.error('加载评论失败：', error)
+    uni.showToast({
+      title: '加载评论失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+    isRefreshing.value = false
+  }
+}
+
+// 格式化评论时间
+const formatCommentTime = (dateString) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now - date
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+    
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    if (days < 7) return `${days}天前`
+    return date.toLocaleDateString('zh-CN')
+  } catch (error) {
+    console.error('时间格式化失败：', error)
+    return ''
+  }
+}
 
 // 交互状态
 const loading = ref(false)
@@ -210,24 +311,15 @@ const goBack = () => {
 
 // 加载更多评论
 const loadMoreComments = () => {
-  if (loading.value) return
-  loading.value = true
-  
-  // 模拟加载更多数据
-  setTimeout(() => {
-    // 这里应该调用实际的API
-    loading.value = false
-  }, 1000)
+  if (loading.value || !hasMore.value) return
+  currentPage.value += 1
+  loadComments(false)
 }
 
 // 下拉刷新
 const onRefresh = () => {
   isRefreshing.value = true
-  
-  // 模拟刷新数据
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 1000)
+  loadComments(true)
 }
 
 // 切换点赞状态
@@ -278,36 +370,42 @@ const onInputBlur = () => {
 }
 
 // 提交评论
-const submitComment = () => {
+const submitComment = async () => {
   if (!newComment.value.trim()) return
   
-  const comment = {
-    id: Date.now(),
-    username: '当前用户',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-    content: newComment.value,
-    time: '刚刚',
-    likes: 0,
-    isLiked: false,
-    replies: []
-  }
-  
-  if (replyTo.value) {
-    // 添加回复
-    const parentComment = comments.value.find(c => c.replies.some(r => r.id === replyTo.value.id))
-    if (parentComment) {
-      parentComment.replies.push({
-        ...comment,
-        replyTo: replyTo.value.username
-      })
+  try {
+    const commentData = {
+      contentId: contentId.value,
+      content: newComment.value.trim(),
+      commentType: 1, // 1-普通评论
+      parentId: replyTo.value ? replyTo.value.id : 0,
+      rootId: replyTo.value ? (replyTo.value.rootId || replyTo.value.id) : 0
     }
-  } else {
-    // 添加新评论
-    comments.value.unshift(comment)
+    
+    console.log('提交评论：', commentData)
+    
+    const response = await commentApi.addComment(commentData)
+    
+    if (response && response.data) {
+      // 评论提交成功，刷新评论列表
+      uni.showToast({
+        title: '评论成功',
+        icon: 'success'
+      })
+      
+      newComment.value = ''
+      onInputBlur()
+      
+      // 刷新评论列表
+      await loadComments(true)
+    }
+  } catch (error) {
+    console.error('提交评论失败：', error)
+    uni.showToast({
+      title: '评论失败，请重试',
+      icon: 'none'
+    })
   }
-  
-  newComment.value = ''
-  onInputBlur()
 }
 </script>
 

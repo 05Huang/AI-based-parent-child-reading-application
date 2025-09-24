@@ -62,41 +62,33 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { commentApi } from '@/utils/api.js'
 
 // 获取页面参数
+const contentId = ref(null)
 const paragraphId = ref('')
 const paragraphContent = ref('')
 
 // 在页面加载时获取参数
-onLoad((option) => {
-  if (option.id && option.content) {
-    paragraphId.value = option.id
+onLoad(async (option) => {
+  console.log('段落评论页面参数：', option)
+  if (option.contentId && option.paragraphId && option.content) {
+    contentId.value = parseInt(option.contentId)
+    paragraphId.value = option.paragraphId
     paragraphContent.value = decodeURIComponent(option.content)
-    loadComments()
+    await loadComments()
+  } else {
+    console.error('缺少必要参数')
+    uni.showToast({
+      title: '参数错误',
+      icon: 'none'
+    })
   }
 })
 
 // 评论数据
-const comments = ref([
-  {
-    id: 1,
-    username: '阅读爱好者',
-    avatar: 'https://ui-avatars.com/api/?name=阅读爱好者&background=3b82f6&color=fff&size=100',
-    content: '这段写得很有见地，对我教育孩子很有帮助！',
-    time: '10分钟前',
-    likes: 12,
-    isLiked: false
-  },
-  {
-    id: 2,
-    username: '育儿专家',
-    avatar: 'https://ui-avatars.com/api/?name=育儿专家&background=22c55e&color=fff&size=100',
-    content: '补充一点，在实践中要注意因材施教。',
-    time: '15分钟前',
-    likes: 8,
-    isLiked: false
-  }
-])
+const comments = ref([])
+const loading = ref(false)
 
 // 新评论内容
 const newComment = ref('')
@@ -128,12 +120,64 @@ const goBack = () => {
 }
 
 // 加载评论
-const loadComments = () => {
-  // TODO: 从服务器加载评论数据
+const loadComments = async () => {
+  if (!contentId.value || !paragraphId.value) return
+  
+  try {
+    loading.value = true
+    console.log('开始加载段落评论，内容ID：', contentId.value, '段落ID：', paragraphId.value)
+    
+    const response = await commentApi.getParagraphComments(contentId.value, paragraphId.value)
+    
+    if (response && response.data && response.data.records) {
+      const formattedComments = response.data.records.map(comment => ({
+        id: comment.id,
+        username: comment.userNickname || '匿名用户',
+        avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+        content: comment.content,
+        time: formatCommentTime(comment.createdTime),
+        likes: comment.likeCount || 0,
+        isLiked: false // TODO: 获取点赞状态
+      }))
+      
+      comments.value = formattedComments
+      console.log('段落评论加载成功：', formattedComments.length, '条')
+    }
+  } catch (error) {
+    console.error('加载段落评论失败：', error)
+    uni.showToast({
+      title: '加载评论失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化评论时间
+const formatCommentTime = (dateString) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now - date
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+    
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    if (days < 7) return `${days}天前`
+    return date.toLocaleDateString('zh-CN')
+  } catch (error) {
+    console.error('时间格式化失败：', error)
+    return ''
+  }
 }
 
 // 提交评论
-const submitComment = () => {
+const submitComment = async () => {
   if (!newComment.value.trim()) {
     uni.showToast({
       title: '请输入评论内容',
@@ -142,21 +186,39 @@ const submitComment = () => {
     return
   }
 
-  // 添加新评论
-  comments.value.unshift({
-    id: Date.now(),
-    username: '我',
-    avatar: 'https://ui-avatars.com/api/?name=我&background=f97316&color=fff&size=100',
-    content: newComment.value,
-    time: '刚刚',
-    likes: 0,
-    isLiked: false
-  })
-
-  // 清空输入框
-  newComment.value = ''
-
-  // TODO: 向服务器提交评论
+  try {
+    const commentData = {
+      contentId: contentId.value,
+      content: newComment.value.trim(),
+      commentType: 2, // 2-段落评论
+      paragraphId: paragraphId.value,
+      parentId: 0,
+      rootId: 0
+    }
+    
+    console.log('提交段落评论：', commentData)
+    
+    const response = await commentApi.addComment(commentData)
+    
+    if (response && response.data) {
+      uni.showToast({
+        title: '评论成功',
+        icon: 'success'
+      })
+      
+      // 清空输入框
+      newComment.value = ''
+      
+      // 重新加载评论
+      await loadComments()
+    }
+  } catch (error) {
+    console.error('提交段落评论失败：', error)
+    uni.showToast({
+      title: '评论失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 点赞评论

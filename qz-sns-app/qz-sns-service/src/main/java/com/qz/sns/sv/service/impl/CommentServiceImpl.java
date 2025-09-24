@@ -123,29 +123,46 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     @Transactional
     public CommentDTO addComment(CommentDTO commentDTO) {
+        log.info("开始添加评论，评论数据：{}", commentDTO);
+        
         // 1. 组装评论实体
         Comment comment = new Comment();
         BeanUtils.copyProperties(commentDTO, comment);
 
-        // 2. 设置评论状态
+        // 2. 设置用户ID
+        Long currentUserId = getCurrentUserId();
+        if (currentUserId == null) {
+            // 如果用户未登录，使用测试用户ID
+            currentUserId = -999L;
+            log.warn("用户未登录，使用测试用户ID：{}", currentUserId);
+        }
+        comment.setUserId(currentUserId);
+        log.info("设置评论用户ID：{}", currentUserId);
+
+        // 3. 设置评论状态
         comment.setStatus(1);
         comment.setLikeCount(0);
         comment.setReplyCount(0);
 
-        // 3. 保存评论
+        // 4. 保存评论
+        log.info("准备插入评论到数据库：{}", comment);
         commentMapper.insert(comment);
+        log.info("评论插入成功，评论ID：{}", comment.getId());
 
-        // 4. 更新评论计数
+        // 5. 更新评论计数
+        log.info("开始更新评论计数，评论类型：{}，父评论ID：{}", comment.getCommentType(), comment.getParentId());
         if (comment.getCommentType() == 1) {
             // 普通评论
             if (comment.getParentId() == 0) {
                 // 根评论，更新内容评论数
                 contentMapper.incrementCommentCount(comment.getContentId());
+                log.info("更新内容评论数，内容ID：{}", comment.getContentId());
             } else {
                 // 回复，更新父评论回复数
                 commentMapper.incrementReplyCount(comment.getParentId());
                 // 同时也要更新内容评论数
                 contentMapper.incrementCommentCount(comment.getContentId());
+                log.info("更新父评论回复数和内容评论数，父评论ID：{}，内容ID：{}", comment.getParentId(), comment.getContentId());
             }
         } else if (comment.getCommentType() == 2) {
             // 段落评论
@@ -154,23 +171,32 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 updateParagraphCommentCount(comment.getContentId(), comment.getParagraphId());
                 // 同时更新内容评论数
                 contentMapper.incrementCommentCount(comment.getContentId());
+                log.info("更新段落评论数和内容评论数，内容ID：{}，段落ID：{}", comment.getContentId(), comment.getParagraphId());
             } else {
                 // 回复，更新父评论回复数
                 commentMapper.incrementReplyCount(comment.getParentId());
                 // 同时更新段落评论数和内容评论数
                 updateParagraphCommentCount(comment.getContentId(), comment.getParagraphId());
                 contentMapper.incrementCommentCount(comment.getContentId());
+                log.info("更新父评论回复数、段落评论数和内容评论数");
             }
         }
 
-        // 5. 获取用户信息
+        // 6. 获取用户信息
+        log.info("获取用户信息，用户ID：{}", comment.getUserId());
         User user = userMapper.selectById(comment.getUserId());
+        if (user == null) {
+            log.error("用户不存在，用户ID：{}", comment.getUserId());
+            throw new RuntimeException("用户不存在");
+        }
 
-        // 6. 构建返回对象
+        // 7. 构建返回对象
+        log.info("构建返回对象");
         CommentDTO resultDTO = new CommentDTO();
         BeanUtils.copyProperties(comment, resultDTO);
         resultDTO.setUserName(user.getNickname());
         resultDTO.setUserAvatar(user.getAvatar());
+        log.info("评论添加完成，返回数据：{}", resultDTO);
 
         // 如果是回复，需要设置回复对象的名称
         if (comment.getParentId() > 0) {
@@ -257,9 +283,16 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
      * @return 用户ID
      */
     private Long getCurrentUserId() {
-        if (SessionContext.getSession() != null) {
-            return SessionContext.getSession().getUserId();
+        try {
+            if (SessionContext.getSession() != null) {
+                Long userId = SessionContext.getSession().getUserId();
+                log.debug("从Session获取到用户ID：{}", userId);
+                return userId;
+            }
+        } catch (Exception e) {
+            log.debug("获取Session失败：{}", e.getMessage());
         }
+        log.debug("无法获取当前用户ID，返回null");
         return null;
     }
 

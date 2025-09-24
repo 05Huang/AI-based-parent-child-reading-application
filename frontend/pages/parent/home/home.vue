@@ -76,37 +76,39 @@
           <text class="more-link">查看更多</text>
         </view>
         <scroll-view scroll-x="true" class="book-scroll">
-          <view class="book-card">
-            <image src="https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop" class="book-cover"></image>
+          <!-- 加载状态 -->
+          <view v-if="loading" class="book-card loading-card">
+            <view class="loading-placeholder">
+              <text>加载中...</text>
+            </view>
+          </view>
+          
+          <!-- 精选推荐内容列表 -->
+          <view 
+            v-for="item in recommendedContents" 
+            :key="item.id"
+            class="book-card"
+            @click="navigateToReading(item)"
+          >
+            <image 
+              :src="item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop'" 
+              class="book-cover"
+              mode="aspectFill"
+            ></image>
             <view class="book-info">
-              <text class="book-title">10分钟亲子互动游戏</text>
-              <text class="book-age">亲子互动</text>
+              <text class="book-title">{{ item.title }}</text>
+              <text class="book-age">{{ item.tags || '推荐阅读' }}</text>
               <view class="book-stats">
                 <text class="fas fa-eye stats-icon"></text>
-                <text class="stats-text">2.1万</text>
+                <text class="stats-text">{{ formatViewCount(item.viewCount) }}</text>
               </view>
             </view>
           </view>
-          <view class="book-card">
-            <image src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop" class="book-cover"></image>
-            <view class="book-info">
-              <text class="book-title">如何培养孩子的专注力</text>
-              <text class="book-age">教育心得</text>
-              <view class="book-stats">
-                <text class="fas fa-eye stats-icon"></text>
-                <text class="stats-text">1.8万</text>
-              </view>
-            </view>
-          </view>
-          <view class="book-card">
-            <image src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&auto=format&fit=crop" class="book-cover"></image>
-            <view class="book-info">
-              <text class="book-title">春游必备：亲子户外活动指南</text>
-              <text class="book-age">户外活动</text>
-              <view class="book-stats">
-                <text class="fas fa-eye stats-icon"></text>
-                <text class="stats-text">1.5万</text>
-              </view>
+          
+          <!-- 无数据提示 -->
+          <view v-if="!loading && recommendedContents.length === 0" class="book-card no-data-card">
+            <view class="no-data-placeholder">
+              <text>暂无推荐内容</text>
             </view>
           </view>
         </scroll-view>
@@ -116,46 +118,52 @@
       <view class="hot-reading">
         <view class="section-header">
           <text class="section-title">热门文章</text>
-          <view class="refresh">
+          <view class="refresh" @click="refreshHotContents">
             <text class="refresh-text">换一换</text>
             <text class="fas fa-sync-alt refresh-icon"></text>
           </view>
         </view>
         <view class="hot-books">
-          <view class="hot-book-item">
-            <image src="https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400&auto=format&fit=crop" class="hot-book-cover"></image>
+          <!-- 加载状态 -->
+          <view v-if="loading" class="hot-book-item loading-item">
+            <view class="loading-placeholder">
+              <text>加载中...</text>
+            </view>
+          </view>
+          
+          <!-- 热门文章列表 -->
+          <view 
+            v-for="item in hotContents" 
+            :key="item.id"
+            class="hot-book-item"
+            @click="navigateToReading(item)"
+          >
+            <image 
+              :src="item.coverUrl || 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400&auto=format&fit=crop'" 
+              class="hot-book-cover"
+              mode="aspectFill"
+            ></image>
             <view class="hot-book-info">
-              <text class="hot-book-title">让孩子爱上学习的秘密</text>
-              <text class="hot-book-author">育儿专家 王老师</text>
-              <text class="hot-book-tags">教育心得 · 学习方法 · 家长经验</text>
+              <text class="hot-book-title">{{ item.title }}</text>
+              <text class="hot-book-author">{{ item.creatorName || '匿名作者' }}</text>
+              <text class="hot-book-tags">{{ item.tags || '热门推荐' }}</text>
               <view class="hot-book-stats">
                 <view class="rating">
                   <text class="fas fa-thumbs-up rating-icon"></text>
-                  <text class="rating-text">2.3k</text>
+                  <text class="rating-text">{{ formatViewCount(item.likeCount) }}</text>
                 </view>
                 <view class="views">
                   <text class="fas fa-eye views-icon"></text>
-                  <text class="views-text">3.2万</text>
+                  <text class="views-text">{{ formatViewCount(item.viewCount) }}</text>
                 </view>
               </view>
             </view>
           </view>
-          <view class="hot-book-item">
-            <image src="https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=400&auto=format&fit=crop" class="hot-book-cover"></image>
-            <view class="hot-book-info">
-              <text class="hot-book-title">亲子厨房：让烘焙成为周末的仪式感</text>
-              <text class="hot-book-author">美食达人 李妈妈</text>
-              <text class="hot-book-tags">亲子互动 · 美食 · 生活技能</text>
-              <view class="hot-book-stats">
-                <view class="rating">
-                  <text class="fas fa-thumbs-up rating-icon"></text>
-                  <text class="rating-text">1.8k</text>
-                </view>
-                <view class="views">
-                  <text class="fas fa-eye views-icon"></text>
-                  <text class="views-text">2.8万</text>
-                </view>
-              </view>
+          
+          <!-- 无数据提示 -->
+          <view v-if="!loading && hotContents.length === 0" class="hot-book-item no-data-item">
+            <view class="no-data-placeholder">
+              <text>暂无热门内容</text>
             </view>
           </view>
         </view>
@@ -168,9 +176,15 @@
 
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
+import { contentApi, recommendationApi } from '@/utils/api.js'
 
-// 页面加载时检查登录状态
-onMounted(() => {
+// 响应式数据
+const recommendedContents = ref([]) // 精选推荐内容
+const hotContents = ref([]) // 热门文章内容
+const loading = ref(false) // 加载状态
+
+// 页面加载时检查登录状态并获取数据
+onMounted(async () => {
   console.log('首页加载，检查登录状态')
   const token = uni.getStorageSync('token')
   const isLoggedIn = uni.getStorageSync('isLoggedIn')
@@ -183,9 +197,114 @@ onMounted(() => {
       url: '/pages/parent/login/login'
     })
   } else {
-    console.log('已登录，停留在首页')
+    console.log('已登录，停留在首页，开始加载数据')
+    await loadHomeData()
   }
 })
+
+// 加载首页数据
+const loadHomeData = async () => {
+  try {
+    loading.value = true
+    console.log('开始加载首页数据...')
+    
+    // 并行请求推荐内容和热门内容
+    const [recommendedResult, hotResult] = await Promise.allSettled([
+      loadRecommendedContents(),
+      loadHotContents()
+    ])
+    
+    if (recommendedResult.status === 'rejected') {
+      console.error('加载推荐内容失败：', recommendedResult.reason)
+    }
+    
+    if (hotResult.status === 'rejected') {
+      console.error('加载热门内容失败：', hotResult.reason)
+    }
+    
+    console.log('首页数据加载完成')
+  } catch (error) {
+    console.error('加载首页数据失败：', error)
+    uni.showToast({
+      title: '加载失败，请重试',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载精选推荐内容
+const loadRecommendedContents = async () => {
+  try {
+    console.log('开始加载精选推荐内容...')
+    // 这里可以使用推荐接口，也可以使用分页查询接口按推荐分数排序
+    // 先尝试使用分页查询，按推荐分数排序
+    const response = await contentApi.getContentPage({
+      current: 1,
+      size: 6,
+      sortField: 'recommendation_score',
+      sortOrder: 'desc',
+      status: 1 // 只查询正常状态的内容
+    })
+    
+    if (response && response.data && response.data.records) {
+      recommendedContents.value = response.data.records
+      console.log('精选推荐内容加载成功：', recommendedContents.value.length, '条')
+    } else {
+      console.warn('精选推荐内容响应格式异常：', response)
+    }
+  } catch (error) {
+    console.error('加载精选推荐内容失败：', error)
+    // 如果推荐接口失败，降级使用普通查询
+    await loadContentsFallback('recommended')
+  }
+}
+
+// 加载热门文章内容
+const loadHotContents = async () => {
+  try {
+    console.log('开始加载热门文章内容...')
+    // 直接使用降级方案，避免推荐服务连接问题
+    await loadContentsFallback('hot')
+  } catch (error) {
+    console.error('加载热门内容失败：', error)
+  }
+}
+
+// 降级方案：使用普通分页查询
+const loadContentsFallback = async (type) => {
+  try {
+    console.log(`使用降级方案加载${type}内容...`)
+    const params = {
+      current: 1,
+      size: type === 'recommended' ? 6 : 4,
+      status: 1
+    }
+    
+    // 根据类型设置不同的排序
+    if (type === 'recommended') {
+      params.sortField = 'created_time'
+      params.sortOrder = 'desc'
+    } else {
+      params.sortField = 'view_count'
+      params.sortOrder = 'desc'
+    }
+    
+    const response = await contentApi.getContentPage(params)
+    
+    if (response && response.data && response.data.records) {
+      if (type === 'recommended') {
+        recommendedContents.value = response.data.records
+      } else {
+        hotContents.value = response.data.records
+      }
+      console.log(`${type}内容降级加载成功：`, response.data.records.length, '条')
+    }
+  } catch (error) {
+    console.error(`降级加载${type}内容失败：`, error)
+  }
+}
 
 // 跳转到个人中心页面
 const navigateToProfile = () => {
@@ -295,6 +414,54 @@ const switchTab = async (index) => {
 // 监听滚动事件
 const onScroll = (e) => {
   scrollLeft.value = e.detail.scrollLeft
+}
+
+// 格式化浏览量显示
+const formatViewCount = (count) => {
+  if (!count || count === 0) return '0'
+  if (count < 1000) return count.toString()
+  if (count < 10000) return (count / 1000).toFixed(1) + 'k'
+  return (count / 10000).toFixed(1) + '万'
+}
+
+// 跳转到阅读页面
+const navigateToReading = async (item) => {
+  if (!item || !item.id) {
+    console.error('文章信息不完整，无法跳转')
+    return
+  }
+  
+  try {
+    console.log('即将跳转到阅读页面，文章ID：', item.id, '标题：', item.title)
+    
+    // 记录浏览行为，增加浏览量
+    contentApi.incrementViewCount(item.id).catch(error => {
+      console.error('增加浏览量失败：', error)
+    })
+    
+    // 跳转到阅读页面
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${item.id}`,
+      success: () => {
+        console.log('跳转到阅读页面成功')
+      },
+      fail: (error) => {
+        console.error('跳转到阅读页面失败：', error)
+        uni.showToast({
+          title: '跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+  } catch (error) {
+    console.error('处理文章点击事件失败：', error)
+  }
+}
+
+// 刷新热门内容
+const refreshHotContents = async () => {
+  console.log('刷新热门内容...')
+  await loadHotContents()
 }
 </script>
 
@@ -788,5 +955,40 @@ const onScroll = (e) => {
   width: 0;
   height: 0;
   color: transparent;
+}
+
+/* 加载状态和无数据状态 */
+.loading-card, .no-data-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200rpx;
+}
+
+.loading-item, .no-data-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120rpx;
+  background-color: #fff;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.loading-placeholder, .no-data-placeholder {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 28rpx;
+}
+
+/* 添加点击效果 */
+.book-card:active, .hot-book-item:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+.refresh:active {
+  opacity: 0.7;
+  transition: opacity 0.1s ease;
 }
 </style> 
