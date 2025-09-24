@@ -282,4 +282,76 @@ public class FileService {
             return false;
         }
     }
+    
+    /**
+     * 上传视频文件到MinIO
+     */
+    public UploadImageVO uploadVideoFile(MultipartFile file, String customPath) {
+        try {
+            log.info("开始上传视频文件，文件大小：{}MB", file.getSize() / 1024.0 / 1024.0);
+            
+            // 大小校验 - 视频文件限制200MB
+            if (file.getSize() > Constant.MAX_VIDEO_SIZE) {
+                throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频文件大小不能超过200MB");
+            }
+            
+            // 视频格式校验
+            String originalFilename = file.getOriginalFilename();
+            if (!isVideo(originalFilename)) {
+                throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频格式不合法，支持mp4、mov、avi、mkv、wmv格式");
+            }
+            
+            // 构建完整的上传路径
+            String uploadPath = minioConfig.getVideoPath();
+            if (StringUtils.isNotEmpty(customPath)) {
+                uploadPath = uploadPath + "/" + customPath;
+            }
+            log.info("视频上传路径：{}", uploadPath);
+            
+            // 上传视频文件
+            UploadImageVO vo = new UploadImageVO();
+            String uploadedFileName = minioUtil.upload(minioConfig.getBucketName(), uploadPath, file);
+            if (StringUtils.isEmpty(uploadedFileName)) {
+                throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频文件上传失败");
+            }
+            
+            // 生成访问URL
+            String videoUrl = generUrl(FileType.VIDEO, uploadedFileName, customPath);
+            vo.setOriginUrl(videoUrl);
+            vo.setThumbUrl(videoUrl); // 视频文件没有缩略图，使用同一个URL
+            vo.setFileName(uploadedFileName);
+            vo.setFileSize(file.getSize());
+            
+            log.info("视频文件上传成功，URL：{}", videoUrl);
+            return vo;
+        } catch (Exception e) {
+            log.error("上传视频文件失败，{}", e.getMessage(), e);
+            throw new GlobalException(ResultCode.PROGRAM_ERROR, "视频文件上传失败：" + e.getMessage());
+        }
+    }
+    
+    /**
+     * 判断是否为视频文件
+     */
+    private boolean isVideo(String fileName) {
+        if (StringUtils.isEmpty(fileName)) {
+            return false;
+        }
+        String extension = getFileExtension(fileName).toLowerCase();
+        return extension.matches("mp4|mov|avi|mkv|wmv|flv|webm|m4v");
+    }
+    
+    /**
+     * 获取文件扩展名
+     */
+    private String getFileExtension(String fileName) {
+        if (StringUtils.isEmpty(fileName)) {
+            return "";
+        }
+        int lastDotIndex = fileName.lastIndexOf(".");
+        if (lastDotIndex == -1) {
+            return "";
+        }
+        return fileName.substring(lastDotIndex + 1);
+    }
 }

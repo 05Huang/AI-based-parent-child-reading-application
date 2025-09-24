@@ -27,8 +27,17 @@ public class FileController {
                                           @RequestParam(value = "fileName", required = false) String fileName) {
         try {
             log.info("开始上传文件，类型：{}，路径：{}，文件名：{}", type, path, fileName);
-            UploadImageVO result = fileService.uploadImage(file, path, fileName);
-            return ResultUtils.success(result);
+            
+            // 根据文件类型调用不同的上传方法
+            if ("video".equals(type)) {
+                // 视频文件上传
+                UploadImageVO result = fileService.uploadVideoFile(file, path);
+                return ResultUtils.success(result);
+            } else {
+                // 图片文件上传
+                UploadImageVO result = fileService.uploadImage(file, path);
+                return ResultUtils.success(result);
+            }
         } catch (Exception e) {
             log.error("文件上传失败：{}", e.getMessage(), e);
             return ResultUtils.error(500, "文件上传失败：" + e.getMessage());

@@ -34,4 +34,12 @@ public interface FileService {
      * @return 是否删除成功
      */
     boolean deleteFile(String url);
+    
+    /**
+     * 上传视频文件到MinIO
+     * @param file 视频文件
+     * @param path 自定义路径
+     * @return 上传结果，包含视频URL
+     */
+    UploadImageVO uploadVideoFile(MultipartFile file, String path) throws Exception;
 }

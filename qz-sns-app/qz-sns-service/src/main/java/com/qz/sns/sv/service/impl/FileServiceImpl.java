@@ -1,5 +1,6 @@
 package com.qz.sns.sv.service.impl;
 
+import com.qz.sns.common.constant.Constant;
 import com.qz.sns.model.vo.UploadImageVO;
 import com.qz.sns.sv.config.MinioConfig;
 import com.qz.sns.sv.service.FileService;
@@ -32,10 +33,13 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public UploadImageVO uploadImage(MultipartFile file, String customPath, String customFileName) throws Exception {
-        // 生成文件名
+        // 确定文件名
         String fileName;
         if (customFileName != null && !customFileName.isEmpty()) {
             fileName = customFileName;
+        } else if (customPath != null && customPath.contains("video_cover")) {
+            // 视频封面固定命名
+            fileName = "video_cover.jpg";
         } else {
             String originalFilename = file.getOriginalFilename();
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
@@ -45,21 +49,17 @@ public class FileServiceImpl implements FileService {
         // 构建存储路径
         String objectName;
         if (customPath != null && !customPath.isEmpty()) {
-            // 如果自定义路径以 qz-sns/image 开头，直接使用自定义路径
-            if (customPath.startsWith(minioConfig.getBucketName() + "/" + minioConfig.getImagePath())) {
-                objectName = customPath;
+            // 对于视频封面，customPath格式：video/resource/{contentId}/video_cover
+            if (customPath.contains("video/resource")) {
+                // 直接使用customPath，不添加imagePath前缀
+                objectName = customPath.replace("/video_cover", "") + "/" + fileName;
             } else {
-                // 否则，在 imagePath 后面添加自定义路径
-                objectName = minioConfig.getImagePath() + "/" + customPath;
-            }
-            // 移除开头的斜杠以避免双斜杠
-            if (objectName.startsWith("/")) {
-                objectName = objectName.substring(1);
+                // 普通图片上传，添加imagePath前缀
+                objectName = minioConfig.getImagePath() + "/" + customPath + "/" + fileName;
             }
         } else {
-            objectName = minioConfig.getImagePath();
+            objectName = minioConfig.getImagePath() + "/" + fileName;
         }
-        objectName = objectName + "/" + fileName;
         
         try (InputStream inputStream = file.getInputStream()) {
             // 上传文件
@@ -104,5 +104,81 @@ public class FileServiceImpl implements FileService {
             log.error("文件删除失败：{}", e.getMessage(), e);
             return false;
         }
+    }
+    
+    @Override
+    public UploadImageVO uploadVideoFile(MultipartFile file, String customPath) throws Exception {
+        log.info("开始上传视频文件，文件大小：{}MB", file.getSize() / 1024.0 / 1024.0);
+        
+        // 大小校验 - 视频文件限制200MB
+        if (file.getSize() > Constant.MAX_VIDEO_SIZE) {
+            throw new Exception("视频文件大小不能超过200MB");
+        }
+        
+        // 视频格式校验
+        String originalFilename = file.getOriginalFilename();
+        if (!isVideo(originalFilename)) {
+            throw new Exception("视频格式不合法，支持mp4、mov、avi、mkv、wmv格式");
+        }
+        
+        // 固定文件名为video.mp4
+        String fileName = "video.mp4";
+        
+        // 构建存储路径 - 直接使用customPath，不再添加videoPath前缀
+        String objectName;
+        if (customPath != null && !customPath.isEmpty()) {
+            // customPath格式：video/resource/{contentId}
+            objectName = customPath + "/" + fileName;
+        } else {
+            objectName = minioConfig.getVideoPath() + "/" + fileName;
+        }
+        
+        try (InputStream inputStream = file.getInputStream()) {
+            // 上传文件
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(minioConfig.getBucketName())
+                    .object(objectName)
+                    .stream(inputStream, file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build());
+            
+            // 构建返回结果
+            UploadImageVO result = new UploadImageVO();
+            result.setOriginUrl(minioConfig.getDomain() + "/" + minioConfig.getBucketName() + "/" + objectName);
+            result.setThumbUrl(result.getOriginUrl()); // 视频文件没有缩略图，使用同一个URL
+            result.setFileName(fileName);
+            result.setFileSize(file.getSize());
+            
+            log.info("视频文件上传成功：{}", result.getOriginUrl());
+            return result;
+        } catch (Exception e) {
+            log.error("视频文件上传失败：{}", e.getMessage(), e);
+            throw new Exception("视频文件上传失败：" + e.getMessage());
+        }
+    }
+    
+    /**
+     * 判断是否为视频文件
+     */
+    private boolean isVideo(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return false;
+        }
+        String extension = getFileExtension(fileName).toLowerCase();
+        return extension.matches("mp4|mov|avi|mkv|wmv|flv|webm|m4v");
+    }
+    
+    /**
+     * 获取文件扩展名
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int lastDotIndex = fileName.lastIndexOf(".");
+        if (lastDotIndex == -1) {
+            return "";
+        }
+        return fileName.substring(lastDotIndex + 1);
     }
 }

@@ -1,0 +1,17 @@
+**视频内容的存储方案**：
+   - 在数据库中存储：
+     - 视频名称（title字段）
+     - 视频简介（content字段）
+     - 视频URL（media_url字段）
+     - 封面图URL（cover_url字段）
+     - 浏览量、点赞量、评论量等统计数据
+   - 在MinIO中存储：
+     - 视频文件本身
+     - 视频封面图
+     存储后的URL同样会保存在数据库相应字段中
+
+     minio里面的视频相关文件路径：
+     视频封面图文件：/qz-sns/video/resource/video_id/video_cover.jpg
+     视频文件：/qz-sns/video/resource/video_id/video.mp4
+
+     

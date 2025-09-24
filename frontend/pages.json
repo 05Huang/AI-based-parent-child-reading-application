@@ -226,6 +226,12 @@
       "style": {
         "navigationBarTitleText": "内容管理"
       }
+    },
+    {
+      "path": "pages/admin/video-manage",
+      "style": {
+        "navigationBarTitleText": "视频管理"
+      }
     }
   ],
   "globalStyle": {
