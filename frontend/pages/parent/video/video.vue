@@ -62,21 +62,28 @@
             <text class="fas fa-chevron-right"></text>
           </view>
         </view>
-        <view class="video-card featured">
+        <view class="video-card featured" @click="navigateToVideoPlayer(featuredVideo.id)" v-if="featuredVideo.id">
           <view class="video-cover">
-            <image src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&auto=format&fit=crop&q=60" 
+            <image :src="featuredVideo.coverUrl || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&auto=format&fit=crop&q=60'" 
                    mode="aspectFill"></image>
-            <text class="video-duration">05:24</text>
+            <text class="video-duration">{{ formatDuration(featuredVideo.duration) }}</text>
             <view class="video-play-button">
               <text class="fas fa-play"></text>
             </view>
             <view class="video-info-overlay">
-              <text class="video-title">《哈利·波特》系列的魔法世界解析</text>
+              <text class="video-title">{{ featuredVideo.title || '推荐视频' }}</text>
               <view class="video-stats">
-                <text class="views">3.2万观看</text>
+                <text class="views">{{ formatViewCount(featuredVideo.viewCount) }}观看</text>
                 <text class="dot">·</text>
-                <text class="time">2小时前</text>
+                <text class="time">{{ formatTime(featuredVideo.createdTime) }}</text>
               </view>
+            </view>
+          </view>
+        </view>
+        <view class="video-card featured" v-else>
+          <view class="video-cover">
+            <view class="loading-placeholder">
+              <text class="loading-text">加载中...</text>
             </view>
           </view>
         </view>
@@ -86,93 +93,54 @@
       <view class="section">
         <view class="section-header">
           <text class="section-title">热门视频</text>
-          <view class="refresh-link">
+          <view class="refresh-link" @click="refreshHotVideos">
             <text class="refresh-text">换一换</text>
             <text class="fas fa-sync-alt"></text>
           </view>
         </view>
         <view class="video-list">
-          <!-- 视频项 1 -->
-          <view class="video-item">
+          <!-- 动态渲染热门视频 -->
+          <view 
+            class="video-item" 
+            v-for="video in hotVideos" 
+            :key="video.id"
+            @click="navigateToVideoPlayer(video.id)"
+          >
             <view class="video-thumbnail">
-              <image src="https://images.unsplash.com/photo-1551029506-0807df4e2031?w=500&auto=format&fit=crop&q=60" 
+              <image :src="video.coverUrl || 'https://images.unsplash.com/photo-1551029506-0807df4e2031?w=500&auto=format&fit=crop&q=60'" 
                      mode="aspectFill"></image>
-              <text class="video-duration">03:45</text>
+              <text class="video-duration">{{ formatDuration(video.duration) }}</text>
             </view>
             <view class="video-content">
-              <text class="video-title">如何提高阅读理解能力 - 实用技巧分享</text>
+              <text class="video-title">{{ video.title || '视频标题' }}</text>
               <view class="video-metrics">
                 <view class="metric">
                   <text class="fas fa-play-circle"></text>
-                  <text class="metric-value">2.1万</text>
+                  <text class="metric-value">{{ formatViewCount(video.viewCount) }}</text>
                 </view>
                 <view class="metric">
                   <text class="fas fa-comment"></text>
-                  <text class="metric-value">328</text>
+                  <text class="metric-value">{{ video.commentCount || 0 }}</text>
                 </view>
               </view>
               <view class="creator-info">
                 <image class="creator-avatar" 
-                       src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator1"
+                       :src="video.creatorAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (video.creatorName || 'creator')"
                        mode="aspectFill"></image>
-                <text class="creator-name">阅读达人</text>
+                <text class="creator-name">{{ video.creatorName || '内容创作者' }}</text>
               </view>
             </view>
           </view>
-
-          <!-- 视频项 2 -->
-          <view class="video-item">
+          
+          <!-- 加载状态 -->
+          <view class="video-item" v-if="hotVideos.length === 0 && !loading">
             <view class="video-thumbnail">
-              <image src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=500&auto=format&fit=crop&q=60" 
-                     mode="aspectFill"></image>
-              <text class="video-duration">04:12</text>
+              <view class="loading-placeholder">
+                <text class="loading-text">暂无热门视频</text>
+              </view>
             </view>
             <view class="video-content">
-              <text class="video-title">《小王子》中的哲学思考 - 不只是童话</text>
-              <view class="video-metrics">
-                <view class="metric">
-                  <text class="fas fa-play-circle"></text>
-                  <text class="metric-value">1.8万</text>
-                </view>
-                <view class="metric">
-                  <text class="fas fa-comment"></text>
-                  <text class="metric-value">256</text>
-                </view>
-              </view>
-              <view class="creator-info">
-                <image class="creator-avatar" 
-                       src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator2"
-                       mode="aspectFill"></image>
-                <text class="creator-name">文学研究社</text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 视频项 3 -->
-          <view class="video-item">
-            <view class="video-thumbnail">
-              <image src="https://images.unsplash.com/photo-1589998059171-988d887df646?w=500&auto=format&fit=crop&q=60" 
-                     mode="aspectFill"></image>
-              <text class="video-duration">06:30</text>
-            </view>
-            <view class="video-content">
-              <text class="video-title">深海探秘：海洋生物的奇妙世界</text>
-              <view class="video-metrics">
-                <view class="metric">
-                  <text class="fas fa-play-circle"></text>
-                  <text class="metric-value">3.5万</text>
-                </view>
-                <view class="metric">
-                  <text class="fas fa-comment"></text>
-                  <text class="metric-value">512</text>
-                </view>
-              </view>
-              <view class="creator-info">
-                <image class="creator-avatar" 
-                       src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator3"
-                       mode="aspectFill"></image>
-                <text class="creator-name">科学探索</text>
-              </view>
+              <text class="video-title">正在加载热门视频...</text>
             </view>
           </view>
         </view>
@@ -182,37 +150,35 @@
       <view class="section">
         <view class="section-header">
           <text class="section-title">为你推荐</text>
-          <text class="refresh-text">换一批</text>
+          <text class="refresh-text" @click="refreshRecommendedVideos">换一批</text>
         </view>
         <view class="recommended-grid">
-          <!-- 推荐视频 1 -->
-          <view class="recommended-card">
+          <!-- 动态渲染推荐视频 -->
+          <view 
+            class="recommended-card" 
+            v-for="video in recommendedVideos" 
+            :key="video.id"
+            @click="navigateToVideoPlayer(video.id)"
+          >
             <view class="video-cover">
-              <image src="https://images.unsplash.com/photo-1633477189729-9290b3261d0a?w=500&auto=format&fit=crop&q=60" 
+              <image :src="video.coverUrl || 'https://images.unsplash.com/photo-1633477189729-9290b3261d0a?w=500&auto=format&fit=crop&q=60'" 
                      mode="aspectFill"></image>
-              <text class="video-duration">03:18</text>
+              <text class="video-duration">{{ formatDuration(video.duration) }}</text>
               <view class="video-info-overlay">
-                <text class="video-title">《夏洛的网》：友谊的力量</text>
+                <text class="video-title">{{ video.title || '推荐视频' }}</text>
                 <view class="video-stats">
                   <text class="fas fa-play-circle"></text>
-                  <text class="views">1.2万</text>
+                  <text class="views">{{ formatViewCount(video.viewCount) }}</text>
                 </view>
               </view>
             </view>
           </view>
 
-          <!-- 推荐视频 2 -->
-          <view class="recommended-card">
+          <!-- 占位卡片 -->
+          <view class="recommended-card" v-if="recommendedVideos.length < 2">
             <view class="video-cover">
-              <image src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&auto=format&fit=crop&q=60" 
-                     mode="aspectFill"></image>
-              <text class="video-duration">04:05</text>
-              <view class="video-info-overlay">
-                <text class="video-title">太阳系行星探索：神秘的土星</text>
-                <view class="video-stats">
-                  <text class="fas fa-play-circle"></text>
-                  <text class="views">2.3万</text>
-                </view>
+              <view class="loading-placeholder">
+                <text class="loading-text">更多精彩视频即将上线</text>
               </view>
             </view>
           </view>
@@ -226,15 +192,24 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
+import { videoApi, categoryApi } from '../../../utils/api.js';
 
 // 页面加载时检查登录状态
 onMounted(() => {
+  console.log('视频页面初始化');
   const token = uni.getStorageSync('token');
   if (!token) {
     uni.redirectTo({
       url: '/pages/parent/login/login'
     });
+    return;
   }
+  
+  // 加载页面数据
+  loadCategories();
+  loadFeaturedVideo();
+  loadHotVideos();
+  loadRecommendedVideos();
 });
 
 // 跳转到个人中心页面
@@ -269,29 +244,103 @@ const navigateToSearch = () => {
   });
 };
 
-// 导航标签数据
-const tabs = ref([
-  { name: '全部', id: 'all' },
-  { name: '故事解读', id: 'story' },
-  { name: '科普知识', id: 'science' },
-  { name: '名著赏析', id: 'classics' },
-  { name: '阅读技巧', id: 'skills' },
-  { name: '亲子共读', id: 'reading' },
-  { name: '英语启蒙', id: 'english' }
-]);
-
-// 当前选中的标签索引
+// 数据状态
+const tabs = ref([{ name: '全部', id: null }]); // 默认包含"全部"选项
 const currentTab = ref(0);
-// 滚动位置
 const scrollLeft = ref(0);
-// scroll-view 引用
 const scrollView = ref(null);
+
+// 视频数据
+const featuredVideo = ref({});
+const hotVideos = ref([]);
+const recommendedVideos = ref([]);
+const loading = ref(false);
+
+// 加载分类数据
+const loadCategories = async () => {
+  try {
+    console.log('开始加载视频分类');
+    const response = await categoryApi.getAllActiveCategories();
+    
+    if (response.code === 200 && response.data) {
+      // 保留"全部"选项，然后添加其他分类
+      const allCategories = [
+        { name: '全部', id: null },
+        ...response.data.map(category => ({
+          name: category.name,
+          id: category.id
+        }))
+      ];
+      tabs.value = allCategories;
+      console.log('分类加载成功，共', tabs.value.length, '个分类');
+    }
+  } catch (error) {
+    console.error('加载分类失败：', error);
+  }
+};
+
+// 加载推荐视频
+const loadFeaturedVideo = async () => {
+  try {
+    console.log('开始加载推荐视频');
+    const response = await videoApi.getHotVideos(10);
+    
+    if (response.code === 200 && response.data && response.data.length > 0) {
+      // 过滤出视频内容（type=2）
+      const videos = response.data.filter(item => item.type === 2);
+      if (videos.length > 0) {
+        featuredVideo.value = videos[0];
+        console.log('推荐视频加载成功：', featuredVideo.value.title);
+      }
+    }
+  } catch (error) {
+    console.error('加载推荐视频失败：', error);
+  }
+};
+
+// 加载热门视频
+const loadHotVideos = async () => {
+  try {
+    console.log('开始加载热门视频');
+    const response = await videoApi.getHotVideos(20);
+    
+    if (response.code === 200 && response.data) {
+      // 过滤出视频内容（type=2）
+      const videos = response.data.filter(item => item.type === 2);
+      hotVideos.value = videos.slice(1, 4); // 跳过第一个（已用作推荐视频），取2-4个作为热门视频
+      console.log('热门视频加载成功，共', hotVideos.value.length, '个');
+    }
+  } catch (error) {
+    console.error('加载热门视频失败：', error);
+  }
+};
+
+// 加载推荐视频列表
+const loadRecommendedVideos = async () => {
+  try {
+    console.log('开始加载推荐视频列表');
+    const response = await videoApi.getRecommendedVideos(15);
+    
+    if (response.code === 200 && response.data) {
+      // 过滤出视频内容（type=2）
+      const videos = response.data.filter(item => item.type === 2);
+      recommendedVideos.value = videos.slice(4, 6); // 跳过前面已使用的，取两个
+      console.log('推荐视频列表加载成功，共', recommendedVideos.value.length, '个');
+    }
+  } catch (error) {
+    console.error('加载推荐视频列表失败：', error);
+  }
+};
 
 // 切换标签
 const switchTab = async (index) => {
   if (currentTab.value === index) return;
   
+  console.log('切换到分类标签：', tabs.value[index].name);
   currentTab.value = index;
+  
+  // 根据分类加载视频
+  await loadVideosByCategory(tabs.value[index].id);
   
   // 等待DOM更新
   await nextTick();
@@ -314,6 +363,106 @@ const switchTab = async (index) => {
     // 设置滚动位置（会触发动画）
     scrollLeft.value = newScrollLeft;
   });
+};
+
+// 根据分类加载视频
+const loadVideosByCategory = async (categoryId) => {
+  try {
+    loading.value = true;
+    console.log('根据分类加载视频，分类ID：', categoryId);
+    
+    let response;
+    if (categoryId) {
+      // 特定分类的视频
+      response = await videoApi.getVideosByCategory(categoryId, 20);
+    } else {
+      // 全部视频
+      response = await videoApi.getVideoPage({
+        current: 1,
+        size: 20,
+        sortField: 'created_time',
+        sortOrder: 'desc'
+      });
+    }
+    
+    if (response.code === 200 && response.data) {
+      // 更新热门视频和推荐视频
+      const videos = (response.data.records || response.data).filter(item => item.type === 2);
+      if (videos.length > 0) {
+        // 更新推荐视频
+        if (videos.length > 0) {
+          featuredVideo.value = videos[0];
+        }
+        // 更新热门视频
+        hotVideos.value = videos.slice(1, 4);
+        // 更新推荐视频列表
+        recommendedVideos.value = videos.slice(4, 6);
+        console.log('分类视频加载成功');
+      }
+    }
+  } catch (error) {
+    console.error('加载分类视频失败：', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 刷新热门视频
+const refreshHotVideos = async () => {
+  console.log('刷新热门视频');
+  await loadHotVideos();
+  uni.showToast({
+    title: '已刷新',
+    icon: 'success',
+    duration: 1000
+  });
+};
+
+// 刷新推荐视频
+const refreshRecommendedVideos = async () => {
+  console.log('刷新推荐视频');
+  await loadRecommendedVideos();
+  uni.showToast({
+    title: '已刷新',
+    icon: 'success',
+    duration: 1000
+  });
+};
+
+// 跳转到视频播放页面
+const navigateToVideoPlayer = (videoId) => {
+  console.log('跳转到视频播放页面，视频ID：', videoId);
+  uni.navigateTo({
+    url: `/pages/parent/video/video-player?id=${videoId}`
+  });
+};
+
+// 格式化播放数量
+const formatViewCount = (count) => {
+  if (!count) return '0';
+  if (count < 1000) return count.toString();
+  if (count < 10000) return (count / 1000).toFixed(1) + 'K';
+  return (count / 10000).toFixed(1) + 'W';
+};
+
+// 格式化时间
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  const date = new Date(timeStr);
+  const now = new Date();
+  const diff = now - date;
+  
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+  return Math.floor(diff / 86400000) + '天前';
+};
+
+// 格式化视频时长
+const formatDuration = (seconds) => {
+  if (!seconds) return '00:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
 // 监听滚动事件
@@ -685,5 +834,21 @@ const handleScroll = (e) => {
 
 .recommended-card .video-cover {
   height: 100px;
+}
+
+/* 加载占位符样式 */
+.loading-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+}
+
+.loading-text {
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
 }
 </style> 

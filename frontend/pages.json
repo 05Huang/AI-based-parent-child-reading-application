@@ -55,6 +55,12 @@
       }
     },
     {
+      "path": "pages/parent/video/video-player",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/parent/ai-chat/ai-chat",
       "style": {
         "navigationStyle": "custom"

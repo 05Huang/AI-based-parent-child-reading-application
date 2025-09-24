@@ -66,6 +66,48 @@ export const categoryApi = {
   }
 }
 
+// 视频相关API
+export const videoApi = {
+  // 获取视频列表（分页）
+  getVideoPage(params) {
+    console.log('调用视频分页查询接口，参数：', params)
+    // 设置type=2表示只查询视频内容
+    const videoParams = { ...params, type: 2 }
+    return request.get('/api/content/page', videoParams)
+  },
+  
+  // 获取热门视频
+  getHotVideos(limit = 10) {
+    console.log('获取热门视频，数量：', limit)
+    return request.get('/api/content/hot', { limit })
+  },
+  
+  // 获取推荐视频
+  getRecommendedVideos(size = 10) {
+    console.log('获取推荐视频，数量：', size)
+    // 使用热门内容接口，因为推荐接口需要用户ID
+    return request.get('/api/content/hot', { limit: size })
+  },
+  
+  // 根据分类获取视频
+  getVideosByCategory(categoryId, limit = 10) {
+    console.log('根据分类获取视频，分类ID：', categoryId, '数量：', limit)
+    return request.get(`/api/content/category/${categoryId}`, { limit })
+  },
+  
+  // 获取视频详情
+  getVideoDetail(id) {
+    console.log('获取视频详情，ID：', id)
+    return request.get(`/api/content/${id}`)
+  },
+  
+  // 增加视频浏览量
+  incrementVideoViewCount(id) {
+    console.log('增加视频浏览量，ID：', id)
+    return request.post(`/api/content/${id}/view`)
+  }
+}
+
 // 评论相关API
 export const commentApi = {
   // 获取文章评论列表（普通评论）

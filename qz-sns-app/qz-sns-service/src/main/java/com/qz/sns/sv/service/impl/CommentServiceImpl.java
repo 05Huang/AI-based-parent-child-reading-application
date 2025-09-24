@@ -149,7 +149,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         commentMapper.insert(comment);
         log.info("评论插入成功，评论ID：{}", comment.getId());
 
-        // 5. 更新评论计数
+        // 5. 设置默认的parentId（如果为null）
+        if (comment.getParentId() == null) {
+            comment.setParentId(0L);
+            log.info("设置默认父评论ID为0");
+        }
+
+        // 6. 更新评论计数
         log.info("开始更新评论计数，评论类型：{}，父评论ID：{}", comment.getCommentType(), comment.getParentId());
         if (comment.getCommentType() == 1) {
             // 普通评论
@@ -199,11 +205,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         log.info("评论添加完成，返回数据：{}", resultDTO);
 
         // 如果是回复，需要设置回复对象的名称
-        if (comment.getParentId() > 0) {
+        if (comment.getParentId() != null && comment.getParentId() > 0) {
             Comment parentComment = commentMapper.selectById(comment.getParentId());
             if (parentComment != null) {
                 User replyToUser = userMapper.selectById(parentComment.getUserId());
-                resultDTO.setReplyToName(replyToUser.getNickname());
+                if (replyToUser != null) {
+                    resultDTO.setReplyToName(replyToUser.getNickname());
+                }
             }
         }
 
@@ -245,11 +253,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             dto.setIsLiked(isLiked);
 
             // 如果是回复评论，设置回复对象的名称
-            if (comment.getParentId() > 0) {
+            if (comment.getParentId() != null && comment.getParentId() > 0) {
                 Comment parentComment = commentMapper.selectById(comment.getParentId());
                 if (parentComment != null) {
                     User replyToUser = userMapper.selectById(parentComment.getUserId());
-                    dto.setReplyToName(replyToUser.getNickname());
+                    if (replyToUser != null) {
+                        dto.setReplyToName(replyToUser.getNickname());
+                    }
                 }
             }
 
