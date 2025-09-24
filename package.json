@@ -4,6 +4,7 @@
   "description": "A parent-child reading application",
   "main": "main.js",
   "dependencies": {
-    "@dcloudio/uni-ui": "^1.5.7"
+    "@dcloudio/uni-ui": "^1.5.11",
+    "mp-html": "^2.5.1"
   }
 }
