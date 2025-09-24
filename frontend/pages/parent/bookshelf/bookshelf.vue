@@ -14,16 +14,23 @@
         </view>
       </view>
       <!-- 分类标签 -->
-
       <view class="category-container">
         <scroll-view scroll-x="true" class="category-tabs" :show-scrollbar="false">
           <view class="tabs-wrapper">
-            <view class="tab active">全部</view>
-            <view class="tab">育儿经验</view>
-            <view class="tab">亲子互动</view>
-            <view class="tab">教育心得</view>
-            <view class="tab">营养健康</view>
-            <view class="tab">最近</view>
+            <view 
+              class="tab" 
+              :class="{ active: currentCategoryId === null }"
+              @click="switchCategory(null)"
+            >全部</view>
+            <view 
+              v-for="category in categories" 
+              :key="category.id"
+              class="tab" 
+              :class="{ active: currentCategoryId === category.id }"
+              @click="switchCategory(category.id)"
+            >
+              {{ category.name }}
+            </view>
           </view>
         </scroll-view>
       </view>
@@ -35,7 +42,7 @@
       <view class="reading-section">
         <view class="section-header">
           <text class="section-title">最近浏览</text>
-          <text class="view-more" @click="navigateToMore">查看更多</text>
+          <text class="view-more" @click="navigateToMore">刷新</text>
         </view>
         <view class="current-book">
           <image class="book-cover" :src="currentBook.cover" mode="aspectFill"></image>
@@ -51,15 +58,15 @@
               <view class="engagement-stats">
                 <view class="stat-item">
                   <text class="fas fa-thumbs-up"></text>
-                  <text>2.3k</text>
+                  <text>{{ currentBook.likes }}</text>
                 </view>
                 <view class="stat-item">
                   <text class="fas fa-comment"></text>
-                  <text>128</text>
+                  <text>{{ currentBook.comments }}</text>
                 </view>
                 <view class="stat-item">
-                  <text class="fas fa-bookmark"></text>
-                  <text>356</text>
+                  <text class="fas fa-eye"></text>
+                  <text>{{ currentBook.views }}</text>
                 </view>
               </view>
             </view>
@@ -75,9 +82,23 @@
 
       <!-- 收藏列表 -->
       <view class="books-grid">
-        <view class="book-card" v-for="book in books" :key="book.id" @click="navigateToBookDetail(book.id)">
+        <!-- 加载状态 -->
+        <view v-if="loading" class="loading-container">
+          <text class="loading-text">加载中...</text>
+        </view>
+        
+        <!-- 收藏内容列表 -->
+        <view 
+          v-for="book in filteredBooks" 
+          :key="book.id" 
+          class="book-card" 
+          @click="navigateToBookDetail(book)"
+        >
           <view class="book-cover">
-            <image :src="book.cover" mode="aspectFill"></image>
+            <image 
+              :src="book.cover || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop'" 
+              mode="aspectFill"
+            ></image>
           </view>
           <view class="book-card-info">
             <text class="book-card-title">{{ book.title }}</text>
@@ -85,14 +106,21 @@
             <view class="book-card-stats">
               <view class="rating">
                 <text class="fas fa-thumbs-up"></text>
-                <text class="rating-text">{{ book.rating }}k</text>
+                <text class="rating-text">{{ formatCount(book.likeCount) }}</text>
               </view>
               <view class="views">
                 <text class="fas fa-eye"></text>
-                <text class="views-text">{{ book.views }}</text>
+                <text class="views-text">{{ formatCount(book.viewCount) }}</text>
               </view>
             </view>
           </view>
+        </view>
+        
+        <!-- 无数据提示 -->
+        <view v-if="!loading && filteredBooks.length === 0" class="no-data-container">
+          <text class="no-data-text">
+            {{ currentCategoryId ? '该分类下暂无浏览记录' : '暂无浏览记录，去首页看看文章吧' }}
+          </text>
         </view>
       </view>
     </scroll-view>
@@ -102,84 +130,296 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { favoriteApi, categoryApi, contentApi, userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
 
-// 当前浏览的文章
+// 响应式数据
+const categories = ref([]) // 分类列表
+const browsingHistory = ref([]) // 浏览历史记录
+const currentCategoryId = ref(null) // 当前选中的分类ID
+const loading = ref(false) // 加载状态
+const currentUserId = ref(null) // 当前用户ID
+
+// 当前浏览的文章（最近浏览的第一个）
 const currentBook = ref({
-  title: '如何在3分钟内安抚孩子的小情绪',
-  author: '育儿专家 王老师',
+  title: '加载中...',
+  author: '获取中...',
   cover: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&fit=crop&q=80',
-  likes: '2.3k',
-  comments: 128,
-  bookmarks: 356
+  likes: '0',
+  comments: 0,
+  bookmarks: 0
 })
 
-// 收藏列表
-const books = ref([
-  {
-    id: 1,
-    title: '培养孩子专注力的10个小游戏',
-    author: '儿童教育专家 李老师',
-    cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&fit=crop&q=80',
-    rating: '2.1',
-    views: '2.1万'
-  },
-  {
-    id: 2,
-    title: '春季儿童营养餐搭配指南',
-    author: '营养师 张医生',
-    cover: 'https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=400&fit=crop&q=80',
-    rating: '1.8',
-    views: '1.8万'
-  },
-  {
-    id: 3,
-    title: '亲子阅读的正确打开方式',
-    author: '阅读指导师 周老师',
-    cover: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&fit=crop&q=80',
-    rating: '1.5',
-    views: '1.5万'
-  },
-  {
-    id: 4,
-    title: '让写作变成孩子的爱好',
-    author: '语文教师 刘老师',
-    cover: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400&fit=crop&q=80',
-    rating: '1.2',
-    views: '1.2万'
+// 根据当前分类过滤显示的浏览记录
+const filteredBooks = computed(() => {
+  if (currentCategoryId.value === null) {
+    // 显示所有浏览记录
+    return browsingHistory.value
+  } else {
+    // 按分类筛选浏览记录
+    return browsingHistory.value.filter(book => book.categoryId === currentCategoryId.value)
   }
-])
+})
 
-const navigateToMore = () => {
+// 页面加载
+onMounted(async () => {
+  console.log('书架页面加载开始')
+  
+  // 检查登录状态（与home.vue保持一致）
+  const token = uni.getStorageSync('token')
+  const isLoggedIn = uni.getStorageSync('isLoggedIn')
+  
+  console.log('当前登录状态：', { token, isLoggedIn })
+  
+  if (!token || !isLoggedIn) {
+    console.log('未登录，跳转到登录页')
+    uni.redirectTo({
+      url: '/pages/parent/login/login'
+    })
+    return
+  }
+  
+  console.log('已登录，停留在书架页面，开始获取用户信息')
+  
+  // 获取当前用户信息
+  try {
+    const userResponse = await userApi.getCurrentUser()
+    if (userResponse && userResponse.data) {
+      currentUserId.value = userResponse.data.id
+      console.log('获取到当前用户ID：', currentUserId.value)
+      
+      // 并行加载数据
+      await Promise.allSettled([
+        loadCategories(),
+        loadBrowsingHistory()
+      ])
+    } else {
+      console.error('获取用户信息失败，响应格式异常：', userResponse)
+      uni.showToast({
+        title: '获取用户信息失败',
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败，请重新登录',
+      icon: 'none'
+    })
+    // 如果获取用户信息失败，可能是token过期，跳转到登录页
+    uni.redirectTo({
+      url: '/pages/parent/login/login'
+    })
+  }
+})
+
+// 加载分类列表
+const loadCategories = async () => {
+  try {
+    console.log('开始加载分类列表...')
+    const response = await categoryApi.getAllActiveCategories()
+    
+    if (response && response.data) {
+      categories.value = response.data
+      console.log('分类列表加载成功：', categories.value.length, '个')
+    } else {
+      console.warn('分类列表响应格式异常：', response)
+    }
+  } catch (error) {
+    console.error('加载分类列表失败：', error)
+    uni.showToast({
+      title: '加载分类失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 加载浏览历史记录
+const loadBrowsingHistory = async () => {
+  if (!currentUserId.value) return
+  
+  try {
+    loading.value = true
+    console.log('开始加载用户浏览历史记录...')
+    
+    // 调用真正的浏览历史接口
+    const params = {
+      current: 1,
+      size: 20 // 加载更多浏览记录
+    }
+    
+    // 如果有选中分类，按分类筛选
+    if (currentCategoryId.value) {
+      params.categoryId = currentCategoryId.value
+    }
+    
+    const response = await viewHistoryApi.getUserViewHistory(currentUserId.value, params)
+    
+    if (response && response.data && response.data.records) {
+      console.log('浏览历史原始数据：', response.data)
+      
+      // 转换为统一格式，根据UserViewHistoryResponseDTO结构
+      browsingHistory.value = response.data.records.map(item => ({
+        id: item.contentId,
+        title: item.contentTitle || '无标题',
+        author: item.creatorName || '匿名作者',
+        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
+        likeCount: item.likeCount || 0, // 使用后端返回的真实数据
+        viewCount: item.viewCount || 0, // 使用后端返回的真实数据
+        commentCount: item.commentCount || 0, // 使用后端返回的真实数据
+        categoryId: item.categoryId,
+        categoryName: item.categoryName,
+        createdTime: item.viewTime, // 使用浏览时间作为排序依据
+        contentType: item.contentType,
+        viewHistoryId: item.id // 浏览记录的ID
+      }))
+      
+      console.log('用户浏览历史记录加载成功：', browsingHistory.value.length, '条')
+      console.log('处理后的浏览历史数据：', browsingHistory.value)
+      
+      // 更新当前书籍显示
+      updateCurrentBook()
+    } else {
+      console.warn('浏览历史记录响应格式异常：', response)
+      browsingHistory.value = []
+    }
+  } catch (error) {
+    console.error('加载用户浏览历史记录失败：', error)
+    browsingHistory.value = []
+    
+    // 如果浏览历史接口失败，可以降级显示一些内容
+    console.log('降级加载：获取最新内容作为替代')
+    await loadFallbackContent()
+  } finally {
+    loading.value = false
+  }
+}
+
+// 降级方案：当浏览历史加载失败时，显示最新内容
+const loadFallbackContent = async () => {
+  try {
+    const response = await contentApi.getContentPage({
+      current: 1,
+      size: 10,
+      sortField: 'created_time',
+      sortOrder: 'desc',
+      status: 1
+    })
+    
+    if (response && response.data && response.data.records) {
+      browsingHistory.value = response.data.records.map(item => ({
+        id: item.id,
+        title: item.title || '无标题',
+        author: item.creatorName || '匿名作者',
+        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
+        likeCount: item.likeCount || 0,
+        viewCount: item.viewCount || 0,
+        categoryId: item.categoryId,
+        createdTime: item.createdTime,
+        contentType: item.type
+      }))
+      
+      console.log('降级内容加载成功：', browsingHistory.value.length, '条')
+      updateCurrentBook()
+    }
+  } catch (error) {
+    console.error('降级内容加载也失败：', error)
+    uni.showToast({
+      title: '加载内容失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 更新当前书籍显示
+const updateCurrentBook = () => {
+  // 使用浏览历史的第一个作为当前书籍
+  if (browsingHistory.value.length > 0) {
+    const bookToShow = browsingHistory.value[0]
+    currentBook.value = {
+      title: bookToShow.title,
+      author: bookToShow.author,
+      cover: bookToShow.cover,
+      likes: formatCount(bookToShow.likeCount),
+      comments: formatCount(bookToShow.commentCount),
+      views: formatCount(bookToShow.viewCount),
+      bookmarks: browsingHistory.value.length
+    }
+    console.log('更新当前书籍显示：', currentBook.value.title)
+  } else {
+    console.log('没有浏览记录可显示')
+  }
+}
+
+// 切换分类
+const switchCategory = async (categoryId) => {
+  console.log('切换分类，分类ID：', categoryId)
+  currentCategoryId.value = categoryId
+  
+  // 重新加载浏览历史（应用分类筛选）
+  await loadBrowsingHistory()
+}
+
+// 格式化数量显示
+const formatCount = (count) => {
+  if (!count || count === 0) return '0'
+  if (count < 1000) return count.toString()
+  if (count < 10000) return (count / 1000).toFixed(1) + 'k'
+  return (count / 10000).toFixed(1) + '万'
+}
+
+// 查看更多/刷新浏览记录
+const navigateToMore = async () => {
+  console.log('刷新浏览记录...')
+  await loadBrowsingHistory()
   uni.showToast({
-    title: '功能开发中',
-    icon: 'none'
+    title: '刷新完成',
+    icon: 'success'
   })
 }
 
+
+
+// 继续阅读（跳转到最近浏览的内容）
 const continueReading = () => {
-  uni.navigateTo({
-    url: '/pages/parent/reading/reading',
-    animationType: 'slide-in-right',
-    animationDuration: 300,
+  if (browsingHistory.value.length > 0) {
+    const latestBook = browsingHistory.value[0]
+    navigateToBookDetail(latestBook)
+  } else {
+    uni.showToast({
+      title: '暂无浏览记录',
+      icon: 'none'
+    })
+  }
+}
+
+// 跳转到内容详情
+const navigateToBookDetail = (book) => {
+  if (!book || !book.id) {
+    console.error('内容信息不完整，无法跳转')
+    return
+  }
+  
+  try {
+        console.log('即将跳转到阅读页面，内容ID：', book.id, '标题：', book.title)
+    
+    // 跳转到阅读页面（浏览记录将在阅读页面统一处理）
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${book.id}`,
     success: () => {
       console.log('跳转到阅读页面成功')
     },
-    fail: (err) => {
-      console.error('跳转失败:', err)
+      fail: (error) => {
+        console.error('跳转到阅读页面失败：', error)
       uni.showToast({
-        title: '跳转失败，请稍后重试',
+          title: '跳转失败',
         icon: 'none'
       })
     }
   })
-}
-
-const navigateToBookDetail = (bookId) => {
-  uni.showToast({
-    title: '功能开发中',
-    icon: 'none'
-  })
+  } catch (error) {
+    console.error('处理内容点击事件失败：', error)
+  }
 }
 </script>
 
@@ -529,5 +769,37 @@ const navigateToBookDetail = (bookId) => {
   .books-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+/* 加载状态和无数据状态样式 */
+.loading-container, .no-data-container {
+  grid-column: 1 / -1; /* 占满整个网格行 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.loading-text, .no-data-text {
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* 分类切换动画效果 */
+.tab {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab:hover {
+  background-color: #e5e7eb;
+}
+
+.tab.active:hover {
+  background-color: #3b82f6;
 }
 </style> 

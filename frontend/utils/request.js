@@ -21,7 +21,9 @@ const request = {
           // 如果不是白名单接口且有token，添加到请求头
           ...(!options.url.match(/\/(login|register|smscode|send-email-code|check-email|check-phone|reset-password)/) && uni.getStorageSync('token') ? {
             'accessToken': uni.getStorageSync('token')
-          } : {})
+          } : {}),
+          // 允许传入的headers覆盖默认headers
+          ...(options.headers || {})
         }
       });
       
@@ -68,7 +70,12 @@ const request = {
   },
   
   // POST请求
-  post(url, data) {
+  post(url, data, params) {
+    // 如果有params参数，将其作为查询参数添加到URL中
+    if (params) {
+      const query = new URLSearchParams(params).toString()
+      url = `${url}?${query}`
+    }
     return this.request({
       url,
       method: 'POST',

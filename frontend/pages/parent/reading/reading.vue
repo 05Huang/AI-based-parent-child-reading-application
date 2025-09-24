@@ -148,7 +148,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { contentApi, commentApi } from '@/utils/api.js'
+import { contentApi, commentApi, viewHistoryApi, userApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
@@ -224,6 +224,28 @@ const loadArticleData = async () => {
       }
       
       console.log('文章数据加载成功：', article.value)
+      
+      // 记录浏览行为，增加浏览量并添加浏览记录
+      try {
+        // 1. 增加浏览量
+        await contentApi.incrementViewCount(article.value.id)
+        console.log('浏览量增加成功')
+        
+        // 2. 获取用户ID并添加浏览记录
+        const userResponse = await userApi.getCurrentUser()
+        if (userResponse && userResponse.data && userResponse.data.id) {
+          const userId = userResponse.data.id
+          console.log('当前用户ID：', userId, '准备添加浏览记录')
+          
+          await viewHistoryApi.addViewHistory(userId, article.value.id)
+          console.log('浏览记录添加成功')
+        } else {
+          console.warn('获取用户ID失败，无法添加浏览记录')
+        }
+      } catch (error) {
+        console.error('添加浏览记录失败：', error)
+        // 浏览记录失败不影响正常阅读
+      }
       
       // 解析文章内容为段落
       await parseArticleContent()

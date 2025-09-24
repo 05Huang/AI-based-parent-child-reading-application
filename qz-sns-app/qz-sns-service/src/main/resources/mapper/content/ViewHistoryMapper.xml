@@ -15,6 +15,9 @@
         <result column="creator_name" property="creatorName" />
         <result column="view_time" property="viewTime" />
         <result column="content_status" property="contentStatus" />
+        <result column="like_count" property="likeCount" />
+        <result column="view_count" property="viewCount" />
+        <result column="comment_count" property="commentCount" />
     </resultMap>
 
     <!-- 查询字段 -->
@@ -22,6 +25,7 @@
         vh.id, vh.user_id, vh.content_id, vh.view_time,
         c.title as content_title, c.cover_url, c.type as content_type,
         c.category_id, c.status as content_status,
+        c.like_count, c.view_count, c.comment_count,
         cat.name as category_name,
         u.nickname as creator_name
     </sql>

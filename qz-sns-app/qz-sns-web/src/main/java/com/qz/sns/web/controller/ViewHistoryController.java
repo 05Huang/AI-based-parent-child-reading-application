@@ -36,6 +36,29 @@ public class ViewHistoryController {
     private final ViewHistoryServiceImpl userViewHistoryService;
 
     /**
+     * 添加浏览记录
+     *
+     * @param userId 用户ID
+     * @param contentId 内容ID
+     * @return 操作结果
+     */
+    @PostMapping("/add")
+    public Result<Void> addViewHistory(
+            @RequestParam @NotNull(message = "用户ID不能为空") Long userId,
+            @RequestParam @NotNull(message = "内容ID不能为空") Long contentId) {
+
+        log.info("接收添加浏览记录请求，用户ID：{}，内容ID：{}", userId, contentId);
+
+        try {
+            userViewHistoryService.addViewHistory(userId, contentId);
+            return ResultUtils.success("添加浏览记录成功");
+        } catch (Exception e) {
+            log.error("添加浏览记录失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "添加浏览记录失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 分页查询用户浏览历史
      *
      * @param userId 用户ID

@@ -248,6 +248,7 @@ const replyComment = (comment) => {
   background-color: #3b82f6;
   padding: 8px 16px;
   height: 56px;
+  padding-top: 44px; /* 增加顶部间距以避免被状态栏遮挡 */
 }
 
 .header-content {
@@ -286,7 +287,8 @@ const replyComment = (comment) => {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 92px); /* 调整高度计算，考虑增加的header padding */
+  padding-top: 24px; /* 增加顶部间距 */
 }
 
 .original-paragraph {

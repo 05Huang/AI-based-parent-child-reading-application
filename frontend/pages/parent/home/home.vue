@@ -176,7 +176,7 @@
 
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
-import { contentApi, recommendationApi } from '@/utils/api.js'
+import { contentApi, recommendationApi, userApi } from '@/utils/api.js'
 
 // 响应式数据
 const recommendedContents = ref([]) // 精选推荐内容
@@ -197,8 +197,32 @@ onMounted(async () => {
       url: '/pages/parent/login/login'
     })
   } else {
-    console.log('已登录，停留在首页，开始加载数据')
-    await loadHomeData()
+    console.log('已登录，停留在首页，开始获取用户信息')
+    
+    // 获取当前用户信息
+    try {
+      const userResponse = await userApi.getCurrentUser()
+      if (userResponse && userResponse.data) {
+        console.log('获取到当前用户信息：', userResponse.data)
+        await loadHomeData()
+      } else {
+        console.error('获取用户信息失败，响应格式异常：', userResponse)
+        uni.showToast({
+          title: '获取用户信息失败',
+          icon: 'none'
+        })
+      }
+    } catch (error) {
+      console.error('获取用户信息失败：', error)
+      uni.showToast({
+        title: '获取用户信息失败，请重新登录',
+        icon: 'none'
+      })
+      // 如果获取用户信息失败，可能是token过期，跳转到登录页
+      uni.redirectTo({
+        url: '/pages/parent/login/login'
+      })
+    }
   }
 })
 
@@ -434,12 +458,7 @@ const navigateToReading = async (item) => {
   try {
     console.log('即将跳转到阅读页面，文章ID：', item.id, '标题：', item.title)
     
-    // 记录浏览行为，增加浏览量
-    contentApi.incrementViewCount(item.id).catch(error => {
-      console.error('增加浏览量失败：', error)
-    })
-    
-    // 跳转到阅读页面
+    // 跳转到阅读页面（浏览记录将在阅读页面统一处理）
     uni.navigateTo({
       url: `/pages/parent/reading/reading?id=${item.id}`,
       success: () => {

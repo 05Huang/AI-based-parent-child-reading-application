@@ -14,9 +14,9 @@ export const contentApi = {
     return request.get(`/api/content/${id}`)
   },
   
-  // 增加浏览量
+  // 增加浏览量（同时会自动添加浏览记录）
   incrementViewCount(id) {
-    console.log('增加浏览量，ID：', id)
+    console.log('增加浏览量并添加浏览记录，ID：', id)
     return request.post(`/api/content/${id}/view`)
   }
 }
@@ -47,10 +47,22 @@ export const recommendationApi = {
 
 // 分类相关API  
 export const categoryApi = {
+  // 获取所有活跃分类
+  getAllActiveCategories() {
+    console.log('调用获取所有活跃分类接口')
+    return request.get('/api/category/all')
+  },
+  
   // 获取分类详情
   getCategoryById(id) {
     console.log('获取分类详情，ID：', id)
     return request.get(`/api/category/${id}`)
+  },
+  
+  // 分页查询分类
+  getCategoryPage(params) {
+    console.log('调用分类分页查询接口，参数：', params)
+    return request.get('/api/category/page', params)
   }
 }
 
@@ -96,5 +108,123 @@ export const commentApi = {
       page: page,
       size: size
     })
+  }
+}
+
+// 收藏相关API
+export const favoriteApi = {
+  // 获取用户收藏列表
+  getUserFavorites(params) {
+    console.log('调用获取用户收藏列表接口，参数：', params)
+    return request.get('/api/user/favorite', params)
+  },
+  
+  // 添加收藏
+  addFavorite(userId, contentId, note = '') {
+    console.log('调用添加收藏接口，用户ID：', userId, '内容ID：', contentId, '备注：', note)
+    // 后端使用 @RequestParam，所以用查询参数方式传递
+    return request.post('/api/user/favorite', null, {
+      userId,
+      contentId,
+      note
+    })
+  },
+  
+  // 删除收藏
+  deleteFavorite(userId, contentId) {
+    console.log('调用删除收藏接口，用户ID：', userId, '内容ID：', contentId)
+    return request.delete('/api/user/favorite', {
+      userId,
+      contentId
+    })
+  },
+  
+  // 批量删除收藏
+  batchDeleteFavorites(userId, ids) {
+    console.log('调用批量删除收藏接口，用户ID：', userId, 'IDs：', ids)
+    return request.delete('/api/user/favorite/batch', {
+      userId,
+      ids
+    })
+  }
+}
+
+// 用户行为相关API
+export const userBehaviorApi = {
+  // 记录用户行为
+  recordUserBehavior(behaviorData) {
+    console.log('调用记录用户行为接口，数据：', behaviorData)
+    return request.post('/api/user/behavior/record', behaviorData)
+  },
+  
+  // 获取浏览统计
+  getBrowsingStats(userId) {
+    console.log('调用获取浏览统计接口，用户ID：', userId)
+    return request.get(`/api/user/behavior/browsing/${userId}`)
+  },
+  
+  // 获取收藏统计
+  getCollectionStats(userId) {
+    console.log('调用获取收藏统计接口，用户ID：', userId)
+    return request.get(`/api/user/behavior/collection/${userId}`)
+  },
+  
+  // 获取历史统计
+  getHistoryStats(userId) {
+    console.log('调用获取历史统计接口，用户ID：', userId)
+    return request.get(`/api/user/behavior/history/${userId}`)
+  },
+  
+  // 获取周报
+  getWeeklyReport(userId) {
+    console.log('调用获取周报接口，用户ID：', userId)
+    return request.get(`/api/user/behavior/weekly-report/${userId}`)
+  }
+}
+
+// 用户信息相关API
+export const userApi = {
+  // 获取当前登录用户信息
+  getCurrentUser() {
+    console.log('调用获取当前用户信息接口')
+    return request.get('/api/user/current')
+  },
+  
+  // 根据ID获取用户详情
+  getUserById(id) {
+    console.log('调用获取用户详情接口，用户ID：', id)
+    return request.get(`/api/user/${id}`)
+  }
+}
+
+// 浏览历史相关API
+export const viewHistoryApi = {
+  // 添加浏览记录
+  addViewHistory(userId, contentId) {
+    console.log('调用添加浏览记录接口，用户ID：', userId, '内容ID：', contentId)
+    // 使用与addFavorite相同的方式传递@RequestParam参数
+    return request.post('/api/user/view-history/add', null, {
+      userId,
+      contentId
+    })
+  },
+  
+  // 获取用户浏览历史
+  getUserViewHistory(userId, params = {}) {
+    console.log('调用获取用户浏览历史接口，用户ID：', userId, '参数：', params)
+    console.log('请求URL：', `/api/user/view-history/${userId}`)
+    return request.get(`/api/user/view-history/${userId}`, params)
+  },
+  
+  // 批量删除浏览历史
+  batchDeleteViewHistory(userId, ids) {
+    console.log('调用批量删除浏览历史接口，用户ID：', userId, 'IDs：', ids)
+    return request.delete(`/api/user/view-history/${userId}/batch`, ids)
+  },
+  
+  // 清空用户所有浏览历史
+  clearAllViewHistory(userId) {
+    console.log('调用清空用户浏览历史接口，用户ID：', userId)
+    return request.delete(`/api/user/view-history/${userId}/all`)
   }
 } 

@@ -63,4 +63,19 @@ public class UserViewHistoryResponseDTO {
      * 内容状态（用于判断内容是否还存在）
      */
     private Integer contentStatus;
+    
+    /**
+     * 点赞数
+     */
+    private Integer likeCount;
+    
+    /**
+     * 浏览数
+     */
+    private Integer viewCount;
+    
+    /**
+     * 评论数
+     */
+    private Integer commentCount;
 }
