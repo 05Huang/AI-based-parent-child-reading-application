@@ -21,6 +21,7 @@ public class ContentDTO {
     private String mediaUrl;
     private Long categoryId;
     private String tags;
+    private Integer contentLength; // 内容长度(字数/秒数)
     private List<String> imageUrls;
 
 }

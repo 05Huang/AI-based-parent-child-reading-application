@@ -27,5 +27,6 @@ public class ContentRequest {
     private String creatorAvatar;
     private Date createdTime;
     private Date updatedTime;
+    private Integer contentLength; // 视频时长（秒数）
     private List<ContentImage> images;
 }

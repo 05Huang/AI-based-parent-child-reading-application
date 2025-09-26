@@ -75,6 +75,9 @@ public class Content implements Serializable {
 
     private BigDecimal completionRate;
 
+    @ApiModelProperty("内容长度(字数/秒数)")
+    private Integer contentLength;
+
     private BigDecimal popularityScore;
 
     private Integer recommendedCount;

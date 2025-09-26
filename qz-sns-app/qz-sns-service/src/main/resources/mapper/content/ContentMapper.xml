@@ -22,13 +22,14 @@
         <result column="creator_avatar" property="creatorAvatar" />
         <result column="created_time" property="createdTime" />
         <result column="updated_time" property="updatedTime" />
+        <result column="content_length" property="contentLength" />
     </resultMap>
 
     <!-- 基础查询字段 -->
     <sql id="Base_Column_List">
         c.id, c.title, c.content, c.type, c.cover_url, c.media_url, c.category_id, c.tags,
         c.view_count, c.like_count, c.comment_count, c.share_count, c.status, c.creator_id,
-        c.created_time, c.updated_time, u.nickname as creator_name, u.avatar as creator_avatar
+        c.created_time, c.updated_time, c.content_length, u.nickname as creator_name, u.avatar as creator_avatar
     </sql>
 
     <sql id="Base_Where_Clause">

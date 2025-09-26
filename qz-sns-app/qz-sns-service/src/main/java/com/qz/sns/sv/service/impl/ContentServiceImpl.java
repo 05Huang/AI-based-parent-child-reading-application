@@ -89,6 +89,7 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         content.setMediaUrl(request.getMediaUrl());
         content.setCategoryId(request.getCategoryId());
         content.setTags(request.getTags());
+        content.setContentLength(request.getContentLength()); // 设置内容长度
         content.setCreatorId(creatorId);
         content.setStatus(1); // 默认状态为正常
         content.setViewCount(0);
@@ -188,6 +189,7 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         content.setMediaUrl(request.getMediaUrl());
         content.setCategoryId(request.getCategoryId());
         content.setTags(request.getTags());
+        content.setContentLength(request.getContentLength()); // 更新内容长度
         content.setUpdatedTime(LocalDateTime.now());
 
         log.info("准备更新内容，更新后的数据: {}", content);
