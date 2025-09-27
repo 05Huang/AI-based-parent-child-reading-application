@@ -269,4 +269,25 @@ export const viewHistoryApi = {
     console.log('调用清空用户浏览历史接口，用户ID：', userId)
     return request.delete(`/api/user/view-history/${userId}/all`)
   }
+}
+
+// 亲密度相关API
+export const intimacyApi = {
+  // 获取全网亲密度排行
+  getGlobalRanking() {
+    console.log('调用获取全网亲密度排行接口')
+    return request.get('/api/intimacy/global-ranking')
+  },
+  
+  // 获取用户家庭亲密度排行和个人信息
+  getUserRanking(userId) {
+    console.log('调用获取用户亲密度排行接口，用户ID：', userId)
+    return request.get(`/api/intimacy/user-ranking/${userId}`)
+  },
+  
+  // 手动触发亲密度计算（用于测试）
+  calculateIntimacy() {
+    console.log('调用手动触发亲密度计算接口')
+    return request.post('/api/intimacy/calculate')
+  }
 } 

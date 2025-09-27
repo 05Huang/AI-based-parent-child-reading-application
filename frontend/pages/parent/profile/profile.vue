@@ -15,27 +15,26 @@
       <!-- 用户信息卡片 -->
       <view class="user-card">
         <view class="user-info">
-          <image class="avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4" mode="aspectFill"></image>
+          <image class="avatar" :src="currentUser.avatar" mode="aspectFill"></image>
           <view class="user-details">
-            <text class="username">张爸爸</text>
-            <text class="user-id">ID: 888888</text>
+            <text class="username">{{currentUser.nickname}}</text>
+            <text class="user-id">ID: {{currentUser.id}}</text>
           </view>
         </view>
         <view class="stats-row">
           <view class="stat-item">
-            <text class="stat-number">128</text>
+            <text class="stat-number">{{userStats.followingCount}}</text>
             <text class="stat-label">关注</text>
           </view>
           <view class="stat-item">
-            <text class="stat-number">256</text>
+            <text class="stat-number">{{userStats.followersCount}}</text>
             <text class="stat-label">粉丝</text>
           </view>
           <view class="stat-item">
-            <text class="stat-number">98</text>
+            <text class="stat-number">{{userStats.readingLevel}}</text>
             <text class="stat-label">阅读等级</text>
           </view>
         </view>
-        <button class="edit-profile-btn">编辑资料</button>
       </view>
 
       <!-- 功能区 -->
@@ -78,32 +77,18 @@
           </view>
         </view>
         <view class="ranking-list">
-          <view class="ranking-item">
+          <view v-for="(item, index) in intimacyRankingPreview" :key="index" class="ranking-item">
             <view class="ranking-left">
-              <view class="rank-number rank-first">1</view>
-              <image class="rank-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345" mode="aspectFill"></image>
+              <view class="rank-number" :class="{'rank-first': item.rank === 1}">{{item.rank}}</view>
+              <image class="rank-avatar" :src="item.avatar" mode="aspectFill"></image>
               <view class="rank-info">
-                <text class="rank-name">小明</text>
-                <text class="rank-intimacy">亲密度: 98%</text>
+                <text class="rank-name">{{item.name}}</text>
+                <text class="rank-intimacy">亲密度: {{item.intimacy}}%</text>
               </view>
             </view>
-            <view class="trend-tag up">
-              <text class="fas fa-arrow-up"></text>
-              <text>上升</text>
-            </view>
-          </view>
-          <view class="ranking-item">
-            <view class="ranking-left">
-              <view class="rank-number">2</view>
-              <image class="rank-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=mom456" mode="aspectFill"></image>
-              <view class="rank-info">
-                <text class="rank-name">妈妈</text>
-                <text class="rank-intimacy">亲密度: 95%</text>
-              </view>
-            </view>
-            <view class="trend-tag down">
-              <text class="fas fa-arrow-down"></text>
-              <text>下降</text>
+            <view class="trend-tag" :class="item.trend">
+              <text class="fas" :class="item.trend === 'up' ? 'fa-arrow-up' : 'fa-arrow-down'"></text>
+              <text>{{item.trend === 'up' ? '上升' : '下降'}}</text>
             </view>
           </view>
         </view>
@@ -117,8 +102,27 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import { userApi, intimacyApi, userBehaviorApi } from '@/utils/api.js'
+
+// 响应式状态
+const currentUser = ref({
+  nickname: '张爸爸',
+  id: 888888,
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4'
+})
+
+const userStats = ref({
+  followingCount: 0,
+  followersCount: 0,
+  readingLevel: 0
+})
+
+const intimacyRankingPreview = ref([])
+
 // 页面跳转方法
 const navigateToIntimacyRanking = () => {
+  console.log('即将跳转到亲密度排行榜页面')
   uni.navigateTo({
     url: '/pages/parent/intimacy-ranking/intimacy-ranking',
     fail: (err) => {
@@ -200,6 +204,138 @@ const navigateToSettings = () => {
     }
   })
 }
+
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    console.log('开始获取当前用户信息')
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      console.log('获取用户信息成功：', response.data)
+      currentUser.value = {
+        nickname: response.data.nickname || '张爸爸',
+        id: response.data.id || 888888,
+        avatar: response.data.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4'
+      }
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 获取用户统计数据
+const loadUserStats = async () => {
+  try {
+    if (!currentUser.value.id) return
+    
+    console.log('开始获取用户统计数据，用户ID：', currentUser.value.id)
+    
+    // 获取浏览统计 - 这里可以作为阅读等级的参考
+    const browsingStats = await userBehaviorApi.getBrowsingStats(currentUser.value.id)
+    console.log('获取浏览统计成功：', browsingStats)
+    
+    if (browsingStats && browsingStats.data) {
+      // 根据阅读时长和阅读数量计算阅读等级
+      const readingLevel = Math.min(100, Math.floor((browsingStats.data.totalReadingTime || 0) / 60) + (browsingStats.data.totalReadCount || 0))
+      userStats.value.readingLevel = readingLevel
+    }
+    
+    // 这里关注和粉丝数量暂时设为固定值，后续可以根据实际业务需求调整
+    userStats.value.followingCount = 128
+    userStats.value.followersCount = 256
+    
+  } catch (error) {
+    console.error('获取用户统计数据失败：', error)
+    // 不显示错误提示，使用默认值
+  }
+}
+
+// 获取亲密度排行榜预览数据
+const loadIntimacyRankingPreview = async () => {
+  try {
+    if (!currentUser.value.id) {
+      console.log('用户ID不存在，跳过获取亲密度排行榜预览')
+      return
+    }
+    
+    console.log('开始获取亲密度排行榜预览数据，用户ID：', currentUser.value.id)
+    const response = await intimacyApi.getUserRanking(currentUser.value.id)
+    
+    console.log('亲密度接口响应：', response)
+    
+    if (response && response.data && response.data.ranking) {
+      console.log('获取亲密度排行榜成功，数据：', response.data.ranking)
+      
+      // 过滤掉可能的孩子用户，然后只取前2名用于预览
+      const filteredRanking = response.data.ranking.filter(item => {
+        // 简单过滤：排除昵称中包含"儿子"、"女儿"、"孩子"等关键词的用户
+        const childKeywords = ['儿子', '女儿', '孩子', '宝宝', '小朋友'];
+        const nickname = item.nickname || '';
+        return !childKeywords.some(keyword => nickname.includes(keyword));
+      });
+      
+      intimacyRankingPreview.value = filteredRanking.slice(0, 2).map((item, index) => ({
+        rank: index + 1,
+        name: item.nickname || `用户${item.rank}`,
+        avatar: item.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${index}`,
+        intimacy: Math.round(item.percentage || 0),
+        trend: index === 0 ? 'up' : 'down' // 简单的趋势显示
+      }))
+      
+      console.log('亲密度排行榜预览数据处理完成：', intimacyRankingPreview.value)
+    } else {
+      console.log('响应数据格式不正确或为空，使用默认数据')
+      intimacyRankingPreview.value = [
+        {
+          rank: 1,
+          name: '小明',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345',
+          intimacy: 98,
+          trend: 'up'
+        },
+        {
+          rank: 2,
+          name: '妈妈',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mom456',
+          intimacy: 95,
+          trend: 'down'
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('获取亲密度排行榜预览失败，错误详情：', error)
+    
+    // 使用默认数据，不显示错误提示
+    intimacyRankingPreview.value = [
+      {
+        rank: 1,
+        name: '小明',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345',
+        intimacy: 98,
+        trend: 'up'
+      },
+      {
+        rank: 2,
+        name: '妈妈',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mom456',
+        intimacy: 95,
+        trend: 'down'
+      }
+    ]
+  }
+}
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('个人中心页面已挂载，开始加载数据')
+  await loadCurrentUser()
+  await loadUserStats()
+  await loadIntimacyRankingPreview()
+})
 </script>
 
 <style>
@@ -308,19 +444,7 @@ const navigateToSettings = () => {
   opacity: 0.8;
 }
 
-.edit-profile-btn {
-  margin-top: 32rpx;
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.15);  /* 更透明的背景 */
-  color: #ffffff;
-  padding: 16rpx;
-  border-radius: 16rpx;  /* 更小的圆角 */
-  font-size: 28rpx;
-  text-align: center;
-  backdrop-filter: blur(5px);  /* 毛玻璃效果 */
-  -webkit-backdrop-filter: blur(5px);
-  transition: all 0.3s ease;  /* 添加过渡效果 */
-}
+
 
 /* 功能区 */
 .feature-grid {
@@ -597,8 +721,7 @@ const navigateToSettings = () => {
 
 /* 添加一些交互效果 */
 .feature-icon:active,
-.achievement-icon:active,
-.edit-profile-btn:active {
+.achievement-icon:active {
   transform: scale(0.96);
 }
 

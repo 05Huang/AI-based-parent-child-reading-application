@@ -108,7 +108,7 @@
           >
             <view class="related-cover">
               <image :src="video.coverUrl" mode="aspectFill"></image>
-              <text class="video-duration">{{ formatDuration(video.duration) }}</text>
+              <text class="video-duration">{{ formatDuration(video.contentLength) }}</text>
             </view>
             <view class="related-info">
               <text class="related-title">{{ video.title }}</text>

@@ -53,12 +53,12 @@
         
         <view class="ranking-list">
           <view v-for="(user, index) in globalRankings" :key="user.id" 
-                class="ranking-item" :class="{'highlight': user.id === myUserId}">
+                class="ranking-item" :class="{'highlight': user.name === currentUser?.nickname}">
             <view class="rank-number" :class="'medal-' + (index + 1)">{{index + 1}}</view>
             <image :src="user.avatar" class="user-avatar"></image>
             <view class="user-info">
               <view class="info-row">
-                <text class="user-name">{{user.name}} ({{user.childName}})</text>
+                <text class="user-name">{{user.name}}</text>
                 <view class="intimacy-info">
                   <text class="fas" :class="getTrendIcon(user.trend)"></text>
                   <text class="intimacy-value">{{user.intimacy}}%</text>
@@ -155,10 +155,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import * as echarts from 'echarts'
+import { intimacyApi, userApi } from '@/utils/api.js'
 
 // 响应式状态
 const activeTab = ref('global')
-const myUserId = ref('user123')
+const currentUser = ref(null)
 const myRank = ref('--')
 const myIntimacy = ref('--')
 const timeRanges = ['本周', '本月', '全部']
@@ -168,80 +169,35 @@ const currentFamilyTimeRange = ref('本周')
 const currentChartTimeRange = ref('近7天')
 const globalRankings = ref([])
 const familyRankings = ref([])
+const loading = ref(false)
 let intimacyChart = null
 
-// 模拟API类
-class RankingAPI {
-  constructor() {
-    this.myUserId = "user123"
-    this.myFamilyId = "family001"
-  }
-
-  async getGlobalRankingData(timeRange = 'week') {
-    const users = [
-      { id: "user123", name: "张爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhang123", intimacy: 92, childName: "小张", trend: "up" },
-      { id: "user456", name: "王妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=wang456", intimacy: 96, childName: "小王", trend: "up" },
-      { id: "user789", name: "李爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=li789", intimacy: 90, childName: "小李", trend: "down" },
-      { id: "user012", name: "陈妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=chen012", intimacy: 88, childName: "小陈", trend: "up" },
-      { id: "user345", name: "刘爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=liu345", intimacy: 84, childName: "小刘", trend: "same" }
-    ]
-    users.sort((a, b) => b.intimacy - a.intimacy)
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({
-          rankings: users,
-          myRank: users.findIndex(user => user.id === this.myUserId) + 1,
-          myIntimacy: users.find(user => user.id === this.myUserId)?.intimacy || 0
-        })
-      }, 800)
-    })
-  }
-
-  async getFamilyRankingData(timeRange = 'week') {
-    const familyMembers = [
-      { id: "dad123", name: "爸爸", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4", intimacy: 95, role: "父亲", trend: "up" },
-      { id: "mom456", name: "妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=mom456", intimacy: 98, role: "母亲", trend: "up" },
-      { id: "grandpa789", name: "爷爷", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=grandpa789", intimacy: 88, role: "祖父", trend: "down" },
-      { id: "grandma012", name: "奶奶", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=grandma012", intimacy: 90, role: "祖母", trend: "same" }
-    ]
-    familyMembers.sort((a, b) => b.intimacy - a.intimacy)
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({ rankings: familyMembers })
-      }, 800)
-    })
-  }
-
-  async getIntimacyTrend(timeRange = 'week') {
-    const data = {
-      week: {
-        labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-        data: [87, 88, 86, 90, 91, 92, 92],
-        average: [83, 84, 85, 85, 86, 87, 87]
-      },
-      month: {
-        labels: ['第1周', '第2周', '第3周', '第4周'],
-        data: [85, 87, 89, 92],
-        average: [82, 83, 85, 86]
-      }
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    console.log('开始获取当前用户信息')
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      console.log('获取用户信息成功：', response.data)
+      currentUser.value = response.data
     }
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve(data[timeRange])
-      }, 800)
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
     })
   }
 }
 
-const rankingAPI = new RankingAPI()
-
 // 方法
-const switchTab = (tab) => {
+const switchTab = async (tab) => {
+  console.log('切换标签页到：', tab)
   activeTab.value = tab
   if (tab === 'global') {
-    loadGlobalRankingData()
+    await loadGlobalRankingData()
   } else {
-    loadFamilyRankingData()
+    await loadFamilyRankingData()
   }
 }
 
@@ -269,14 +225,16 @@ const goBack = () => {
   })
 }
 
-const onTimeRangeChange = (e) => {
+const onTimeRangeChange = async (e) => {
   currentTimeRange.value = timeRanges[e.detail.value]
-  loadGlobalRankingData()
+  console.log('全网排行榜时间范围改变为：', currentTimeRange.value)
+  await loadGlobalRankingData()
 }
 
-const onFamilyTimeRangeChange = (e) => {
+const onFamilyTimeRangeChange = async (e) => {
   currentFamilyTimeRange.value = timeRanges[e.detail.value]
-  loadFamilyRankingData()
+  console.log('家庭排行榜时间范围改变为：', currentFamilyTimeRange.value)
+  await loadFamilyRankingData()
 }
 
 const onChartTimeRangeChange = (e) => {
@@ -286,29 +244,114 @@ const onChartTimeRangeChange = (e) => {
 
 const loadGlobalRankingData = async () => {
   try {
-    const data = await rankingAPI.getGlobalRankingData()
-    globalRankings.value = data.rankings
-    myRank.value = data.myRank
-    myIntimacy.value = data.myIntimacy
+    if (loading.value) return
+    loading.value = true
+    
+    console.log('开始加载全网亲密度排行榜数据')
+    const response = await intimacyApi.getGlobalRanking()
+    
+    if (response && response.data && response.data.ranking) {
+      console.log('获取全网排行榜成功：', response.data.ranking)
+      
+      // 转换数据格式，添加趋势信息，并过滤掉可能的孩子用户
+      globalRankings.value = response.data.ranking
+        .filter(item => {
+          // 简单过滤：排除昵称中包含"儿子"、"女儿"、"孩子"等关键词的用户
+          const childKeywords = ['儿子', '女儿', '孩子', '宝宝', '小朋友'];
+          const nickname = item.nickname || '';
+          return !childKeywords.some(keyword => nickname.includes(keyword));
+        })
+        .map((item, index) => ({
+          id: `user_${item.rank}`,
+          name: item.nickname || `用户${item.rank}`,
+          avatar: item.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${index}`,
+          intimacy: Math.round(item.percentage || 0),
+          childName: '', // 后端没有返回孩子名称，暂时为空
+          trend: index % 3 === 0 ? 'up' : (index % 3 === 1 ? 'down' : 'same') // 模拟趋势
+        }))
+      
+      // 查找当前用户的排名和亲密度
+      if (currentUser.value) {
+        const userIndex = globalRankings.value.findIndex(item => item.name === currentUser.value.nickname)
+        if (userIndex !== -1) {
+          myRank.value = userIndex + 1
+          myIntimacy.value = globalRankings.value[userIndex].intimacy
+        }
+      }
+    }
   } catch (error) {
-    console.error('Failed to load global ranking data:', error)
+    console.error('获取全网排行榜失败：', error)
+    uni.showToast({
+      title: '获取排行榜失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
   }
 }
 
 const loadFamilyRankingData = async () => {
   try {
-    const data = await rankingAPI.getFamilyRankingData()
-    familyRankings.value = data.rankings
+    if (!currentUser.value || loading.value) return
+    loading.value = true
+    
+    console.log('开始加载家庭亲密度排行榜数据，用户ID：', currentUser.value.id)
+    const response = await intimacyApi.getUserRanking(currentUser.value.id)
+    
+    if (response && response.data) {
+      console.log('获取家庭排行榜成功：', response.data)
+      
+      // 更新我的排名和亲密度信息
+      myRank.value = response.data.globalRank || '--'
+      myIntimacy.value = Math.round(response.data.intimacyPercentage || 0)
+      
+      // 处理家庭排行榜数据，过滤掉可能的孩子用户
+      if (response.data.ranking && response.data.ranking.length > 0) {
+        familyRankings.value = response.data.ranking
+          .filter(item => {
+            // 简单过滤：排除昵称中包含"儿子"、"女儿"、"孩子"等关键词的用户
+            const childKeywords = ['儿子', '女儿', '孩子', '宝宝', '小朋友'];
+            const nickname = item.nickname || '';
+            return !childKeywords.some(keyword => nickname.includes(keyword));
+          })
+          .map((item, index) => ({
+            id: `family_${item.rank}`,
+            name: item.nickname || `成员${item.rank}`,
+            avatar: item.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=family${index}`,
+            intimacy: Math.round(item.percentage || 0),
+            role: index === 0 ? '父亲' : (index === 1 ? '母亲' : (index === 2 ? '祖父' : '祖母')), // 简单的角色分配
+            trend: index % 3 === 0 ? 'up' : (index % 3 === 1 ? 'down' : 'same') // 模拟趋势
+          }))
+      }
+    }
   } catch (error) {
-    console.error('Failed to load family ranking data:', error)
+    console.error('获取家庭排行榜失败：', error)
+    // 不显示错误提示，因为可能是没有家庭关系导致的
+  } finally {
+    loading.value = false
   }
 }
 
 const loadIntimacyTrend = async () => {
   try {
-    const data = await rankingAPI.getIntimacyTrend(
-      currentChartTimeRange.value === '近7天' ? 'week' : 'month'
-    )
+    console.log('开始加载亲密度趋势图数据')
+    
+    // 由于后端暂时没有趋势数据接口，这里使用模拟数据
+    const timeRange = currentChartTimeRange.value === '近7天' ? 'week' : 'month'
+    const data = {
+      week: {
+        labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+        data: [87, 88, 86, 90, 91, 92, myIntimacy.value || 92],
+        average: [83, 84, 85, 85, 86, 87, 87]
+      },
+      month: {
+        labels: ['第1周', '第2周', '第3周', '第4周'],
+        data: [85, 87, 89, myIntimacy.value || 92],
+        average: [82, 83, 85, 86]
+      }
+    }
+    
+    const trendData = data[timeRange]
     
     if (!intimacyChart) {
       const chartDom = document.getElementById('intimacyChart')
@@ -333,7 +376,7 @@ const loadIntimacyTrend = async () => {
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: data.labels
+        data: trendData.labels
       },
       yAxis: {
         type: 'value',
@@ -347,7 +390,7 @@ const loadIntimacyTrend = async () => {
         {
           name: '我的亲密度',
           type: 'line',
-          data: data.data,
+          data: trendData.data,
           itemStyle: {
             color: '#3B82F6'
           }
@@ -355,7 +398,7 @@ const loadIntimacyTrend = async () => {
         {
           name: '平均亲密度',
           type: 'line',
-          data: data.average,
+          data: trendData.average,
           itemStyle: {
             color: '#9CA3AF'
           }
@@ -364,15 +407,22 @@ const loadIntimacyTrend = async () => {
     }
     
     intimacyChart.setOption(option)
+    console.log('亲密度趋势图加载完成')
   } catch (error) {
-    console.error('Failed to load intimacy trend:', error)
+    console.error('加载亲密度趋势图失败：', error)
   }
 }
 
 // 生命周期钩子
-onMounted(() => {
-  loadGlobalRankingData()
-  loadIntimacyTrend()
+onMounted(async () => {
+  console.log('亲密度排行榜页面已挂载，开始加载数据')
+  await loadCurrentUser()
+  if (activeTab.value === 'global') {
+    await loadGlobalRankingData()
+  } else {
+    await loadFamilyRankingData()
+  }
+  await loadIntimacyTrend()
 })
 </script>
 

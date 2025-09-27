@@ -27,6 +27,14 @@ public interface FamilyRelationMapper extends BaseMapper<FamilyRelation> {
 
     @Select("SELECT DISTINCT user_id FROM family_relation")
     List<Long> getAllUserIds();
+    
+    /**
+     * 只获取家长用户的ID（role=1）
+     */
+    @Select("SELECT DISTINCT fr.user_id FROM family_relation fr " +
+            "LEFT JOIN user u ON fr.user_id = u.id " +
+            "WHERE u.role = 1")
+    List<Long> getParentUserIds();
 
     /**
      * 获取用户所在的群组ID（假设第一个群组是家庭群组）

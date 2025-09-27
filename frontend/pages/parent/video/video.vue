@@ -66,7 +66,7 @@
           <view class="video-cover">
             <image :src="featuredVideo.coverUrl || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&auto=format&fit=crop&q=60'" 
                    mode="aspectFill"></image>
-            <text class="video-duration">{{ formatDuration(featuredVideo.duration) }}</text>
+            <text class="video-duration">{{ formatDuration(featuredVideo.contentLength) }}</text>
             <view class="video-play-button">
               <text class="fas fa-play"></text>
             </view>
@@ -109,7 +109,7 @@
             <view class="video-thumbnail">
               <image :src="video.coverUrl || 'https://images.unsplash.com/photo-1551029506-0807df4e2031?w=500&auto=format&fit=crop&q=60'" 
                      mode="aspectFill"></image>
-              <text class="video-duration">{{ formatDuration(video.duration) }}</text>
+              <text class="video-duration">{{ formatDuration(video.contentLength) }}</text>
             </view>
             <view class="video-content">
               <text class="video-title">{{ video.title || '视频标题' }}</text>
@@ -163,7 +163,7 @@
             <view class="video-cover">
               <image :src="video.coverUrl || 'https://images.unsplash.com/photo-1633477189729-9290b3261d0a?w=500&auto=format&fit=crop&q=60'" 
                      mode="aspectFill"></image>
-              <text class="video-duration">{{ formatDuration(video.duration) }}</text>
+              <text class="video-duration">{{ formatDuration(video.contentLength) }}</text>
               <view class="video-info-overlay">
                 <text class="video-title">{{ video.title || '推荐视频' }}</text>
                 <view class="video-stats">
@@ -290,7 +290,7 @@ const loadFeaturedVideo = async () => {
       const videos = response.data.filter(item => item.type === 2);
       if (videos.length > 0) {
         featuredVideo.value = videos[0];
-        console.log('推荐视频加载成功：', featuredVideo.value.title);
+        console.log('推荐视频加载成功：', featuredVideo.value.title, '时长：', featuredVideo.value.contentLength, '秒');
       }
     }
   } catch (error) {
@@ -459,7 +459,7 @@ const formatTime = (timeStr) => {
 
 // 格式化视频时长
 const formatDuration = (seconds) => {
-  if (!seconds) return '00:00';
+  if (!seconds || seconds <= 0) return '00:00';
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;

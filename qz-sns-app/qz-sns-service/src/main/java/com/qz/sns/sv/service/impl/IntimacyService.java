@@ -57,9 +57,9 @@ public class IntimacyService {
         log.info("开始计算全网亲密度排名");
         long startTime = System.currentTimeMillis();
 
-        // 获取所有用户ID
-        List<Long> allUserIds = familyRelationMapper.getAllUserIds();
-        log.info("获取到 {} 个用户ID", allUserIds.size());
+        // 只获取家长用户ID（role=1），因为亲密度排行榜是父母之间的排行
+        List<Long> allUserIds = familyRelationMapper.getParentUserIds();
+        log.info("获取到 {} 个家长用户ID", allUserIds.size());
 
         // 用于存储每个用户的亲密度分数
         Map<Long, List<IntimacyScore>> allUserScores = new HashMap<>();
@@ -717,5 +717,36 @@ public class IntimacyService {
         result.put("ranking", getUserRanking(userId));
 
         return result;
+    }
+    
+    /**
+     * 清除缓存并重新计算亲密度
+     */
+    public void clearCacheAndRecalculate() {
+        log.info("开始清除亲密度相关缓存");
+        
+        // 清除全网排行榜缓存
+        redisTemplate.delete(GLOBAL_RANKING_KEY);
+        
+        // 清除所有家庭排行榜缓存
+        Set<String> familyKeys = redisTemplate.keys(FAMILY_RANKING_KEY_PREFIX + "*");
+        if (familyKeys != null && !familyKeys.isEmpty()) {
+            redisTemplate.delete(familyKeys);
+            log.info("清除了 {} 个家庭排行榜缓存", familyKeys.size());
+        }
+        
+        // 清除所有用户排行榜缓存
+        Set<String> userKeys = redisTemplate.keys(USER_RANKING_KEY_PREFIX + "*");
+        if (userKeys != null && !userKeys.isEmpty()) {
+            redisTemplate.delete(userKeys);
+            log.info("清除了 {} 个用户排行榜缓存", userKeys.size());
+        }
+        
+        log.info("缓存清除完成，开始重新计算亲密度");
+        
+        // 重新计算
+        calculateAndSaveAllIntimacyScores();
+        
+        log.info("亲密度缓存清除和重新计算完成");
     }
 }

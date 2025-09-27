@@ -22,5 +22,13 @@ public interface GroupMemberMapper extends BaseMapper<GroupMember> {
 
     @Select("SELECT user_id FROM im_group_member WHERE group_id = #{groupId} AND quit = 0")
     List<Long> getGroupMemberIds(@Param("groupId") Long groupId);
+    
+    /**
+     * 获取群组中的家长成员ID（role=1）
+     */
+    @Select("SELECT gm.user_id FROM im_group_member gm " +
+            "LEFT JOIN user u ON gm.user_id = u.id " +
+            "WHERE gm.group_id = #{groupId} AND gm.quit = 0 AND u.role = 1")
+    List<Long> getGroupParentMemberIds(@Param("groupId") Long groupId);
 
 }
