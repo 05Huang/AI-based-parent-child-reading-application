@@ -127,4 +127,51 @@ public class FavoriteController {
             return ResultUtils.error(500, "批量删除收藏失败：" + e.getMessage());
         }
     }
+
+    /**
+     * 获取用户对某个内容的收藏状态
+     *
+     * @param userId 用户ID
+     * @param contentId 内容ID
+     * @return 收藏状态
+     */
+    @GetMapping("/status")
+    public Result<Boolean> getFavoriteStatus(
+            @RequestParam @NotNull(message = "用户ID不能为空") Long userId,
+            @RequestParam @NotNull(message = "内容ID不能为空") Long contentId) {
+
+        log.info("接收查询收藏状态请求，用户ID：{}，内容ID：{}", userId, contentId);
+
+        try {
+            boolean isFavorited = userFavoriteService.getFavoriteStatus(userId, contentId);
+            return ResultUtils.success(isFavorited);
+        } catch (Exception e) {
+            log.error("查询收藏状态失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "查询收藏状态失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 切换收藏状态（收藏/取消收藏）
+     *
+     * @param userId 用户ID
+     * @param contentId 内容ID
+     * @return 切换后的收藏状态
+     */
+    @PostMapping("/toggle")
+    public Result<Boolean> toggleFavorite(
+            @RequestParam @NotNull(message = "用户ID不能为空") Long userId,
+            @RequestParam @NotNull(message = "内容ID不能为空") Long contentId) {
+
+        log.info("接收切换收藏状态请求，用户ID：{}，内容ID：{}", userId, contentId);
+
+        try {
+            boolean newStatus = userFavoriteService.toggleFavorite(userId, contentId);
+            String message = newStatus ? "收藏成功" : "取消收藏成功";
+            return ResultUtils.success(newStatus, message);
+        } catch (Exception e) {
+            log.error("切换收藏状态失败：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "切换收藏状态失败：" + e.getMessage());
+        }
+    }
 }

@@ -48,4 +48,22 @@ public interface IFavoriteService extends IService<Favorite> {
      * @return 删除结果
      */
     boolean batchDeleteFavorites(Long userId, Long[] ids);
+
+    /**
+     * 获取用户对某个内容的收藏状态
+     *
+     * @param userId 用户ID
+     * @param contentId 内容ID
+     * @return 是否已收藏
+     */
+    boolean getFavoriteStatus(Long userId, Long contentId);
+
+    /**
+     * 切换收藏状态（收藏/取消收藏）
+     *
+     * @param userId 用户ID
+     * @param contentId 内容ID
+     * @return 切换后的收藏状态（true表示已收藏，false表示已取消收藏）
+     */
+    boolean toggleFavorite(Long userId, Long contentId);
 }

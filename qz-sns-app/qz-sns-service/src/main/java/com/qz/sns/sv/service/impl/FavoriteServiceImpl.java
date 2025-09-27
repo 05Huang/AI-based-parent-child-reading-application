@@ -138,4 +138,73 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         log.info("批量删除收藏记录完成，用户ID：{}，删除数量：{}", userId, deletedCount);
         return success;
     }
+
+    /**
+     * 获取用户对某个内容的收藏状态
+     */
+    @Override
+    public boolean getFavoriteStatus(Long userId, Long contentId) {
+        log.info("查询用户收藏状态，用户ID：{}，内容ID：{}", userId, contentId);
+
+        if (userId == null || contentId == null) {
+            log.warn("用户ID或内容ID为空，返回未收藏状态");
+            return false;
+        }
+
+        // 检查用户是否已经收藏过该内容
+        Long existingId = userFavoriteMapper.checkUserFavorite(userId, contentId);
+        boolean isFavorited = existingId != null;
+
+        log.info("用户收藏状态查询完成，用户ID：{}，内容ID：{}，收藏状态：{}", userId, contentId, isFavorited);
+        return isFavorited;
+    }
+
+    /**
+     * 切换收藏状态（收藏/取消收藏）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean toggleFavorite(Long userId, Long contentId) {
+        log.info("切换收藏状态，用户ID：{}，内容ID：{}", userId, contentId);
+
+        if (userId == null || contentId == null) {
+            throw new IllegalArgumentException("用户ID或内容ID不能为空");
+        }
+
+        // 检查用户是否已经收藏过该内容
+        Long existingId = userFavoriteMapper.checkUserFavorite(userId, contentId);
+
+        if (existingId != null) {
+            // 如果已收藏，则取消收藏
+            int result = userFavoriteMapper.deleteById(existingId);
+            boolean success = result > 0;
+            
+            if (success) {
+                log.info("取消收藏成功，用户ID：{}，内容ID：{}", userId, contentId);
+            } else {
+                log.error("取消收藏失败，用户ID：{}，内容ID：{}", userId, contentId);
+                throw new RuntimeException("取消收藏失败");
+            }
+            return false; // 返回false表示已取消收藏
+        } else {
+            // 如果未收藏，则添加收藏
+            Favorite favorite = new Favorite();
+            favorite.setUserId(userId);
+            favorite.setContentId(contentId);
+            favorite.setNote(""); // 默认空备注
+            favorite.setCreatedTime(LocalDateTime.now());
+            favorite.setStatus(1); // 默认正常状态
+
+            int result = userFavoriteMapper.insert(favorite);
+            boolean success = result > 0;
+            
+            if (success) {
+                log.info("添加收藏成功，用户ID：{}，内容ID：{}", userId, contentId);
+            } else {
+                log.error("添加收藏失败，用户ID：{}，内容ID：{}", userId, contentId);
+                throw new RuntimeException("添加收藏失败");
+            }
+            return true; // 返回true表示已收藏
+        }
+    }
 }
