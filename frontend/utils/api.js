@@ -160,7 +160,7 @@ export const favoriteApi = {
     console.log('调用获取用户收藏列表接口，参数：', params)
     return request.get('/api/user/favorite', params)
   },
-  
+
   // 添加收藏
   addFavorite(userId, contentId, note = '') {
     console.log('调用添加收藏接口，用户ID：', userId, '内容ID：', contentId, '备注：', note)
@@ -171,7 +171,7 @@ export const favoriteApi = {
       note
     })
   },
-  
+
   // 删除收藏
   deleteFavorite(userId, contentId) {
     console.log('调用删除收藏接口，用户ID：', userId, '内容ID：', contentId)
@@ -180,7 +180,7 @@ export const favoriteApi = {
       contentId
     })
   },
-  
+
   // 批量删除收藏
   batchDeleteFavorites(userId, ids) {
     console.log('调用批量删除收藏接口，用户ID：', userId, 'IDs：', ids)
@@ -189,7 +189,7 @@ export const favoriteApi = {
       ids
     })
   },
-  
+
   // 获取收藏状态
   getFavoriteStatus(userId, contentId) {
     console.log('调用获取收藏状态接口，用户ID：', userId, '内容ID：', contentId)
@@ -198,13 +198,42 @@ export const favoriteApi = {
       contentId
     })
   },
-  
+
   // 切换收藏状态（收藏/取消收藏）
   toggleFavorite(userId, contentId) {
     console.log('调用切换收藏状态接口，用户ID：', userId, '内容ID：', contentId)
     return request.post('/api/user/favorite/toggle', null, {
       userId,
       contentId
+    })
+  }
+}
+
+// 搜索相关API
+export const searchApi = {
+  // 搜索内容
+  searchContent(keyword, current = 1, size = 10) {
+    console.log('调用搜索内容接口，关键词：', keyword, '页码：', current, '每页大小：', size)
+    return request.get('/api/content/search', {
+      keyword,
+      current,
+      size
+    })
+  },
+
+  // 获取热门内容
+  getHotContent(limit = 10) {
+    console.log('调用获取热门内容接口，限制数量：', limit)
+    return request.get('/api/content/hot', {
+      limit
+    })
+  },
+
+  // 获取热门搜索关键词（如果后端有的话，暂时用热门内容的标题作为关键词）
+  getHotSearchKeywords(limit = 5) {
+    console.log('调用获取热门搜索关键词接口，限制数量：', limit)
+    return request.get('/api/content/hot', {
+      limit
     })
   }
 }

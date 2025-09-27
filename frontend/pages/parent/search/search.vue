@@ -69,12 +69,12 @@
       @scrolltolower="loadMore"
     >
       <!-- 无搜索结果提示 -->
-      <view v-if="searchText === '#提示' || (searchResults.length === 0 && !isLoading)" class="no-result">
+      <view v-if="searchResults.length === 0 && !isLoading && searchText.trim()" class="no-result">
         <image src="https://img.icons8.com/clouds/200/000000/search.png" class="no-result-image"></image>
         <text class="no-result-title">抱歉，没有找到相关内容</text>
-        <text class="no-result-desc">换个关键词试试看？</text>
+        <text class="no-result-desc">尝试使用其他关键词搜索</text>
         
-        <!--  <view class="suggestion-tags">
+        <view class="suggestion-tags">
           <text class="suggestion-tag" 
                 v-for="(tag, index) in suggestionTags" 
                 :key="index"
@@ -82,12 +82,11 @@
             {{ tag }}
           </text>
         </view>
-          -->
       </view>
 
       <!-- 搜索结果列表 -->
       <template v-else>
-        <view class="result-item" v-for="(item, index) in searchResults" :key="index">
+        <view class="result-item" v-for="(item, index) in searchResults" :key="index" @click="navigateToContent(item)">
           <image :src="item.cover" mode="aspectFill" class="result-image"></image>
           <view class="result-info">
             <text class="result-title">{{ item.title }}</text>
@@ -97,6 +96,11 @@
               <view class="stats">
                 <text class="fas fa-eye"></text>
                 <text class="stats-count">{{ item.views }}</text>
+                <!-- 显示内容类型标识 -->
+                <view class="content-type" :class="{ 'video-type': item.type === 2 }">
+                  <text class="fas" :class="item.type === 2 ? 'fa-play' : 'fa-file-alt'"></text>
+                  <text class="type-text">{{ item.type === 2 ? '视频' : '文章' }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -113,28 +117,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { searchApi } from '@/utils/api.js'
 
 // 搜索文本
 const searchText = ref('')
-// 搜索历史
-const searchHistory = ref([
-  '亲子教育',
-  '早教方法',
-  '儿童心理',
-  '育儿经验'
-])
+// 搜索历史（从本地存储加载）
+const searchHistory = ref([])
 // 热门搜索
-const hotSearchList = ref([
-  { keyword: '如何培养孩子的专注力', count: '12.5w' },
-  { keyword: '儿童情绪管理', count: '10.2w' },
-  { keyword: '亲子阅读技巧', count: '9.8w' },
-  { keyword: '孩子教育方法', count: '8.6w' },
-  { keyword: '亲子互动游戏', count: '7.9w' }
-])
+const hotSearchList = ref([])
 // 搜索结果
 const searchResults = ref([])
 // 加载状态
 const isLoading = ref(false)
+// 分页信息
+const currentPage = ref(1)
+const hasMore = ref(true)
+const pageSize = 10
 
 // 推荐标签
 const suggestionTags = ref([
@@ -145,19 +143,167 @@ const suggestionTags = ref([
   '亲子阅读'
 ])
 
-// 处理搜索
-const handleSearch = () => {
-  if (!searchText.value.trim()) return
-  // 添加到搜索历史
-  if (!searchHistory.value.includes(searchText.value)) {
-    searchHistory.value.unshift(searchText.value)
-    // 最多保存10条历史记录
-    if (searchHistory.value.length > 10) {
-      searchHistory.value.pop()
+// 页面初始化
+onMounted(() => {
+  console.log('搜索页面初始化')
+  loadSearchHistory()
+  loadHotSearchKeywords()
+})
+
+// 从本地存储加载搜索历史
+const loadSearchHistory = () => {
+  try {
+    const history = uni.getStorageSync('search_history')
+    if (history && Array.isArray(history)) {
+      searchHistory.value = history
+      console.log('搜索历史加载成功：', history)
     }
+  } catch (error) {
+    console.error('加载搜索历史失败：', error)
   }
-  // TODO: 调用搜索API
-  mockSearchResults()
+}
+
+// 保存搜索历史到本地存储
+const saveSearchHistory = () => {
+  try {
+    uni.setStorageSync('search_history', searchHistory.value)
+    console.log('搜索历史保存成功')
+  } catch (error) {
+    console.error('保存搜索历史失败：', error)
+  }
+}
+
+// 加载热门搜索关键词
+const loadHotSearchKeywords = async () => {
+  try {
+    console.log('开始加载热门搜索关键词')
+    const response = await searchApi.getHotSearchKeywords(5)
+    
+    if (response && response.data && Array.isArray(response.data)) {
+      // 从热门内容中提取关键词
+      hotSearchList.value = response.data.map((item, index) => ({
+        keyword: item.title || `热门内容${index + 1}`,
+        count: formatViewCount(item.viewCount || 0)
+      }))
+      console.log('热门搜索关键词加载成功：', hotSearchList.value)
+    } else {
+      // 使用默认热门搜索
+      hotSearchList.value = [
+        { keyword: '亲子教育方法', count: '12.5w' },
+        { keyword: '儿童情绪管理', count: '10.2w' },
+        { keyword: '早教启蒙', count: '9.8w' },
+        { keyword: '亲子阅读', count: '8.6w' },
+        { keyword: '家庭教育', count: '7.9w' }
+      ]
+      console.log('使用默认热门搜索关键词')
+    }
+  } catch (error) {
+    console.error('加载热门搜索关键词失败：', error)
+    // 使用默认热门搜索
+    hotSearchList.value = [
+      { keyword: '亲子教育方法', count: '12.5w' },
+      { keyword: '儿童情绪管理', count: '10.2w' },
+      { keyword: '早教启蒙', count: '9.8w' },
+      { keyword: '亲子阅读', count: '8.6w' },
+      { keyword: '家庭教育', count: '7.9w' }
+    ]
+  }
+}
+
+// 格式化浏览量显示
+const formatViewCount = (count) => {
+  if (!count || count === 0) return '0'
+  if (count < 1000) return count.toString()
+  if (count < 10000) return (count / 1000).toFixed(1) + 'k'
+  return (count / 10000).toFixed(1) + '万'
+}
+
+// 处理搜索
+const handleSearch = async () => {
+  const keyword = searchText.value.trim()
+  if (!keyword) return
+  
+  try {
+    console.log('开始搜索，关键词：', keyword)
+    
+    // 添加到搜索历史
+    if (!searchHistory.value.includes(keyword)) {
+      searchHistory.value.unshift(keyword)
+      // 最多保存10条历史记录
+      if (searchHistory.value.length > 10) {
+        searchHistory.value.pop()
+      }
+      saveSearchHistory()
+    }
+    
+    // 重置分页信息
+    currentPage.value = 1
+    hasMore.value = true
+    searchResults.value = []
+    isLoading.value = true
+    
+    // 调用搜索API
+    const response = await searchApi.searchContent(keyword, currentPage.value, pageSize)
+    
+    if (response && response.data) {
+      const { records, total, current, size } = response.data
+      
+      // 转换数据格式以适配模板
+      searchResults.value = records.map(item => ({
+        id: item.id,
+        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&fit=crop',
+        title: item.title || '无标题',
+        description: extractDescription(item.content) || '暂无描述',
+        author: item.creatorName || '匿名作者',
+        views: formatViewCount(item.viewCount || 0),
+        type: item.type || 1, // 1: 文章, 2: 视频
+        createdTime: item.createdTime
+      }))
+      
+      // 更新分页信息
+      currentPage.value = current
+      hasMore.value = records.length === size && (current * size) < total
+      
+      console.log('搜索完成，找到', total, '条结果，当前页：', current)
+      
+      if (searchResults.value.length === 0) {
+        console.log('未找到搜索结果')
+      }
+    } else {
+      console.warn('搜索响应格式异常：', response)
+      searchResults.value = []
+    }
+    
+  } catch (error) {
+    console.error('搜索失败：', error)
+    uni.showToast({
+      title: '搜索失败，请重试',
+      icon: 'none'
+    })
+    searchResults.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 从HTML内容中提取纯文本描述
+const extractDescription = (htmlContent, maxLength = 100) => {
+  if (!htmlContent) return ''
+  
+  try {
+    // 移除HTML标签
+    const textContent = htmlContent.replace(/<[^>]*>/g, '').trim()
+    
+    // 截取指定长度
+    if (textContent.length > maxLength) {
+      return textContent.substring(0, maxLength) + '...'
+    }
+    
+    return textContent
+  } catch (error) {
+    console.error('提取描述失败：', error)
+    return ''
+  }
 }
 
 // 清空搜索
@@ -168,6 +314,8 @@ const clearSearch = () => {
 // 清空历史
 const clearHistory = () => {
   searchHistory.value = []
+  saveSearchHistory()
+  console.log('搜索历史已清空')
 }
 
 // 使用历史搜索
@@ -186,48 +334,95 @@ const goBack = () => {
 }
 
 // 加载更多
-const loadMore = () => {
-  if (isLoading.value) return
-  isLoading.value = true
-  // TODO: 调用加载更多API
-  setTimeout(() => {
-    mockLoadMore()
+const loadMore = async () => {
+  if (isLoading.value || !hasMore.value || !searchText.value.trim()) return
+  
+  try {
+    console.log('开始加载更多搜索结果，页码：', currentPage.value + 1)
+    isLoading.value = true
+    
+    const response = await searchApi.searchContent(searchText.value.trim(), currentPage.value + 1, pageSize)
+    
+    if (response && response.data) {
+      const { records, total, current, size } = response.data
+      
+      // 转换并追加新数据
+      const newResults = records.map(item => ({
+        id: item.id,
+        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&fit=crop',
+        title: item.title || '无标题',
+        description: extractDescription(item.content) || '暂无描述',
+        author: item.creatorName || '匿名作者',
+        views: formatViewCount(item.viewCount || 0),
+        type: item.type || 1,
+        createdTime: item.createdTime
+      }))
+      
+      searchResults.value.push(...newResults)
+      
+      // 更新分页信息
+      currentPage.value = current
+      hasMore.value = records.length === size && (current * size) < total
+      
+      console.log('加载更多完成，新增', records.length, '条结果')
+    }
+    
+  } catch (error) {
+    console.error('加载更多失败：', error)
+    uni.showToast({
+      title: '加载失败，请重试',
+      icon: 'none'
+    })
+  } finally {
     isLoading.value = false
-  }, 1000)
+  }
 }
 
-// Mock搜索结果数据
-const mockSearchResults = () => {
-  searchResults.value = [
-    {
-      cover: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&fit=crop',
-      title: '如何在3分钟内安抚孩子的小情绪',
-      description: '专业育儿师分享快速有效的情绪管理技巧，让家长轻松应对孩子的闹情绪...',
-      author: '育儿专家 王老师',
-      views: '2.1万'
-    },
-    {
-      cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&fit=crop',
-      title: '培养孩子专注力的10个小游戏',
-      description: '通过简单有趣的互动游戏，培养孩子的专注力和学习能力...',
-      author: '儿童教育专家 李老师',
-      views: '1.8万'
+// 跳转到内容详情页面
+const navigateToContent = (item) => {
+  console.log('点击搜索结果，跳转到内容详情：', item)
+  
+  if (!item || !item.id) {
+    uni.showToast({
+      title: '内容信息异常',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    if (item.type === 2) {
+      // 视频内容，跳转到视频播放页面
+      uni.navigateTo({
+        url: `/pages/parent/video/video-player?id=${item.id}`,
+        fail: (err) => {
+          console.error('跳转视频播放页面失败：', err)
+          uni.showToast({
+            title: '跳转失败',
+            icon: 'none'
+          })
+        }
+      })
+    } else {
+      // 文章内容，跳转到阅读页面
+      uni.navigateTo({
+        url: `/pages/parent/reading/reading?id=${item.id}`,
+        fail: (err) => {
+          console.error('跳转阅读页面失败：', err)
+          uni.showToast({
+            title: '跳转失败',
+            icon: 'none'
+          })
+        }
+      })
     }
-  ]
-}
-
-// Mock加载更多数据
-const mockLoadMore = () => {
-  const moreResults = [
-    {
-      cover: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&fit=crop',
-      title: '亲子阅读的正确打开方式',
-      description: '科学的亲子阅读方法，让阅读成为孩子最期待的事情...',
-      author: '阅读指导师 周老师',
-      views: '1.5万'
-    }
-  ]
-  searchResults.value.push(...moreResults)
+  } catch (error) {
+    console.error('跳转页面异常：', error)
+    uni.showToast({
+      title: '跳转异常',
+      icon: 'none'
+    })
+  }
 }
 </script>
 
@@ -386,6 +581,19 @@ const mockLoadMore = () => {
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.result-item:hover {
+  background-color: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.result-item:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .result-image {
@@ -435,9 +643,32 @@ const mockLoadMore = () => {
 .stats {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   color: #6b7280;
   font-size: 12px;
+}
+
+.content-type {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background-color: #f3f4f6;
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.content-type.video-type {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.content-type .fas {
+  font-size: 8px;
+}
+
+.type-text {
+  font-size: 10px;
 }
 
 .loading {
