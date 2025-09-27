@@ -148,7 +148,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { contentApi, commentApi, viewHistoryApi, userApi } from '@/utils/api.js'
+import { contentApi, commentApi, viewHistoryApi, userApi, likeApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
@@ -179,6 +179,17 @@ const paragraphCommentCounts = ref({})
 // 功能提示
 const hasShownTip = ref(false)
 
+// 当前用户信息
+const currentUser = ref(null)
+
+// 交互状态
+const scrollTop = ref(0)
+const showTopBtn = ref(false)
+const showBottomBtn = ref(true)
+const isBookmarked = ref(false)
+const isLiked = ref(false)
+const readingProgress = ref(0)
+
 // 页面加载时获取文章ID并加载数据
 onLoad(async (option) => {
   console.log('阅读页面参数：', option)
@@ -189,12 +200,26 @@ onLoad(async (option) => {
   
   if (option.id) {
     article.value.id = parseInt(option.id)
+    await loadCurrentUser() // 先加载用户信息
     await loadArticleData()
   } else {
     error.value = '文章ID不存在'
     console.error('缺少文章ID参数')
   }
 })
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      currentUser.value = response.data
+      console.log('当前用户信息加载成功：', currentUser.value)
+    }
+  } catch (error) {
+    console.error('加载当前用户信息失败：', error)
+  }
+}
 
 // 加载文章数据
 const loadArticleData = async () => {
@@ -225,6 +250,9 @@ const loadArticleData = async () => {
       
       console.log('文章数据加载成功：', article.value)
       
+      // 加载点赞状态
+      await loadLikeStatus()
+      
       // 记录浏览行为，增加浏览量并添加浏览记录
       try {
         // 1. 增加浏览量
@@ -232,9 +260,8 @@ const loadArticleData = async () => {
         console.log('浏览量增加成功')
         
         // 2. 获取用户ID并添加浏览记录
-        const userResponse = await userApi.getCurrentUser()
-        if (userResponse && userResponse.data && userResponse.data.id) {
-          const userId = userResponse.data.id
+        if (currentUser.value && currentUser.value.id) {
+          const userId = currentUser.value.id
           console.log('当前用户ID：', userId, '准备添加浏览记录')
           
           await viewHistoryApi.addViewHistory(userId, article.value.id)
@@ -267,6 +294,23 @@ const loadArticleData = async () => {
   }
 }
 
+// 加载点赞状态
+const loadLikeStatus = async () => {
+  if (!currentUser.value || !currentUser.value.id || !article.value.id) return
+  
+  try {
+    console.log('开始加载点赞状态')
+    const response = await likeApi.getLikeStatus(currentUser.value.id, article.value.id, 1)
+    if (response && response.data !== undefined) {
+      isLiked.value = response.data
+      console.log('点赞状态加载成功：', isLiked.value)
+    }
+  } catch (error) {
+    console.error('加载点赞状态失败：', error)
+    // 不影响主要功能，只是点赞状态可能不准确
+  }
+}
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return ''
@@ -286,14 +330,6 @@ const formatViewCount = (count) => {
   if (count < 10000) return (count / 1000).toFixed(1) + 'k'
   return (count / 10000).toFixed(1) + '万'
 }
-
-// 交互状态
-const scrollTop = ref(0)
-const showTopBtn = ref(false)
-const showBottomBtn = ref(true)
-const isBookmarked = ref(false)
-const isLiked = ref(false)
-const readingProgress = ref(0)
 
 // 返回上一页
 const goBack = () => {
@@ -365,13 +401,40 @@ const toggleBookmark = () => {
   })
 }
 
-const toggleLike = () => {
-  isLiked.value = !isLiked.value
-  article.value.likes = isLiked.value ? '2.4k' : '2.3k'
-  uni.showToast({
-    title: isLiked.value ? '已点赞' : '已取消点赞',
-    icon: 'none'
-  })
+const toggleLike = async () => {
+  if (!currentUser.value || !currentUser.value.id || !article.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    console.log('开始切换点赞状态，当前状态：', isLiked.value)
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, article.value.id, 1)
+    
+    if (response && response.data) {
+      // 更新点赞状态和数量
+      isLiked.value = response.data.isLiked
+      article.value.likeCount = response.data.likeCount
+      article.value.likes = formatViewCount(response.data.likeCount)
+      
+      console.log('点赞状态更新成功：', response.data)
+      
+      uni.showToast({
+        title: isLiked.value ? '已点赞' : '已取消点赞',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('更新点赞状态失败：', error)
+    uni.showToast({
+      title: '点赞失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 跳转到评论页面

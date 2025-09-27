@@ -16,19 +16,19 @@
       <view class="stats-card">
         <view class="stats-grid">
           <view class="stat-item">
-            <text class="stat-value">156</text>
+            <text class="stat-value">{{statsDisplay.monthlyDuration}}</text>
             <text class="stat-label">本月浏览(分钟)</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">28</text>
+            <text class="stat-value">{{statsDisplay.totalArticles}}</text>
             <text class="stat-label">浏览文章</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">15</text>
+            <text class="stat-value">{{statsDisplay.interactedArticles}}</text>
             <text class="stat-label">互动文章</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">8</text>
+            <text class="stat-value">{{statsDisplay.shareCount}}</text>
             <text class="stat-label">分享次数</text>
           </view>
         </view>
@@ -71,11 +71,11 @@
                 </view>
               </view>
               <view class="action-buttons">
-                <view class="action-btn continue">
+                <view class="action-btn continue" @click="viewContent(record)">
                   <text class="fas fa-eye"></text>
                   <text>查看详情</text>
                 </view>
-                <view class="action-btn delete">
+                <view class="action-btn delete" @click="deleteHistoryRecord(record)">
                   <text class="fas fa-trash"></text>
                   <text>删除记录</text>
                 </view>
@@ -89,51 +89,174 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
 
-// 模拟历史记录数据
-const historyRecords = ref([
-  {
-    title: '3岁宝宝早教经验分享',
-    author: '育儿达人 小美',
-    coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-    duration: 45,
-    lastRead: '今天',
-    category: '育儿经验',
-    likes: 328,
-    shares: 56
-  },
-  {
-    title: '亲子阅读的10个小技巧',
-    author: '阅读指导师 小林',
-    coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-    duration: 30,
-    lastRead: '昨天',
-    category: '教育心得',
-    likes: 256,
-    shares: 42
-  },
-  {
-    title: '春季亲子户外活动指南',
-    author: '亲子活动策划师 小sun',
-    coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop',
-    duration: 25,
-    lastRead: '2天前',
-    category: '亲子互动',
-    likes: 198,
-    shares: 35
-  },
-  {
-    title: '儿童免疫力提升食谱',
-    author: '儿童营养师 小月',
-    coverUrl: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400&auto=format&fit=crop',
-    duration: 60,
-    lastRead: '3天前',
-    category: '营养健康',
-    likes: 287,
-    shares: 89
+// 响应式状态
+const currentUser = ref(null)
+const historyStats = ref({
+  monthlyReadDuration: 0,
+  totalArticleCount: 0,
+  interactedArticleCount: 0,
+  shareCount: 0
+})
+const historyRecords = ref([])
+const loading = ref(false)
+
+// 计算统计数据显示
+const statsDisplay = computed(() => {
+  return {
+    monthlyDuration: Math.floor((historyStats.value.monthlyReadDuration || 0) / 60), // 转为分钟
+    totalArticles: historyStats.value.totalArticleCount || 0,
+    interactedArticles: historyStats.value.interactedArticleCount || 0,
+    shareCount: historyStats.value.shareCount || 0
   }
-])
+})
+
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    console.log('开始获取当前用户信息')
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      console.log('获取用户信息成功：', response.data)
+      currentUser.value = response.data
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 获取历史统计数据
+const loadHistoryStats = async () => {
+  try {
+    if (!currentUser.value?.id) return
+    
+    console.log('开始获取历史统计数据，用户ID：', currentUser.value.id)
+    const response = await userBehaviorApi.getHistoryStats(currentUser.value.id)
+    
+    if (response && response.data) {
+      console.log('获取历史统计成功：', response.data)
+      historyStats.value = response.data
+    }
+  } catch (error) {
+    console.error('获取历史统计失败：', error)
+    // 不显示错误提示，使用默认值
+  }
+}
+
+// 获取浏览历史记录
+const loadHistoryRecords = async () => {
+  try {
+    if (!currentUser.value?.id || loading.value) return
+    
+    loading.value = true
+    console.log('开始获取浏览历史记录，用户ID：', currentUser.value.id)
+    
+    const response = await viewHistoryApi.getUserViewHistory(currentUser.value.id, {
+      current: 1,
+      size: 20
+    })
+    
+    if (response && response.data && response.data.records) {
+      console.log('获取浏览历史成功，共', response.data.records.length, '条')
+      
+      // 转换数据格式
+      historyRecords.value = response.data.records.map(record => ({
+        id: record.id,
+        title: record.contentTitle || '无标题',
+        author: record.creatorName || '佚名',
+        coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+        duration: Math.floor(Math.random() * 60) + 10, // 模拟阅读时长
+        lastRead: formatViewTime(record.viewTime),
+        category: record.categoryName || '未分类',
+        likes: record.likeCount || 0,
+        shares: Math.floor(Math.random() * 100), // 模拟分享数
+        contentId: record.contentId,
+        contentType: record.contentType
+      }))
+    }
+  } catch (error) {
+    console.error('获取浏览历史失败：', error)
+    uni.showToast({
+      title: '获取历史失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化浏览时间
+const formatViewTime = (viewTime) => {
+  if (!viewTime) return '未知时间'
+  
+  const now = new Date()
+  const view = new Date(viewTime)
+  const diffMs = now - view
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  
+  if (diffDays === 0) {
+    if (diffHours === 0) {
+      return diffMinutes < 1 ? '刚刚' : `${diffMinutes}分钟前`
+    }
+    return `${diffHours}小时前`
+  } else if (diffDays === 1) {
+    return '昨天'
+  } else if (diffDays === 2) {
+    return '前天'
+  } else {
+    return `${diffDays}天前`
+  }
+}
+
+// 删除浏览记录
+const deleteHistoryRecord = async (record) => {
+  try {
+    console.log('删除浏览记录：', record.title)
+    
+    // 调用删除API（假设存在批量删除接口）
+    const response = await viewHistoryApi.batchDeleteViewHistory(currentUser.value.id, [record.id])
+    
+    if (response && response.code === 200) {
+      // 从本地列表中移除
+      historyRecords.value = historyRecords.value.filter(item => item.id !== record.id)
+      uni.showToast({
+        title: '删除成功',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('删除记录失败：', error)
+    uni.showToast({
+      title: '删除失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 查看内容详情
+const viewContent = (record) => {
+  console.log('查看内容：', record.title)
+  
+  if (record.contentType === 1) {
+    // 图文内容
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${record.contentId}`
+    })
+  } else if (record.contentType === 2) {
+    // 视频内容
+    uni.navigateTo({
+      url: `/pages/parent/video/video-player?id=${record.contentId}`
+    })
+  }
+}
 
 // 返回上一页
 const goBack = () => {
@@ -141,6 +264,14 @@ const goBack = () => {
     url: '/pages/parent/profile/profile'
   })
 }
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('浏览历史页面已挂载，开始加载数据')
+  await loadCurrentUser()
+  await loadHistoryStats()
+  await loadHistoryRecords()
+})
 </script>
 
 <style>

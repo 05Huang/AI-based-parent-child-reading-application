@@ -131,7 +131,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { contentApi, commentApi } from '@/utils/api.js'
+import { contentApi, commentApi, likeApi, userApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
@@ -144,12 +144,16 @@ const article = ref({
 // 页面参数
 const contentId = ref(null)
 
+// 当前用户信息
+const currentUser = ref(null)
+
 // 页面加载时获取参数
 onLoad(async (option) => {
   console.log('评论页面参数：', option)
   if (option.contentId) {
     contentId.value = parseInt(option.contentId)
     article.value.id = contentId.value
+    await loadCurrentUser() // 先加载用户信息
     await loadArticleInfo()
     await loadComments()
   } else {
@@ -160,6 +164,19 @@ onLoad(async (option) => {
     })
   }
 })
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      currentUser.value = response.data
+      console.log('当前用户信息加载成功：', currentUser.value)
+    }
+  } catch (error) {
+    console.error('加载当前用户信息失败：', error)
+  }
+}
 
 // 加载文章信息
 const loadArticleInfo = async () => {
@@ -216,16 +233,32 @@ const loadComments = async (refresh = false) => {
       const { records, current, total, pages } = response.data
       
       // 转换数据格式
-      const formattedComments = records.map(comment => ({
-        id: comment.id,
-        username: comment.userNickname || '匿名用户',
-        avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
-        content: comment.content,
-        time: formatCommentTime(comment.createdTime),
-        likes: comment.likeCount || 0,
-        isLiked: false, // TODO: 从后端获取点赞状态
-        replies: [], // TODO: 加载回复
-        totalReplies: comment.replyCount || 0
+      const formattedComments = await Promise.all(records.map(async comment => {
+        const commentData = {
+          id: comment.id,
+          username: comment.userNickname || '匿名用户',
+          avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+          content: comment.content,
+          time: formatCommentTime(comment.createdTime),
+          likes: comment.likeCount || 0,
+          isLiked: false,
+          replies: [], // TODO: 加载回复
+          totalReplies: comment.replyCount || 0
+        }
+        
+        // 获取点赞状态
+        if (currentUser.value && currentUser.value.id) {
+          try {
+            const likeResponse = await likeApi.getLikeStatus(currentUser.value.id, comment.id, 2)
+            if (likeResponse && likeResponse.data !== undefined) {
+              commentData.isLiked = likeResponse.data
+            }
+          } catch (error) {
+            console.error('获取评论点赞状态失败：', error)
+          }
+        }
+        
+        return commentData
       }))
       
       if (refresh) {
@@ -323,9 +356,39 @@ const onRefresh = () => {
 }
 
 // 切换点赞状态
-const toggleLike = (item) => {
-  item.isLiked = !item.isLiked
-  item.likes += item.isLiked ? 1 : -1
+const toggleLike = async (item) => {
+  if (!currentUser.value || !currentUser.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('开始切换评论点赞状态，评论ID：', item.id, '当前状态：', item.isLiked)
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, item.id, 2) // 2表示评论点赞
+    
+    if (response && response.data) {
+      // 更新点赞状态和数量
+      item.isLiked = response.data.isLiked
+      item.likes = response.data.likeCount || 0
+      
+      console.log('评论点赞状态更新成功：', response.data)
+      
+      uni.showToast({
+        title: item.isLiked ? '已点赞' : '已取消点赞',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('评论点赞失败：', error)
+    uni.showToast({
+      title: '点赞失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 显示回复输入框
@@ -373,6 +436,14 @@ const onInputBlur = () => {
 const submitComment = async () => {
   if (!newComment.value.trim()) return
   
+  if (!currentUser.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+
   try {
     const commentData = {
       contentId: contentId.value,

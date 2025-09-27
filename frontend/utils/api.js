@@ -290,4 +290,27 @@ export const intimacyApi = {
     console.log('调用手动触发亲密度计算接口')
     return request.post('/api/intimacy/calculate')
   }
+}
+
+// 点赞相关API
+export const likeApi = {
+  // 点赞/取消点赞
+  toggleLike(userId, targetId, type) {
+    console.log('调用点赞/取消点赞接口，用户ID：', userId, '目标ID：', targetId, '类型：', type)
+    return request.post('/api/like', {
+      userId,
+      targetId,
+      type // 1: 内容，2: 评论
+    })
+  },
+  
+  // 获取点赞状态
+  getLikeStatus(userId, targetId, type) {
+    console.log('调用获取点赞状态接口，用户ID：', userId, '目标ID：', targetId, '类型：', type)
+    return request.get('/api/like/status', {
+      userId,
+      targetId,
+      type
+    })
+  }
 } 

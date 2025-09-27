@@ -16,19 +16,19 @@
       <view class="stats-card">
         <view class="stats-grid">
           <view class="stat-item">
-            <text class="stat-value">328</text>
+            <text class="stat-value">{{statsDisplay.totalDuration}}</text>
             <text class="stat-label">浏览总时长(分钟)</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">42</text>
+            <text class="stat-value">{{statsDisplay.totalRead}}</text>
             <text class="stat-label">浏览文章</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">12</text>
-            <text class="stat-label">本周浏览(天)</text>
+            <text class="stat-value">{{statsDisplay.weeklyDays}}</text>
+            <text class="stat-label">本周浏览(次)</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">85%</text>
+            <text class="stat-value">{{statsDisplay.interactionRate}}%</text>
             <text class="stat-label">互动率</text>
           </view>
         </view>
@@ -81,55 +81,120 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
+
+// 响应式状态
+const currentUser = ref(null)
+const browsingStats = ref({
+  totalReadDuration: 0,
+  totalReadCount: 0,
+  weeklyViewCount: 0,
+  interactionRate: 0
+})
+const readingRecords = ref([])
+const loading = ref(false)
 
 // 时间范围选择器数据
 const timeRanges = ['近7天', '近30天', '近3个月']
 const currentTimeRange = ref('近7天')
 
-// 模拟浏览记录数据
-const readingRecords = ref([
-  {
-    title: '宝宝挑食怎么办？这些方法超有效',
-    author: '育儿专家 小王',
-    coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-    likes: 256,
-    comments: 45,
-    duration: 30,
-    category: '育儿经验',
-    lastRead: '今天'
-  },
-  {
-    title: '亲子互动游戏大全：激发孩子创造力',
-    author: '早教老师 小李',
-    coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-    likes: 189,
-    comments: 32,
-    duration: 45,
-    category: '亲子互动',
-    lastRead: '昨天'
-  },
-  {
-    title: '如何培养孩子的阅读习惯？',
-    author: '教育专家 小张',
-    coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop',
-    likes: 145,
-    comments: 28,
-    duration: 60,
-    category: '教育心得',
-    lastRead: '2天前'
-  },
-  {
-    title: '儿童营养餐制作指南',
-    author: '营养师 小陈',
-    coverUrl: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400&auto=format&fit=crop',
-    likes: 167,
-    comments: 36,
-    duration: 90,
-    category: '营养健康',
-    lastRead: '3天前'
+// 计算统计数据显示
+const statsDisplay = computed(() => {
+  return {
+    totalDuration: Math.floor((browsingStats.value.totalReadDuration || 0) / 60), // 转为分钟
+    totalRead: browsingStats.value.totalReadCount || 0,
+    weeklyDays: browsingStats.value.weeklyViewCount || 0,
+    interactionRate: Math.round((browsingStats.value.interactionRate || 0) * 100)
   }
-])
+})
+
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    console.log('开始获取当前用户信息')
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      console.log('获取用户信息成功：', response.data)
+      currentUser.value = response.data
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 获取浏览统计数据
+const loadBrowsingStats = async () => {
+  try {
+    if (!currentUser.value?.id) return
+    
+    console.log('开始获取浏览统计数据，用户ID：', currentUser.value.id)
+    const response = await userBehaviorApi.getBrowsingStats(currentUser.value.id)
+    
+    if (response && response.data) {
+      console.log('获取浏览统计成功：', response.data)
+      browsingStats.value = response.data
+    }
+  } catch (error) {
+    console.error('获取浏览统计失败：', error)
+    // 不显示错误提示，使用默认值
+  }
+}
+
+// 获取浏览记录
+const loadReadingRecords = async () => {
+  try {
+    if (!currentUser.value?.id || loading.value) return
+    
+    loading.value = true
+    console.log('开始获取浏览记录，用户ID：', currentUser.value.id)
+    
+    const response = await viewHistoryApi.getUserViewHistory(currentUser.value.id, {
+      current: 1,
+      size: 20
+    })
+    
+    if (response && response.data && response.data.records) {
+      console.log('获取浏览记录成功，共', response.data.records.length, '条')
+      
+      // 转换数据格式
+      readingRecords.value = response.data.records.map(record => ({
+        id: record.id,
+        title: record.contentTitle || '无标题',
+        author: record.creatorName || '佚名',
+        coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+        likes: record.likeCount || 0,
+        comments: record.commentCount || 0,
+        duration: getTimeDiffInMinutes(record.viewTime),
+        category: record.categoryName || '未分类',
+        contentId: record.contentId,
+        contentType: record.contentType
+      }))
+    }
+  } catch (error) {
+    console.error('获取浏览记录失败：', error)
+    uni.showToast({
+      title: '获取记录失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 计算时间差（分钟）
+const getTimeDiffInMinutes = (viewTime) => {
+  if (!viewTime) return 0
+  const now = new Date()
+  const view = new Date(viewTime)
+  const diffMs = now - view
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  return diffMinutes < 1 ? 1 : diffMinutes
+}
 
 // 返回上一页
 const goBack = () => {
@@ -141,8 +206,18 @@ const goBack = () => {
 // 时间范围变化处理
 const onTimeRangeChange = (e) => {
   currentTimeRange.value = timeRanges[e.detail.value]
-  // 这里可以添加加载对应时间范围数据的逻辑
+  console.log('时间范围改变为：', currentTimeRange.value)
+  // 重新加载数据
+  loadReadingRecords()
 }
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('浏览记录页面已挂载，开始加载数据')
+  await loadCurrentUser()
+  await loadBrowsingStats()
+  await loadReadingRecords()
+})
 </script>
 
 <style>

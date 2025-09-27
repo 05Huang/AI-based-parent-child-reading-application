@@ -23,19 +23,19 @@
         </view>
         <view class="overview-grid">
           <view class="overview-item">
-            <text class="overview-value">328</text>
+            <text class="overview-value">{{reportDisplay.totalDuration}}</text>
             <text class="overview-label">总浏览时长(分钟)</text>
           </view>
           <view class="overview-item">
-            <text class="overview-value">15</text>
+            <text class="overview-value">{{reportDisplay.totalArticles}}</text>
             <text class="overview-label">浏览文章</text>
           </view>
           <view class="overview-item">
-            <text class="overview-value">24</text>
+            <text class="overview-value">{{reportDisplay.interactionCount}}</text>
             <text class="overview-label">互动次数</text>
           </view>
           <view class="overview-item">
-            <text class="overview-value">92%</text>
+            <text class="overview-value">{{reportDisplay.activityScore}}%</text>
             <text class="overview-label">活跃度</text>
           </view>
         </view>
@@ -52,7 +52,7 @@
             </view>
             <view class="habit-info">
               <text class="habit-title">平均浏览时长</text>
-              <text class="habit-value">25分钟</text>
+              <text class="habit-value">{{reportDisplay.avgReadTime}}分钟</text>
             </view>
           </view>
           <view class="habit-item">
@@ -61,7 +61,7 @@
             </view>
             <view class="habit-info">
               <text class="habit-title">最爱内容类型</text>
-              <text class="habit-value">育儿经验</text>
+              <text class="habit-value">{{reportDisplay.favoriteCategory}}</text>
             </view>
           </view>
         </view>
@@ -116,32 +116,131 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
 
-// 模拟完成内容数据
-const completedArticles = ref([
-  {
-    title: '如何培养孩子的学习兴趣',
-    coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-    duration: 120,
-    likes: 256,
-    comments: 45
-  },
-  {
-    title: '亲子沟通的艺术',
-    coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-    duration: 90,
-    likes: 189,
-    comments: 32
-  },
-  {
-    title: '儿童成长关键期指南',
-    coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop',
-    duration: 150,
-    likes: 324,
-    comments: 56
+// 响应式状态
+const currentUser = ref(null)
+const weeklyReport = ref({
+  totalReadDuration: 0,
+  totalArticleCount: 0,
+  interactionCount: 0,
+  activityScore: 0,
+  dailyAvgReadTime: 0,
+  favoriteCategory: '未知'
+})
+const completedArticles = ref([])
+const loading = ref(false)
+
+// 计算月报统计数据显示
+const reportDisplay = computed(() => {
+  return {
+    totalDuration: Math.floor((weeklyReport.value.totalReadDuration || 0) / 60), // 转为分钟
+    totalArticles: weeklyReport.value.totalArticleCount || 0,
+    interactionCount: weeklyReport.value.interactionCount || 0,
+    activityScore: Math.round((weeklyReport.value.activityScore || 0) * 100), // 转为百分比
+    avgReadTime: Math.floor((weeklyReport.value.dailyAvgReadTime || 0) / 60), // 转为分钟
+    favoriteCategory: weeklyReport.value.favoriteCategory || '育儿经验'
   }
-])
+})
+
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    console.log('开始获取当前用户信息')
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      console.log('获取用户信息成功：', response.data)
+      currentUser.value = response.data
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 获取周报数据
+const loadWeeklyReport = async () => {
+  try {
+    if (!currentUser.value?.id) return
+    
+    console.log('开始获取周报数据，用户ID：', currentUser.value.id)
+    const response = await userBehaviorApi.getWeeklyReport(currentUser.value.id)
+    
+    if (response && response.data) {
+      console.log('获取周报数据成功：', response.data)
+      weeklyReport.value = response.data
+    }
+  } catch (error) {
+    console.error('获取周报数据失败：', error)
+    // 不显示错误提示，使用默认值
+  }
+}
+
+// 获取热门文章（从浏览历史中提取）
+const loadHotArticles = async () => {
+  try {
+    if (!currentUser.value?.id || loading.value) return
+    
+    loading.value = true
+    console.log('开始获取热门文章，用户ID：', currentUser.value.id)
+    
+    const response = await viewHistoryApi.getUserViewHistory(currentUser.value.id, {
+      current: 1,
+      size: 10
+    })
+    
+    if (response && response.data && response.data.records) {
+      console.log('获取浏览历史成功，筛选热门文章')
+      
+      // 转换并筛选热门文章（取前3个）
+      const articles = response.data.records.slice(0, 3).map(record => ({
+        id: record.id,
+        title: record.contentTitle || '无标题',
+        coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+        duration: Math.floor(Math.random() * 120) + 60, // 模拟阅读时长（秒）
+        likes: record.likeCount || Math.floor(Math.random() * 500) + 100,
+        comments: record.commentCount || Math.floor(Math.random() * 100) + 10,
+        contentId: record.contentId,
+        contentType: record.contentType
+      }))
+      
+      completedArticles.value = articles
+      console.log('热门文章加载完成，共', articles.length, '篇')
+    }
+  } catch (error) {
+    console.error('获取热门文章失败：', error)
+    // 使用默认文章
+    completedArticles.value = [
+      {
+        title: '如何培养孩子的学习兴趣',
+        coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+        duration: 120,
+        likes: 256,
+        comments: 45
+      },
+      {
+        title: '亲子沟通的艺术',
+        coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
+        duration: 90,
+        likes: 189,
+        comments: 32
+      },
+      {
+        title: '儿童成长关键期指南',
+        coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop',
+        duration: 150,
+        likes: 324,
+        comments: 56
+      }
+    ]
+  } finally {
+    loading.value = false
+  }
+}
 
 // 返回上一页
 const goBack = () => {
@@ -149,6 +248,14 @@ const goBack = () => {
     url: '/pages/parent/profile/profile'
   })
 }
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('浏览报告页面已挂载，开始加载数据')
+  await loadCurrentUser()
+  await loadWeeklyReport()
+  await loadHotArticles()
+})
 </script>
 
 <style>

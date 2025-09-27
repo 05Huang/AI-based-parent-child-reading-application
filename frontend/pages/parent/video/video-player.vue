@@ -40,8 +40,8 @@
             <text class="fas fa-play-circle"></text>
             <text class="stat-text">{{ formatViewCount(videoInfo.viewCount) }}次播放</text>
           </view>
-          <view class="stat-item">
-            <text class="fas fa-heart"></text>
+          <view class="stat-item like-btn" @click="toggleVideoLike">
+            <text class="fas fa-heart" :class="{ 'liked': isVideoLiked }"></text>
             <text class="stat-text">{{ videoInfo.likeCount || 0 }}</text>
           </view>
           <view class="stat-item">
@@ -159,7 +159,13 @@
               <text class="comment-text">{{ comment.content }}</text>
               <view class="comment-meta">
                 <text class="comment-time">{{ formatTime(comment.createdTime) }}</text>
-                <text class="comment-reply">回复</text>
+                <view class="comment-actions">
+                  <view class="action-btn" @click="toggleCommentLike(comment)">
+                    <text class="fas fa-thumbs-up" :class="{ 'liked': comment.isLiked }"></text>
+                    <text class="action-count">{{ comment.likeCount || 0 }}</text>
+                  </view>
+                  <text class="comment-reply">回复</text>
+                </view>
               </view>
             </view>
           </view>
@@ -176,7 +182,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { videoApi, commentApi } from '../../../utils/api.js';
+import { videoApi, commentApi, likeApi, userApi } from '../../../utils/api.js';
 
 // 获取页面参数
 const videoId = ref(null);
@@ -193,7 +199,13 @@ const commentPage = ref(1);
 const playStartTime = ref(null);
 const totalWatchTime = ref(0);
 
-onMounted(() => {
+// 当前用户信息
+const currentUser = ref(null);
+
+// 点赞状态
+const isVideoLiked = ref(false);
+
+onMounted(async () => {
   console.log('视频播放页面初始化');
   
   // 获取页面参数
@@ -202,9 +214,10 @@ onMounted(() => {
   videoId.value = currentPage.options.id;
   
   if (videoId.value) {
-    loadVideoInfo();
-    loadRelatedVideos();
-    loadComments();
+    await loadCurrentUser(); // 先加载用户信息
+    await loadVideoInfo();
+    await loadRelatedVideos();
+    await loadComments();
   } else {
     console.error('未获取到视频ID');
     uni.showToast({
@@ -213,6 +226,19 @@ onMounted(() => {
     });
   }
 });
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const response = await userApi.getCurrentUser();
+    if (response && response.data) {
+      currentUser.value = response.data;
+      console.log('当前用户信息加载成功：', currentUser.value);
+    }
+  } catch (error) {
+    console.error('加载当前用户信息失败：', error);
+  }
+};
 
 onUnmounted(() => {
   // 页面销毁时记录观看时长
@@ -231,6 +257,9 @@ const loadVideoInfo = async () => {
     if (response.code === 200) {
       videoInfo.value = response.data;
       console.log('视频信息加载成功：', videoInfo.value);
+      
+      // 加载视频点赞状态
+      await loadVideoLikeStatus();
       
       // 增加浏览量
       await videoApi.incrementVideoViewCount(videoId.value);
@@ -267,6 +296,58 @@ const loadRelatedVideos = async () => {
   }
 };
 
+// 加载视频点赞状态
+const loadVideoLikeStatus = async () => {
+  if (!currentUser.value || !currentUser.value.id || !videoId.value) return;
+  
+  try {
+    console.log('开始加载视频点赞状态');
+    const response = await likeApi.getLikeStatus(currentUser.value.id, videoId.value, 1);
+    if (response && response.data !== undefined) {
+      isVideoLiked.value = response.data;
+      console.log('视频点赞状态加载成功：', isVideoLiked.value);
+    }
+  } catch (error) {
+    console.error('加载视频点赞状态失败：', error);
+  }
+};
+
+// 切换视频点赞状态
+const toggleVideoLike = async () => {
+  if (!currentUser.value || !currentUser.value.id || !videoId.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  try {
+    console.log('开始切换视频点赞状态，当前状态：', isVideoLiked.value);
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, videoId.value, 1);
+    
+    if (response && response.data) {
+      // 更新点赞状态和数量
+      isVideoLiked.value = response.data.isLiked;
+      videoInfo.value.likeCount = response.data.likeCount;
+      
+      console.log('视频点赞状态更新成功：', response.data);
+      
+      uni.showToast({
+        title: isVideoLiked.value ? '已点赞' : '已取消点赞',
+        icon: 'success'
+      });
+    }
+  } catch (error) {
+    console.error('更新视频点赞状态失败：', error);
+    uni.showToast({
+      title: '点赞失败，请重试',
+      icon: 'none'
+    });
+  }
+};
+
 // 加载评论
 const loadComments = async (page = 1) => {
   try {
@@ -274,10 +355,34 @@ const loadComments = async (page = 1) => {
     const response = await commentApi.getContentComments(videoId.value, page, 10);
     
     if (response.code === 200 && response.data) {
-      if (page === 1) {
-        comments.value = response.data.records || [];
+      let commentsList = response.data.records || [];
+      
+      // 为每个评论加载点赞状态
+      if (currentUser.value && currentUser.value.id) {
+        commentsList = await Promise.all(commentsList.map(async comment => {
+          try {
+            const likeResponse = await likeApi.getLikeStatus(currentUser.value.id, comment.id, 2);
+            if (likeResponse && likeResponse.data !== undefined) {
+              comment.isLiked = likeResponse.data;
+            } else {
+              comment.isLiked = false;
+            }
+          } catch (error) {
+            console.error('获取评论点赞状态失败：', error);
+            comment.isLiked = false;
+          }
+          return comment;
+        }));
       } else {
-        comments.value = [...comments.value, ...(response.data.records || [])];
+        commentsList.forEach(comment => {
+          comment.isLiked = false;
+        });
+      }
+      
+      if (page === 1) {
+        comments.value = commentsList;
+      } else {
+        comments.value = [...comments.value, ...commentsList];
       }
       
       hasMoreComments.value = comments.value.length < (response.data.total || 0);
@@ -294,11 +399,55 @@ const loadMoreComments = () => {
   loadComments(commentPage.value);
 };
 
+// 切换评论点赞状态
+const toggleCommentLike = async (comment) => {
+  if (!currentUser.value || !currentUser.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    });
+    return;
+  }
+
+  try {
+    console.log('开始切换视频评论点赞状态，评论ID：', comment.id, '当前状态：', comment.isLiked);
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, comment.id, 2); // 2表示评论点赞
+    
+    if (response && response.data) {
+      // 更新点赞状态和数量
+      comment.isLiked = response.data.isLiked;
+      comment.likeCount = response.data.likeCount || 0;
+      
+      console.log('视频评论点赞状态更新成功：', response.data);
+      
+      uni.showToast({
+        title: comment.isLiked ? '已点赞' : '已取消点赞',
+        icon: 'success'
+      });
+    }
+  } catch (error) {
+    console.error('视频评论点赞失败：', error);
+    uni.showToast({
+      title: '点赞失败，请重试',
+      icon: 'none'
+    });
+  }
+};
+
 // 提交评论
 const submitComment = async () => {
   if (!commentText.value.trim()) {
     uni.showToast({
       title: '请输入评论内容',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  if (!currentUser.value || !currentUser.value.id) {
+    uni.showToast({
+      title: '请先登录',
       icon: 'none'
     });
     return;
@@ -535,6 +684,15 @@ const getTagList = (tags) => {
 .stat-item .fas {
   color: #6b7280;
   font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+.stat-item.like-btn {
+  cursor: pointer;
+}
+
+.stat-item .fas.liked {
+  color: #ef4444;
 }
 
 .stat-text {
@@ -796,7 +954,43 @@ const getTagList = (tags) => {
 
 .comment-meta {
   display: flex;
-  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.action-btn .fas {
+  font-size: 12px;
+  color: #6b7280;
+  transition: color 0.3s ease;
+}
+
+.action-btn .fas.liked {
+  color: #3b82f6;
+}
+
+.action-count {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .comment-time, .comment-reply {

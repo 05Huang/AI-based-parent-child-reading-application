@@ -62,12 +62,15 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { commentApi } from '@/utils/api.js'
+import { commentApi, likeApi, userApi } from '@/utils/api.js'
 
 // 获取页面参数
 const contentId = ref(null)
 const paragraphId = ref('')
 const paragraphContent = ref('')
+
+// 当前用户信息
+const currentUser = ref(null)
 
 // 在页面加载时获取参数
 onLoad(async (option) => {
@@ -76,6 +79,7 @@ onLoad(async (option) => {
     contentId.value = parseInt(option.contentId)
     paragraphId.value = option.paragraphId
     paragraphContent.value = decodeURIComponent(option.content)
+    await loadCurrentUser() // 先加载用户信息
     await loadComments()
   } else {
     console.error('缺少必要参数')
@@ -85,6 +89,19 @@ onLoad(async (option) => {
     })
   }
 })
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const response = await userApi.getCurrentUser()
+    if (response && response.data) {
+      currentUser.value = response.data
+      console.log('当前用户信息加载成功：', currentUser.value)
+    }
+  } catch (error) {
+    console.error('加载当前用户信息失败：', error)
+  }
+}
 
 // 评论数据
 const comments = ref([])
@@ -130,14 +147,30 @@ const loadComments = async () => {
     const response = await commentApi.getParagraphComments(contentId.value, paragraphId.value)
     
     if (response && response.data && response.data.records) {
-      const formattedComments = response.data.records.map(comment => ({
-        id: comment.id,
-        username: comment.userNickname || '匿名用户',
-        avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
-        content: comment.content,
-        time: formatCommentTime(comment.createdTime),
-        likes: comment.likeCount || 0,
-        isLiked: false // TODO: 获取点赞状态
+      const formattedComments = await Promise.all(response.data.records.map(async comment => {
+        const commentData = {
+          id: comment.id,
+          username: comment.userNickname || '匿名用户',
+          avatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+          content: comment.content,
+          time: formatCommentTime(comment.createdTime),
+          likes: comment.likeCount || 0,
+          isLiked: false
+        }
+        
+        // 获取点赞状态
+        if (currentUser.value && currentUser.value.id) {
+          try {
+            const likeResponse = await likeApi.getLikeStatus(currentUser.value.id, comment.id, 2)
+            if (likeResponse && likeResponse.data !== undefined) {
+              commentData.isLiked = likeResponse.data
+            }
+          } catch (error) {
+            console.error('获取段落评论点赞状态失败：', error)
+          }
+        }
+        
+        return commentData
       }))
       
       comments.value = formattedComments
@@ -186,6 +219,14 @@ const submitComment = async () => {
     return
   }
 
+  if (!currentUser.value || !currentUser.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+
   try {
     const commentData = {
       contentId: contentId.value,
@@ -222,9 +263,39 @@ const submitComment = async () => {
 }
 
 // 点赞评论
-const likeComment = (comment) => {
-  comment.isLiked = !comment.isLiked
-  comment.likes += comment.isLiked ? 1 : -1
+const likeComment = async (comment) => {
+  if (!currentUser.value || !currentUser.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('开始切换段落评论点赞状态，评论ID：', comment.id, '当前状态：', comment.isLiked)
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, comment.id, 2) // 2表示评论点赞
+    
+    if (response && response.data) {
+      // 更新点赞状态和数量
+      comment.isLiked = response.data.isLiked
+      comment.likes = response.data.likeCount || 0
+      
+      console.log('段落评论点赞状态更新成功：', response.data)
+      
+      uni.showToast({
+        title: comment.isLiked ? '已点赞' : '已取消点赞',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('段落评论点赞失败：', error)
+    uni.showToast({
+      title: '点赞失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 回复评论

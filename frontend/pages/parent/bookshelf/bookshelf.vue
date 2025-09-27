@@ -104,8 +104,8 @@
             <text class="book-card-title">{{ book.title }}</text>
             <text class="book-card-author">{{ book.author }}</text>
             <view class="book-card-stats">
-              <view class="rating">
-                <text class="fas fa-thumbs-up"></text>
+              <view class="rating" @click.stop="toggleLike(book)">
+                <text class="fas fa-thumbs-up" :class="{ 'liked': book.isLiked }"></text>
                 <text class="rating-text">{{ formatCount(book.likeCount) }}</text>
               </view>
               <view class="views">
@@ -131,7 +131,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { favoriteApi, categoryApi, contentApi, userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
+import { favoriteApi, categoryApi, contentApi, userBehaviorApi, userApi, viewHistoryApi, likeApi } from '@/utils/api.js'
 
 // 响应式数据
 const categories = ref([]) // 分类列表
@@ -258,21 +258,38 @@ const loadBrowsingHistory = async () => {
     if (response && response.data && response.data.records) {
       console.log('浏览历史原始数据：', response.data)
       
-      // 转换为统一格式，根据UserViewHistoryResponseDTO结构
-      browsingHistory.value = response.data.records.map(item => ({
-        id: item.contentId,
-        title: item.contentTitle || '无标题',
-        author: item.creatorName || '匿名作者',
-        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-        likeCount: item.likeCount || 0, // 使用后端返回的真实数据
-        viewCount: item.viewCount || 0, // 使用后端返回的真实数据
-        commentCount: item.commentCount || 0, // 使用后端返回的真实数据
-        categoryId: item.categoryId,
-        categoryName: item.categoryName,
-        createdTime: item.viewTime, // 使用浏览时间作为排序依据
-        contentType: item.contentType,
-        viewHistoryId: item.id // 浏览记录的ID
-      }))
+      // 转换为统一格式，根据UserViewHistoryResponseDTO结构，并添加点赞状态
+      browsingHistory.value = await Promise.all(
+        response.data.records.map(async (item) => {
+          const historyItem = {
+            id: item.contentId,
+            title: item.contentTitle || '无标题',
+            author: item.creatorName || '匿名作者',
+            cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
+            likeCount: item.likeCount || 0, // 使用后端返回的真实数据
+            viewCount: item.viewCount || 0, // 使用后端返回的真实数据
+            commentCount: item.commentCount || 0, // 使用后端返回的真实数据
+            categoryId: item.categoryId,
+            categoryName: item.categoryName,
+            createdTime: item.viewTime, // 使用浏览时间作为排序依据
+            contentType: item.contentType,
+            viewHistoryId: item.id, // 浏览记录的ID
+            isLiked: false // 默认未点赞
+          }
+          
+          // 获取当前用户对该内容的点赞状态
+          if (currentUserId.value) {
+            try {
+              const likeStatusResponse = await likeApi.getLikeStatus(currentUserId.value, item.contentId, 1)
+              historyItem.isLiked = likeStatusResponse.data || false
+            } catch (error) {
+              console.warn('获取点赞状态失败：', error)
+            }
+          }
+          
+          return historyItem
+        })
+      )
       
       console.log('用户浏览历史记录加载成功：', browsingHistory.value.length, '条')
       console.log('处理后的浏览历史数据：', browsingHistory.value)
@@ -307,17 +324,34 @@ const loadFallbackContent = async () => {
     })
     
     if (response && response.data && response.data.records) {
-      browsingHistory.value = response.data.records.map(item => ({
-        id: item.id,
-        title: item.title || '无标题',
-        author: item.creatorName || '匿名作者',
-        cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-        likeCount: item.likeCount || 0,
-        viewCount: item.viewCount || 0,
-        categoryId: item.categoryId,
-        createdTime: item.createdTime,
-        contentType: item.type
-      }))
+      browsingHistory.value = await Promise.all(
+        response.data.records.map(async (item) => {
+          const historyItem = {
+            id: item.id,
+            title: item.title || '无标题',
+            author: item.creatorName || '匿名作者',
+            cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
+            likeCount: item.likeCount || 0,
+            viewCount: item.viewCount || 0,
+            categoryId: item.categoryId,
+            createdTime: item.createdTime,
+            contentType: item.type,
+            isLiked: false // 默认未点赞
+          }
+          
+          // 获取当前用户对该内容的点赞状态
+          if (currentUserId.value) {
+            try {
+              const likeStatusResponse = await likeApi.getLikeStatus(currentUserId.value, item.id, 1)
+              historyItem.isLiked = likeStatusResponse.data || false
+            } catch (error) {
+              console.warn('获取点赞状态失败：', error)
+            }
+          }
+          
+          return historyItem
+        })
+      )
       
       console.log('降级内容加载成功：', browsingHistory.value.length, '条')
       updateCurrentBook()
@@ -419,6 +453,56 @@ const navigateToBookDetail = (book) => {
   })
   } catch (error) {
     console.error('处理内容点击事件失败：', error)
+  }
+}
+
+// 点赞/取消点赞功能
+const toggleLike = async (book) => {
+  if (!currentUserId.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    console.log('切换点赞状态，内容ID：', book.id, '当前状态：', book.isLiked)
+    
+    const response = await likeApi.toggleLike(currentUserId.value, book.id, 1)
+    
+    if (response && response.data) {
+      // 更新本地数据
+      const isLiked = response.data.isLiked
+      const likeCount = response.data.likeCount
+      
+      // 更新浏览历史列表中的数据
+      const index = browsingHistory.value.findIndex(item => item.id === book.id)
+      if (index !== -1) {
+        browsingHistory.value[index].isLiked = isLiked
+        browsingHistory.value[index].likeCount = likeCount
+      }
+      
+      // 如果当前显示的就是这本书，也要更新
+      if (currentBook.value.title === book.title) {
+        currentBook.value.likes = formatCount(likeCount)
+      }
+      
+      // 给用户反馈
+      uni.showToast({
+        title: isLiked ? '点赞成功' : '取消点赞',
+        icon: 'success',
+        duration: 1000
+      })
+      
+      console.log('点赞状态更新成功，新状态：', isLiked, '新点赞数：', likeCount)
+    }
+  } catch (error) {
+    console.error('点赞操作失败：', error)
+    uni.showToast({
+      title: '操作失败',
+      icon: 'none'
+    })
   }
 }
 </script>
@@ -729,9 +813,26 @@ const navigateToBookDetail = (book) => {
   gap: 4px;
 }
 
+.rating {
+  cursor: pointer;
+  padding: 8rpx;
+  margin: -8rpx;
+  border-radius: 8rpx;
+  transition: background-color 0.3s ease;
+}
+
+.rating:hover {
+  background-color: rgba(244, 63, 94, 0.1);
+}
+
 .rating .fas {
-  color: #f43f5e;
+  color: #9ca3af;
   font-size: 12px;
+  transition: color 0.3s ease;
+}
+
+.rating .fas.liked {
+  color: #f43f5e;
 }
 
 .rating-text, .views-text {

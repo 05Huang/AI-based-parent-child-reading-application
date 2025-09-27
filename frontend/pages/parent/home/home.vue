@@ -148,8 +148,8 @@
               <text class="hot-book-author">{{ item.creatorName || '匿名作者' }}</text>
               <text class="hot-book-tags">{{ item.tags || '热门推荐' }}</text>
               <view class="hot-book-stats">
-                <view class="rating">
-                  <text class="fas fa-thumbs-up rating-icon"></text>
+                <view class="rating" @click.stop="toggleLike(item, 'hot')">
+                  <text class="fas fa-thumbs-up rating-icon" :class="{ 'liked': item.isLiked }"></text>
                   <text class="rating-text">{{ formatViewCount(item.likeCount) }}</text>
                 </view>
                 <view class="views">
@@ -176,12 +176,13 @@
 
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
-import { contentApi, recommendationApi, userApi } from '@/utils/api.js'
+import { contentApi, recommendationApi, userApi, likeApi } from '@/utils/api.js'
 
 // 响应式数据
 const recommendedContents = ref([]) // 精选推荐内容
 const hotContents = ref([]) // 热门文章内容
 const loading = ref(false) // 加载状态
+const currentUser = ref(null) // 当前用户信息
 
 // 页面加载时检查登录状态并获取数据
 onMounted(async () => {
@@ -204,6 +205,7 @@ onMounted(async () => {
       const userResponse = await userApi.getCurrentUser()
       if (userResponse && userResponse.data) {
         console.log('获取到当前用户信息：', userResponse.data)
+        currentUser.value = userResponse.data // 保存用户信息
         await loadHomeData()
       } else {
         console.error('获取用户信息失败，响应格式异常：', userResponse)
@@ -273,7 +275,24 @@ const loadRecommendedContents = async () => {
     })
     
     if (response && response.data && response.data.records) {
-      recommendedContents.value = response.data.records
+      // 为每个内容添加点赞状态
+      recommendedContents.value = await Promise.all(
+        response.data.records.map(async (item) => {
+          const contentWithLikeStatus = { ...item, isLiked: false }
+          
+          // 获取当前用户对该内容的点赞状态
+          if (currentUser.value?.id) {
+            try {
+              const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
+              contentWithLikeStatus.isLiked = likeStatusResponse.data || false
+            } catch (error) {
+              console.warn('获取点赞状态失败：', error)
+            }
+          }
+          
+          return contentWithLikeStatus
+        })
+      )
       console.log('精选推荐内容加载成功：', recommendedContents.value.length, '条')
     } else {
       console.warn('精选推荐内容响应格式异常：', response)
@@ -318,10 +337,29 @@ const loadContentsFallback = async (type) => {
     const response = await contentApi.getContentPage(params)
     
     if (response && response.data && response.data.records) {
+      // 为每个内容添加点赞状态
+      const contentsWithLikeStatus = await Promise.all(
+        response.data.records.map(async (item) => {
+          const contentWithLikeStatus = { ...item, isLiked: false }
+          
+          // 获取当前用户对该内容的点赞状态
+          if (currentUser.value?.id) {
+            try {
+              const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
+              contentWithLikeStatus.isLiked = likeStatusResponse.data || false
+            } catch (error) {
+              console.warn('获取点赞状态失败：', error)
+            }
+          }
+          
+          return contentWithLikeStatus
+        })
+      )
+      
       if (type === 'recommended') {
-        recommendedContents.value = response.data.records
+        recommendedContents.value = contentsWithLikeStatus
       } else {
-        hotContents.value = response.data.records
+        hotContents.value = contentsWithLikeStatus
       }
       console.log(`${type}内容降级加载成功：`, response.data.records.length, '条')
     }
@@ -481,6 +519,59 @@ const navigateToReading = async (item) => {
 const refreshHotContents = async () => {
   console.log('刷新热门内容...')
   await loadHotContents()
+}
+
+// 点赞/取消点赞功能
+const toggleLike = async (item, listType) => {
+  if (!currentUser.value?.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    console.log('切换点赞状态，内容ID：', item.id, '当前状态：', item.isLiked)
+    
+    const response = await likeApi.toggleLike(currentUser.value.id, item.id, 1)
+    
+    if (response && response.data) {
+      // 更新本地数据
+      const isLiked = response.data.isLiked
+      const likeCount = response.data.likeCount
+      
+      // 根据列表类型更新对应的数据
+      if (listType === 'recommended') {
+        const index = recommendedContents.value.findIndex(content => content.id === item.id)
+        if (index !== -1) {
+          recommendedContents.value[index].isLiked = isLiked
+          recommendedContents.value[index].likeCount = likeCount
+        }
+      } else if (listType === 'hot') {
+        const index = hotContents.value.findIndex(content => content.id === item.id)
+        if (index !== -1) {
+          hotContents.value[index].isLiked = isLiked
+          hotContents.value[index].likeCount = likeCount
+        }
+      }
+      
+      // 给用户反馈
+      uni.showToast({
+        title: isLiked ? '点赞成功' : '取消点赞',
+        icon: 'success',
+        duration: 1000
+      })
+      
+      console.log('点赞状态更新成功，新状态：', isLiked, '新点赞数：', likeCount)
+    }
+  } catch (error) {
+    console.error('点赞操作失败：', error)
+    uni.showToast({
+      title: '操作失败',
+      icon: 'none'
+    })
+  }
 }
 </script>
 
@@ -939,11 +1030,25 @@ const refreshHotContents = async () => {
   display: flex;
   align-items: center;
   margin-right: 30rpx;
+  cursor: pointer;
+  padding: 10rpx;
+  margin: -10rpx;
+  border-radius: 8rpx;
+  transition: background-color 0.3s ease;
+}
+
+.rating:hover {
+  background-color: rgba(244, 63, 94, 0.1);
 }
 
 .rating-icon {
-  color: #f43f5e;
+  color: #9ca3af;
   font-size: 24rpx;
+  transition: color 0.3s ease;
+}
+
+.rating-icon.liked {
+  color: #f43f5e;
 }
 
 .rating-text {
