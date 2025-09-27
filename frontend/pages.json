@@ -49,6 +49,12 @@
       }
     },
     {
+      "path": "pages/parent/bookshelf/all-articles",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/parent/video/video",
       "style": {
         "navigationStyle": "custom"
@@ -56,6 +62,12 @@
     },
     {
       "path": "pages/parent/video/video-player",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/parent/video/all-videos",
       "style": {
         "navigationStyle": "custom"
       }

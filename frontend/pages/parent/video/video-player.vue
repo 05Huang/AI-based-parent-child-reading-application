@@ -121,61 +121,102 @@
         </view>
       </view>
 
-      <!-- 评论区 -->
-      <view class="comments-section">
-        <view class="section-title">
-          <text class="title-text">评论 ({{ videoInfo.commentCount || 0 }})</text>
-        </view>
-        <view class="comment-input">
-          <image 
-            src="https://api.dicebear.com/7.x/avataaars/svg?seed=user" 
-            class="user-avatar"
-            mode="aspectFill"
-          ></image>
-          <input 
-            type="text" 
-            placeholder="说点什么..." 
-            class="comment-text-input"
-            v-model="commentText"
-            @confirm="submitComment"
-          />
-          <text class="submit-btn" @click="submitComment">发送</text>
-        </view>
-        
-        <!-- 评论列表 -->
-        <view class="comments-list">
-          <view 
-            v-for="comment in comments" 
-            :key="comment.id"
-            class="comment-item"
-          >
-            <image 
-              :src="comment.userAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + comment.userName" 
-              class="comment-avatar"
-              mode="aspectFill"
-            ></image>
-            <view class="comment-content">
-              <text class="comment-user">{{ comment.userName }}</text>
-              <text class="comment-text">{{ comment.content }}</text>
-              <view class="comment-meta">
-                <text class="comment-time">{{ formatTime(comment.createdTime) }}</text>
-                <view class="comment-actions">
-                  <view class="action-btn" @click="toggleCommentLike(comment)">
-                    <text class="fas fa-thumbs-up" :class="{ 'liked': comment.isLiked }"></text>
-                    <text class="action-count">{{ comment.likeCount || 0 }}</text>
-                  </view>
-                  <text class="comment-reply">回复</text>
-                </view>
+              <!-- 评论区 -->
+        <view class="comments-section">
+          <view class="section-title">
+            <text class="title-text">评论 ({{ videoInfo.commentCount || 0 }})</text>
+          </view>
+          
+          <!-- 评论输入区域 -->
+          <view class="comment-input-area">
+            <!-- 回复提示 -->
+            <view v-if="replyTo" class="reply-hint">
+              <text class="reply-hint-text">回复 {{ replyTo.userName }}</text>
+              <view class="cancel-reply" @click="cancelReply">
+                <text class="fas fa-times"></text>
+              </view>
+            </view>
+            <view class="comment-input">
+              <image 
+                :src="currentUser?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser?.nickname || '用户') + '&background=3b82f6&color=fff&size=64'" 
+                class="user-avatar"
+                mode="aspectFill"
+              ></image>
+              <input 
+                type="text" 
+                :placeholder="replyTo ? `回复 ${replyTo.userName}：` : '说点什么...'" 
+                class="comment-text-input"
+                v-model="commentText"
+                @confirm="submitComment"
+              />
+              <view class="submit-btn" :class="{ 'active': commentText.trim().length > 0 }" @click="submitComment">
+                <text class="fas fa-paper-plane"></text>
               </view>
             </view>
           </view>
           
-          <!-- 加载更多 -->
-          <view class="load-more" @click="loadMoreComments" v-if="hasMoreComments">
-            <text class="load-more-text">加载更多评论</text>
+          <!-- 评论列表 -->
+          <view class="comments-list">
+            <view 
+              v-for="comment in comments" 
+              :key="comment.id"
+              class="comment-item"
+            >
+              <view class="comment-header">
+                <image 
+                  :src="comment.userAvatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(comment.userName || '匿名') + '&background=3b82f6&color=fff&size=100'" 
+                  class="comment-avatar"
+                  mode="aspectFill"
+                ></image>
+                <view class="comment-info">
+                  <text class="comment-user">{{ comment.userName }}</text>
+                  <text class="comment-time">{{ formatTime(comment.createdTime) }}</text>
+                </view>
+              </view>
+              <text class="comment-text">{{ comment.content }}</text>
+              <view class="comment-actions">
+                <view class="action-btn" @click="toggleCommentLike(comment)">
+                  <text class="fas fa-thumbs-up" :class="{ 'active': comment.isLiked }"></text>
+                  <text class="count">{{ comment.likeCount || 0 }}</text>
+                </view>
+                <view class="action-btn" @click="replyComment(comment)">
+                  <text class="fas fa-reply"></text>
+                  <text class="action-text">回复</text>
+                </view>
+              </view>
+              
+              <!-- 回复列表 -->
+              <view v-if="comment.replies && comment.replies.length > 0" class="replies-container">
+                <view v-for="reply in comment.replies" :key="reply.id" class="reply-item">
+                  <view class="reply-header">
+                    <image :src="reply.userAvatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(reply.userName || '匿名') + '&background=3b82f6&color=fff&size=100'" class="avatar small"></image>
+                    <view class="reply-info">
+                      <text class="username">{{ reply.userName }}</text>
+                      <text v-if="reply.replyToUsername" class="reply-to">回复 {{ reply.replyToUsername }}</text>
+                      <text class="time">{{ formatTime(reply.createdTime) }}</text>
+                    </view>
+                  </view>
+                  <text class="reply-content">{{ reply.content }}</text>
+                  <view class="reply-actions">
+                    <view class="action-btn small" @click="toggleCommentLike(reply)">
+                      <text class="fas fa-thumbs-up" :class="{ 'active': reply.isLiked }"></text>
+                      <text class="count">{{ reply.likeCount || 0 }}</text>
+                    </view>
+                    <view class="action-btn small" @click="replyComment(reply)">
+                      <text class="fas fa-reply"></text>
+                      <text class="action-text">回复</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </view>
+            
+            <!-- 加载更多 -->
+            <view class="load-more" @click="loadMoreComments" v-if="hasMoreComments">
+              <text class="load-more-text">加载更多评论</text>
+            </view>
           </view>
         </view>
-      </view>
     </scroll-view>
   </view>
 </template>
@@ -204,6 +245,9 @@ const currentUser = ref(null);
 
 // 点赞状态
 const isVideoLiked = ref(false);
+
+// 回复相关
+const replyTo = ref(null);
 
 onMounted(async () => {
   console.log('视频播放页面初始化');
@@ -354,37 +398,107 @@ const loadComments = async (page = 1) => {
     console.log('开始加载评论，页码：', page);
     const response = await commentApi.getContentComments(videoId.value, page, 10);
     
-    if (response.code === 200 && response.data) {
+    if (response && response.data && response.data.records) {
       let commentsList = response.data.records || [];
+      console.log('原始评论数据：', commentsList);
       
-      // 为每个评论加载点赞状态
+      // 为每个评论加载点赞状态并组织层级结构
+      const commentMap = new Map();
+      
+      // 格式化评论数据并加载点赞状态
       if (currentUser.value && currentUser.value.id) {
         commentsList = await Promise.all(commentsList.map(async comment => {
+          // 格式化评论数据
+          const formattedComment = {
+            id: comment.id,
+            userName: comment.userNickname || '匿名用户',
+            userAvatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+            content: comment.content,
+            createdTime: comment.createdTime,
+            likeCount: comment.likeCount || 0,
+            parentId: comment.parentId || 0,
+            rootId: comment.rootId || 0,
+            replies: [] // 初始化回复数组
+          };
+          
           try {
             const likeResponse = await likeApi.getLikeStatus(currentUser.value.id, comment.id, 2);
             if (likeResponse && likeResponse.data !== undefined) {
-              comment.isLiked = likeResponse.data;
+              formattedComment.isLiked = likeResponse.data;
             } else {
-              comment.isLiked = false;
+              formattedComment.isLiked = false;
             }
           } catch (error) {
             console.error('获取评论点赞状态失败：', error);
-            comment.isLiked = false;
+            formattedComment.isLiked = false;
           }
-          return comment;
+          
+          commentMap.set(formattedComment.id, formattedComment);
+          return formattedComment;
         }));
       } else {
-        commentsList.forEach(comment => {
-          comment.isLiked = false;
+        commentsList = commentsList.map(comment => {
+          const formattedComment = {
+            id: comment.id,
+            userName: comment.userNickname || '匿名用户',
+            userAvatar: comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userNickname || '匿名')}&background=3b82f6&color=fff&size=100`,
+            content: comment.content,
+            createdTime: comment.createdTime,
+            likeCount: comment.likeCount || 0,
+            parentId: comment.parentId || 0,
+            rootId: comment.rootId || 0,
+            isLiked: false,
+            replies: [] // 初始化回复数组
+          };
+          
+          commentMap.set(formattedComment.id, formattedComment);
+          return formattedComment;
         });
       }
       
+      // 组织评论层级结构
+      const rootComments = [];
+      commentsList.forEach(comment => {
+        if (comment.parentId === 0) {
+          // 根评论
+          rootComments.push(comment);
+        } else {
+          // 回复评论 - 所有非根评论都放到根评论下
+          let targetComment = null;
+          
+          // 如果有rootId，找到根评论
+          if (comment.rootId && comment.rootId !== 0) {
+            targetComment = commentMap.get(comment.rootId);
+          }
+          
+          // 如果没找到根评论，找直接父评论
+          if (!targetComment) {
+            targetComment = commentMap.get(comment.parentId);
+          }
+          
+          if (targetComment) {
+            // 添加回复目标用户名（如果不是直接回复根评论）
+            if (comment.parentId !== comment.rootId && comment.parentId !== 0) {
+              const directParent = commentMap.get(comment.parentId);
+              if (directParent) {
+                comment.replyToUsername = directParent.userName;
+              }
+            }
+            targetComment.replies.push(comment);
+          } else {
+            // 如果找不到父评论，作为根评论处理
+            rootComments.push(comment);
+          }
+        }
+      });
+      
       if (page === 1) {
-        comments.value = commentsList;
+        comments.value = rootComments;
       } else {
-        comments.value = [...comments.value, ...commentsList];
+        comments.value = [...comments.value, ...rootComments];
       }
       
+      console.log('格式化后的评论数据：', rootComments);
       hasMoreComments.value = comments.value.length < (response.data.total || 0);
       console.log('评论加载成功，当前评论数：', comments.value.length);
     }
@@ -435,6 +549,24 @@ const toggleCommentLike = async (comment) => {
   }
 };
 
+// 回复评论
+const replyComment = (comment) => {
+  replyTo.value = comment;
+  commentText.value = '';
+  // 聚焦输入框
+  uni.showToast({
+    title: `回复 ${comment.userName}`,
+    icon: 'none',
+    duration: 1000
+  });
+};
+
+// 取消回复
+const cancelReply = () => {
+  replyTo.value = null;
+  commentText.value = '';
+};
+
 // 提交评论
 const submitComment = async () => {
   if (!commentText.value.trim()) {
@@ -459,15 +591,17 @@ const submitComment = async () => {
       contentId: videoId.value,
       content: commentText.value.trim(),
       commentType: 1, // 普通评论
-      parentId: 0 // 根评论，设置为0
+      parentId: replyTo.value ? replyTo.value.id : 0,
+      rootId: replyTo.value ? (replyTo.value.rootId || replyTo.value.id) : 0
     });
     
-    if (response.code === 200) {
+    if (response && response.data) {
       uni.showToast({
         title: '评论成功',
         icon: 'success'
       });
       commentText.value = '';
+      replyTo.value = null;
       // 重新加载评论
       commentPage.value = 1;
       loadComments(1);
@@ -477,7 +611,7 @@ const submitComment = async () => {
       }
     } else {
       uni.showToast({
-        title: response.message || '评论失败',
+        title: '评论失败',
         icon: 'none'
       });
     }
@@ -526,7 +660,42 @@ const onVideoTimeUpdate = (e) => {
 
 // 返回按钮
 const goBack = () => {
-  uni.navigateBack();
+  // 获取当前页面栈
+  const pages = getCurrentPages();
+  
+  if (pages.length > 1) {
+    // 如果有上一页，直接返回
+    uni.navigateBack({
+      delta: 1,
+      fail: (err) => {
+        console.error('navigateBack失败:', err);
+        // 如果navigateBack失败，尝试返回到视频页面
+        uni.switchTab({
+          url: '/pages/parent/video/video'
+        });
+      }
+    });
+  } else {
+    // 如果没有上一页，返回到视频页面
+    uni.switchTab({
+      url: '/pages/parent/video/video',
+      fail: (err) => {
+        console.error('返回视频页面失败:', err);
+        // 尝试切换到首页tab
+        uni.switchTab({
+          url: '/pages/parent/home/home',
+          fail: (switchErr) => {
+            console.error('切换到首页失败:', switchErr);
+            // 提示用户
+            uni.showToast({
+              title: '返回失败，请重试',
+              icon: 'none'
+            });
+          }
+        });
+      }
+    });
+  }
 };
 
 // 分享视频
@@ -880,14 +1049,47 @@ const getTagList = (tags) => {
 
 /* 评论区 */
 .comments-section {
-  padding: 16px;
+  padding: 12px;
+}
+
+.comment-input-area {
+  margin-bottom: 16px;
+}
+
+.reply-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.reply-hint-text {
+  font-size: 14px;
+  color: #3b82f6;
+}
+
+.cancel-reply {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+}
+
+.cancel-reply .fas {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .comment-input {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
   padding: 12px;
   background-color: #f9fafb;
   border-radius: 8px;
@@ -909,30 +1111,55 @@ const getTagList = (tags) => {
 }
 
 .submit-btn {
-  color: #3b82f6;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.submit-btn.active {
+  background-color: #3b82f6;
+}
+
+.submit-btn .fas {
+  color: #6b7280;
   font-size: 14px;
-  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.submit-btn.active .fas {
+  color: #ffffff;
 }
 
 .comments-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.comment-item {
-  display: flex;
   gap: 12px;
 }
 
-.comment-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.comment-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.comment-content {
+.comment-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.comment-info {
   flex: 1;
 }
 
@@ -940,28 +1167,27 @@ const getTagList = (tags) => {
   font-size: 14px;
   font-weight: 500;
   color: #1f2937;
-  display: block;
   margin-bottom: 4px;
+  display: block;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .comment-text {
   font-size: 14px;
   color: #4b5563;
-  line-height: 1.4;
+  line-height: 1.6;
+  margin: 8px 0;
   display: block;
-  margin-bottom: 8px;
-}
-
-.comment-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .comment-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 16px;
+  margin-top: 8px;
 }
 
 .action-btn {
@@ -971,7 +1197,6 @@ const getTagList = (tags) => {
   padding: 4px 8px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
-  cursor: pointer;
 }
 
 .action-btn:hover {
@@ -979,23 +1204,92 @@ const getTagList = (tags) => {
 }
 
 .action-btn .fas {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #4b5563;
   transition: color 0.3s ease;
 }
 
-.action-btn .fas.liked {
+.action-btn .fas.active {
   color: #3b82f6;
 }
 
-.action-count {
+.count, .action-text {
   font-size: 12px;
   color: #6b7280;
 }
 
-.comment-time, .comment-reply {
-  color: #9ca3af;
+/* 回复样式 */
+.replies-container {
+  margin-left: 36px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.reply-item {
+  margin-bottom: 12px;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.avatar.small {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+}
+
+.reply-info {
+  flex: 1;
+}
+
+.reply-info .username {
   font-size: 12px;
+  font-weight: 500;
+  color: #1f2937;
+  margin-right: 8px;
+}
+
+.reply-to {
+  font-size: 12px;
+  color: #6b7280;
+  margin-right: 8px;
+}
+
+.reply-info .time {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.reply-content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  margin: 4px 0;
+  margin-left: 32px;
+  display: block;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: 32px;
+}
+
+.action-btn.small {
+  padding: 2px 6px;
+}
+
+.action-btn.small .fas {
+  font-size: 12px;
+}
+
+.action-btn.small .count,
+.action-btn.small .action-text {
+  font-size: 11px;
 }
 
 .load-more {

@@ -148,7 +148,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { contentApi, commentApi, viewHistoryApi, userApi, likeApi } from '@/utils/api.js'
+import { contentApi, commentApi, viewHistoryApi, userApi, likeApi, favoriteApi } from '@/utils/api.js'
 
 // 文章信息
 const article = ref({
@@ -250,8 +250,9 @@ const loadArticleData = async () => {
       
       console.log('文章数据加载成功：', article.value)
       
-      // 加载点赞状态
+      // 加载点赞状态和收藏状态
       await loadLikeStatus()
+      await loadBookmarkStatus()
       
       // 记录浏览行为，增加浏览量并添加浏览记录
       try {
@@ -308,6 +309,23 @@ const loadLikeStatus = async () => {
   } catch (error) {
     console.error('加载点赞状态失败：', error)
     // 不影响主要功能，只是点赞状态可能不准确
+  }
+}
+
+// 加载收藏状态
+const loadBookmarkStatus = async () => {
+  if (!currentUser.value || !currentUser.value.id || !article.value.id) return
+  
+  try {
+    console.log('开始加载收藏状态')
+    const response = await favoriteApi.getFavoriteStatus(currentUser.value.id, article.value.id)
+    if (response && response.data !== undefined) {
+      isBookmarked.value = response.data
+      console.log('收藏状态加载成功：', isBookmarked.value)
+    }
+  } catch (error) {
+    console.error('加载收藏状态失败：', error)
+    // 不影响主要功能，只是收藏状态可能不准确
   }
 }
 
@@ -370,8 +388,13 @@ const onScroll = (e) => {
   scrollTop.value = newScrollTop
   
   // 计算阅读进度
-  const clientHeight = e.detail.height
-  readingProgress.value = Math.round((newScrollTop / (scrollHeight - clientHeight)) * 100)
+  const clientHeight = e.detail.height || 0
+  if (scrollHeight > clientHeight && scrollHeight > 0) {
+    const progress = Math.round((newScrollTop / (scrollHeight - clientHeight)) * 100)
+    readingProgress.value = Math.max(0, Math.min(100, progress)) // 确保在0-100范围内
+  } else {
+    readingProgress.value = 0
+  }
   
   // 显示/隐藏上下按钮
   showTopBtn.value = newScrollTop > 100
@@ -392,13 +415,40 @@ const scrollToBottom = () => {
   }).exec()
 }
 
-// 交互功能
-const toggleBookmark = () => {
-  isBookmarked.value = !isBookmarked.value
-  uni.showToast({
-    title: isBookmarked.value ? '已收藏' : '已取消收藏',
-    icon: 'none'
-  })
+// 交互功能 - 收藏/取消收藏
+const toggleBookmark = async () => {
+  if (!currentUser.value || !currentUser.value.id || !article.value.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    console.log('开始切换收藏状态，当前状态：', isBookmarked.value)
+    
+    // 调用收藏/取消收藏接口
+    const response = await favoriteApi.toggleFavorite(currentUser.value.id, article.value.id)
+    
+    if (response && response.data !== undefined) {
+      // 更新收藏状态
+      isBookmarked.value = response.data
+      
+      console.log('收藏状态更新成功：', isBookmarked.value)
+      
+      uni.showToast({
+        title: isBookmarked.value ? '已收藏' : '已取消收藏',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('更新收藏状态失败：', error)
+    uni.showToast({
+      title: '收藏失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 const toggleLike = async () => {
@@ -514,7 +564,7 @@ const parseArticleContent = async () => {
         const textContent = innerContent.replace(/<[^>]*>/g, '').trim()
         
         // 如果段落有文本内容才添加评论功能
-        if (textContent) {
+        if (textContent && textContent.length > 5 && !/^[\s\u00A0\u3000]*$/.test(textContent)) { // 至少要有5个字符且不是空白字符才显示评论按钮
           paragraphs.push({
             id: paragraphId,
             content: fullMatch,
@@ -547,12 +597,12 @@ const parseArticleContent = async () => {
       
       const textContent = htmlContent.replace(/<[^>]*>/g, '').trim()
       paragraphs.push({
-        id: textContent ? 'para-fallback-0' : null,
+        id: (textContent && textContent.length > 5 && !/^[\s\u00A0\u3000]*$/.test(textContent)) ? 'para-fallback-0' : null,
         content: processedContent,
         text: textContent,
         tagName: 'div',
         commentCount: 0,
-        isImage: !textContent
+        isImage: !(textContent && textContent.length > 5)
       })
     }
     

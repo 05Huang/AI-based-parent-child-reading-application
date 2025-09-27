@@ -56,6 +56,14 @@
           <view class="comment-content">
             <text>{{ comment.content }}</text>
           </view>
+          <view class="comment-footer">
+            <view class="comment-footer-actions">
+              <view class="action-btn small" @click="showReplyInput(comment)">
+                <text class="fas fa-reply"></text>
+                <text class="action-text">回复</text>
+              </view>
+            </view>
+          </view>
           <!-- 回复列表 -->
           <view v-if="comment.replies && comment.replies.length > 0" class="replies-container">
             <view v-for="reply in comment.replies" :key="reply.id" class="reply-item">
@@ -98,11 +106,18 @@
 
     <!-- 评论输入区域 -->
     <view class="comment-input-container" :style="{ bottom: keyboardHeight + 'px' }">
+      <!-- 回复提示 -->
+      <view v-if="replyTo" class="reply-hint">
+        <text class="reply-hint-text">回复 {{ replyTo.username }}</text>
+        <view class="cancel-reply" @click="cancelReply">
+          <text class="fas fa-times"></text>
+        </view>
+      </view>
       <view class="input-wrapper">
         <input 
           class="comment-input"
           v-model="newComment"
-          :placeholder="inputPlaceholder"
+          :placeholder="replyTo ? `回复 ${replyTo.username}：` : '写下你的评论...'"
           @focus="onInputFocus"
           @blur="onInputBlur"
           confirm-type="send"
@@ -242,8 +257,10 @@ const loadComments = async (refresh = false) => {
           time: formatCommentTime(comment.createdTime),
           likes: comment.likeCount || 0,
           isLiked: false,
-          replies: [], // TODO: 加载回复
-          totalReplies: comment.replyCount || 0
+          replies: [], // 初始化回复列表
+          totalReplies: comment.replyCount || 0,
+          rootId: comment.rootId || 0,
+          parentId: comment.parentId || 0
         }
         
         // 获取点赞状态
@@ -261,11 +278,57 @@ const loadComments = async (refresh = false) => {
         return commentData
       }))
       
+      // 组织评论层级结构
+      const rootComments = []
+      const commentMap = new Map()
+      
+      // 首先将所有评论放入Map
+      formattedComments.forEach(comment => {
+        commentMap.set(comment.id, comment)
+        comment.replies = [] // 确保每个评论都有replies数组
+      })
+      
+      // 然后组织层级结构
+      formattedComments.forEach(comment => {
+        if (comment.parentId === 0) {
+          // 根评论
+          rootComments.push(comment)
+        } else {
+          // 回复评论 - 所有非根评论都放到根评论下
+          let targetComment = null
+          
+          // 如果有rootId，找到根评论
+          if (comment.rootId && comment.rootId !== 0) {
+            targetComment = commentMap.get(comment.rootId)
+          }
+          
+          // 如果没找到根评论，找直接父评论
+          if (!targetComment) {
+            targetComment = commentMap.get(comment.parentId)
+          }
+          
+          if (targetComment) {
+            // 添加回复目标用户名（如果不是直接回复根评论）
+            if (comment.parentId !== comment.rootId && comment.parentId !== 0) {
+              const directParent = commentMap.get(comment.parentId)
+              if (directParent) {
+                comment.replyToUsername = directParent.username
+              }
+            }
+            targetComment.replies.push(comment)
+          } else {
+            // 如果找不到父评论，作为根评论处理
+            rootComments.push(comment)
+          }
+        }
+      })
+      
       if (refresh) {
-        comments.value = formattedComments
+        comments.value = rootComments
         currentPage.value = 1
       } else {
-        comments.value.push(...formattedComments)
+        // 对于加载更多的情况，需要合并到现有评论中
+        comments.value.push(...rootComments)
       }
       
       currentPage.value = current
@@ -314,7 +377,6 @@ const showSortMenu = ref(false)
 const sortBy = ref('latest')
 const keyboardHeight = ref(0)
 const newComment = ref('')
-const inputPlaceholder = ref('写下你的评论...')
 const replyTo = ref(null)
 
 // 返回上一页
@@ -329,16 +391,29 @@ const goBack = () => {
       fail: (err) => {
         console.error('返回失败:', err)
         // 如果返回失败，尝试重定向到阅读页面
-        uni.redirectTo({
-          url: '/pages/parent/reading/reading'
-        })
+        if (contentId.value) {
+          uni.redirectTo({
+            url: `/pages/parent/reading/reading?id=${contentId.value}`
+          })
+        } else {
+          uni.switchTab({
+            url: '/pages/parent/bookshelf/bookshelf'
+          })
+        }
       }
     })
   } else {
-    // 如果没有上一页，重定向到阅读页面
-    uni.redirectTo({
-      url: '/pages/parent/reading/reading'
-    })
+    // 如果没有上一页，重定向到阅读页面，带上文章ID
+    if (contentId.value) {
+      uni.redirectTo({
+        url: `/pages/parent/reading/reading?id=${contentId.value}`
+      })
+    } else {
+      // 如果没有contentId，返回到书架页面
+      uni.switchTab({
+        url: '/pages/parent/bookshelf/bookshelf'
+      })
+    }
   }
 }
 
@@ -394,10 +469,19 @@ const toggleLike = async (item) => {
 // 显示回复输入框
 const showReplyInput = (reply) => {
   replyTo.value = reply
-  inputPlaceholder.value = `回复 ${reply.username}：`
+  newComment.value = ''
   // 聚焦输入框
-  const input = document.querySelector('.comment-input')
-  if (input) input.focus()
+  uni.showToast({
+    title: `回复 ${reply.username}`,
+    icon: 'none',
+    duration: 1000
+  })
+}
+
+// 取消回复
+const cancelReply = () => {
+  replyTo.value = null
+  newComment.value = ''
 }
 
 // 切换排序方式
@@ -426,10 +510,7 @@ const onInputFocus = (e) => {
 
 const onInputBlur = () => {
   keyboardHeight.value = 0
-  if (replyTo.value) {
-    replyTo.value = null
-    inputPlaceholder.value = '写下你的评论...'
-  }
+  // 不自动取消回复，让用户手动取消
 }
 
 // 提交评论
@@ -465,7 +546,7 @@ const submitComment = async () => {
       })
       
       newComment.value = ''
-      onInputBlur()
+      replyTo.value = null
       
       // 刷新评论列表
       await loadComments(true)
@@ -556,8 +637,8 @@ const submitComment = async () => {
 
 /* 文章卡片样式 */
 .article-card {
-  margin: 16px;
-  padding: 16px;
+  margin: 12px;
+  padding: 12px;
   background-color: #ffffff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -583,12 +664,12 @@ const submitComment = async () => {
 
 /* 评论列表样式 */
 .comments-list {
-  padding: 0 16px;
+  padding: 0 12px;
 }
 
 .comment-item {
-  margin-bottom: 16px;
-  padding: 16px;
+  margin-bottom: 12px;
+  padding: 12px;
   background-color: #ffffff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -598,7 +679,7 @@ const submitComment = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .user-info {
@@ -671,19 +752,28 @@ const submitComment = async () => {
   font-size: 14px;
   color: #374151;
   line-height: 1.6;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.comment-footer {
+  margin-bottom: 8px;
+}
+
+.comment-footer-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* 回复列表样式 */
 .replies-container {
-  margin-left: 52px;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-left: 36px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid #e5e7eb;
 }
 
 .reply-item {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .reply-header {
@@ -699,9 +789,12 @@ const submitComment = async () => {
 }
 
 .reply-content {
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
   margin-left: 32px;
+  line-height: 1.5;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .reply-footer {
@@ -709,7 +802,7 @@ const submitComment = async () => {
   justify-content: space-between;
   align-items: center;
   margin-left: 32px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .reply-time {
@@ -760,6 +853,36 @@ const submitComment = async () => {
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
   z-index: 40;
+}
+
+.reply-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.reply-hint-text {
+  font-size: 14px;
+  color: #3b82f6;
+}
+
+.cancel-reply {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+}
+
+.cancel-reply .fas {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .input-wrapper {

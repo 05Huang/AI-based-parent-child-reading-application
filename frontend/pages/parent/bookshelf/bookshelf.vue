@@ -52,7 +52,6 @@
                 <text class="book-title">{{ currentBook.title }}</text>
                 <text class="book-author">{{ currentBook.author }}</text>
               </view>
-              <text class="fas fa-heart bookmark-icon"></text>
             </view>
             <view class="progress-section">
               <view class="engagement-stats">

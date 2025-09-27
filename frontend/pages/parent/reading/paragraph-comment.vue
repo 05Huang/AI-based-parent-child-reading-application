@@ -40,19 +40,53 @@
               <text class="action-text">回复</text>
             </view>
           </view>
+          
+          <!-- 回复列表 -->
+          <view v-if="comment.replies && comment.replies.length > 0" class="replies-container">
+            <view v-for="reply in comment.replies" :key="reply.id" class="reply-item">
+              <view class="reply-header">
+                <image :src="reply.avatar" class="avatar small"></image>
+                <view class="reply-info">
+                  <text class="username">{{ reply.username }}</text>
+                  <text v-if="reply.replyToUsername" class="reply-to">回复 {{ reply.replyToUsername }}</text>
+                  <text class="time">{{ reply.time }}</text>
+                </view>
+              </view>
+              <text class="reply-content">{{ reply.content }}</text>
+              <view class="reply-actions">
+                <view class="action-btn small" @click="likeComment(reply)">
+                  <text class="fas fa-thumbs-up" :class="{ 'active': reply.isLiked }"></text>
+                  <text class="count">{{ reply.likes }}</text>
+                </view>
+                <view class="action-btn small" @click="replyComment(reply)">
+                  <text class="fas fa-reply"></text>
+                  <text class="action-text">回复</text>
+                </view>
+              </view>
+            </view>
+          </view>
         </view>
       </scroll-view>
 
       <!-- 评论输入框 -->
       <view class="comment-input">
-        <input 
-          type="text" 
-          v-model="newComment" 
-          placeholder="写下你的评论..." 
-          class="input-field"
-        />
-        <view class="send-btn" @click="submitComment">
-          <text class="fas fa-paper-plane"></text>
+        <!-- 回复提示 -->
+        <view v-if="replyTo" class="reply-hint">
+          <text class="reply-hint-text">回复 {{ replyTo.username }}</text>
+          <view class="cancel-reply" @click="cancelReply">
+            <text class="fas fa-times"></text>
+          </view>
+        </view>
+        <view class="input-wrapper">
+          <input 
+            type="text" 
+            v-model="newComment" 
+            :placeholder="replyTo ? `回复 ${replyTo.username}：` : '写下你的评论...'" 
+            class="input-field"
+          />
+          <view class="send-btn" :class="{ 'active': newComment.trim().length > 0 }" @click="submitComment">
+            <text class="fas fa-paper-plane"></text>
+          </view>
         </view>
       </view>
     </view>
@@ -109,6 +143,7 @@ const loading = ref(false)
 
 // 新评论内容
 const newComment = ref('')
+const replyTo = ref(null) // 回复的目标评论
 
 // 返回上一页
 const goBack = () => {
@@ -121,18 +156,32 @@ const goBack = () => {
       delta: 1
     })
   } else {
-    // 如果没有上一页，重定向到阅读页面
-    uni.redirectTo({
-      url: '/pages/parent/reading/reading',
-      fail: (err) => {
-        console.error('重定向失败:', err)
-        // 提示用户
-        uni.showToast({
-          title: '返回失败，请重试',
-          icon: 'none'
-        })
-      }
-    })
+    // 如果没有上一页，重定向到阅读页面，带上文章ID
+    if (contentId.value) {
+      uni.redirectTo({
+        url: `/pages/parent/reading/reading?id=${contentId.value}`,
+        fail: (err) => {
+          console.error('重定向失败:', err)
+          // 提示用户
+          uni.showToast({
+            title: '返回失败，请重试',
+            icon: 'none'
+          })
+        }
+      })
+    } else {
+      // 如果没有contentId，返回到书架页面
+      uni.switchTab({
+        url: '/pages/parent/bookshelf/bookshelf',
+        fail: (err) => {
+          console.error('返回书架失败:', err)
+          uni.showToast({
+            title: '返回失败，请重试',
+            icon: 'none'
+          })
+        }
+      })
+    }
   }
 }
 
@@ -155,7 +204,10 @@ const loadComments = async () => {
           content: comment.content,
           time: formatCommentTime(comment.createdTime),
           likes: comment.likeCount || 0,
-          isLiked: false
+          isLiked: false,
+          replies: [], // 初始化回复列表
+          rootId: comment.rootId || 0,
+          parentId: comment.parentId || 0
         }
         
         // 获取点赞状态
@@ -173,8 +225,53 @@ const loadComments = async () => {
         return commentData
       }))
       
-      comments.value = formattedComments
-      console.log('段落评论加载成功：', formattedComments.length, '条')
+      // 组织评论层级结构
+      const rootComments = []
+      const commentMap = new Map()
+      
+      // 首先将所有评论放入Map
+      formattedComments.forEach(comment => {
+        commentMap.set(comment.id, comment)
+        comment.replies = [] // 确保每个评论都有replies数组
+      })
+      
+      // 然后组织层级结构
+      formattedComments.forEach(comment => {
+        if (comment.parentId === 0) {
+          // 根评论
+          rootComments.push(comment)
+        } else {
+          // 回复评论 - 所有非根评论都放到根评论下
+          let targetComment = null
+          
+          // 如果有rootId，找到根评论
+          if (comment.rootId && comment.rootId !== 0) {
+            targetComment = commentMap.get(comment.rootId)
+          }
+          
+          // 如果没找到根评论，找直接父评论
+          if (!targetComment) {
+            targetComment = commentMap.get(comment.parentId)
+          }
+          
+          if (targetComment) {
+            // 添加回复目标用户名（如果不是直接回复根评论）
+            if (comment.parentId !== comment.rootId && comment.parentId !== 0) {
+              const directParent = commentMap.get(comment.parentId)
+              if (directParent) {
+                comment.replyToUsername = directParent.username
+              }
+            }
+            targetComment.replies.push(comment)
+          } else {
+            // 如果找不到父评论，作为根评论处理
+            rootComments.push(comment)
+          }
+        }
+      })
+      
+      comments.value = rootComments
+      console.log('段落评论加载成功：', rootComments.length, '条根评论，总计', formattedComments.length, '条评论')
     }
   } catch (error) {
     console.error('加载段落评论失败：', error)
@@ -233,8 +330,8 @@ const submitComment = async () => {
       content: newComment.value.trim(),
       commentType: 2, // 2-段落评论
       paragraphId: paragraphId.value,
-      parentId: 0,
-      rootId: 0
+      parentId: replyTo.value ? replyTo.value.id : 0,
+      rootId: replyTo.value ? (replyTo.value.rootId || replyTo.value.id) : 0
     }
     
     console.log('提交段落评论：', commentData)
@@ -247,8 +344,9 @@ const submitComment = async () => {
         icon: 'success'
       })
       
-      // 清空输入框
+      // 清空输入框和回复状态
       newComment.value = ''
+      replyTo.value = null
       
       // 重新加载评论
       await loadComments()
@@ -300,7 +398,20 @@ const likeComment = async (comment) => {
 
 // 回复评论
 const replyComment = (comment) => {
-  newComment.value = `@${comment.username} `
+  replyTo.value = comment
+  newComment.value = ''
+  // 聚焦输入框
+  uni.showToast({
+    title: `回复 ${comment.username}`,
+    icon: 'none',
+    duration: 1000
+  })
+}
+
+// 取消回复
+const cancelReply = () => {
+  replyTo.value = null
+  newComment.value = ''
 }
 </script>
 
@@ -355,18 +466,18 @@ const replyComment = (comment) => {
 
 .comment-container {
   flex: 1;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 92px); /* 调整高度计算，考虑增加的header padding */
-  padding-top: 24px; /* 增加顶部间距 */
+  padding-top: 16px; /* 减少顶部间距 */
 }
 
 .original-paragraph {
   background-color: #f3f4f6;
-  padding: 16px;
+  padding: 12px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .paragraph-text {
@@ -377,11 +488,11 @@ const replyComment = (comment) => {
 
 .comments-list {
   flex: 1;
-  margin-bottom: 60px;
+  margin-bottom: 80px;
 }
 
 .comment-item {
-  padding: 16px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -464,6 +575,39 @@ const replyComment = (comment) => {
   padding: 12px 16px;
   background-color: #ffffff;
   border-top: 1px solid #e5e7eb;
+}
+
+.reply-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.reply-hint-text {
+  font-size: 14px;
+  color: #3b82f6;
+}
+
+.cancel-reply {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+}
+
+.cancel-reply .fas {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.input-wrapper {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -484,12 +628,96 @@ const replyComment = (comment) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #3b82f6;
+  background-color: #e5e7eb;
   border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.send-btn.active {
+  background-color: #3b82f6;
 }
 
 .send-btn .fas {
-  color: #ffffff;
+  color: #6b7280;
   font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.send-btn.active .fas {
+  color: #ffffff;
+}
+
+/* 回复样式 */
+.replies-container {
+  margin-left: 36px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.reply-item {
+  margin-bottom: 12px;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.avatar.small {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+}
+
+.reply-info {
+  flex: 1;
+}
+
+.reply-info .username {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1f2937;
+  margin-right: 8px;
+}
+
+.reply-to {
+  font-size: 12px;
+  color: #6b7280;
+  margin-right: 8px;
+}
+
+.reply-info .time {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.reply-content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  margin: 4px 0;
+  margin-left: 32px;
+  display: block;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: 32px;
+}
+
+.action-btn.small {
+  padding: 2px 6px;
+}
+
+.action-btn.small .fas {
+  font-size: 12px;
+}
+
+.action-btn.small .count,
+.action-btn.small .action-text {
+  font-size: 11px;
 }
 </style> 

@@ -4,7 +4,11 @@
     <view class="header">
       <view class="header-content">
         <view class="header-left">
-          <image src="https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128" class="avatar" @click="navigateToProfile"></image>
+          <image 
+            :src="currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.nickname || '用户')}&background=3b82f6&color=fff&size=128`" 
+            class="avatar" 
+            @click="navigateToProfile"
+          ></image>
         </view>
         <view class="search-box">
           <view class="search-input-wrapper" @click="navigateToSearch">
@@ -57,7 +61,7 @@
       <view class="section">
         <view class="section-header">
           <text class="section-title">推荐视频</text>
-          <view class="more-link">
+          <view class="more-link" @click="navigateToAllVideos">
             <text class="more-text">更多</text>
             <text class="fas fa-chevron-right"></text>
           </view>
@@ -192,10 +196,10 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
-import { videoApi, categoryApi } from '../../../utils/api.js';
+import { videoApi, categoryApi, userApi } from '../../../utils/api.js';
 
 // 页面加载时检查登录状态
-onMounted(() => {
+onMounted(async () => {
   console.log('视频页面初始化');
   const token = uni.getStorageSync('token');
   if (!token) {
@@ -203,6 +207,17 @@ onMounted(() => {
       url: '/pages/parent/login/login'
     });
     return;
+  }
+  
+  // 获取当前用户信息
+  try {
+    const userResponse = await userApi.getCurrentUser();
+    if (userResponse && userResponse.data) {
+      currentUser.value = userResponse.data;
+      console.log('获取到当前用户信息：', currentUser.value);
+    }
+  } catch (error) {
+    console.error('获取用户信息失败：', error);
   }
   
   // 加载页面数据
@@ -255,6 +270,9 @@ const featuredVideo = ref({});
 const hotVideos = ref([]);
 const recommendedVideos = ref([]);
 const loading = ref(false);
+
+// 当前用户信息
+const currentUser = ref(null);
 
 // 加载分类数据
 const loadCategories = async () => {
@@ -434,6 +452,13 @@ const navigateToVideoPlayer = (videoId) => {
   console.log('跳转到视频播放页面，视频ID：', videoId);
   uni.navigateTo({
     url: `/pages/parent/video/video-player?id=${videoId}`
+  });
+};
+
+// 跳转到全部视频页面
+const navigateToAllVideos = () => {
+  uni.navigateTo({
+    url: '/pages/parent/video/all-videos'
   });
 };
 
@@ -654,8 +679,18 @@ const handleScroll = (e) => {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #6b7280;
+  color: #3b82f6;
   font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.more-link:hover, .refresh-link:hover {
+  color: #1d4ed8;
+}
+
+.more-link:active, .refresh-link:active {
+  opacity: 0.7;
 }
 
 .more-link .fas, .refresh-link .fas {

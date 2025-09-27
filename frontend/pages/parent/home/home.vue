@@ -4,7 +4,11 @@
     <view class="header">
       <view class="header-content">
         <view class="header-left">
-          <image src="https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128" class="avatar" @click="navigateToProfile"></image>
+          <image 
+            :src="currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.nickname || '用户')}&background=3b82f6&color=fff&size=128`" 
+            class="avatar" 
+            @click="navigateToProfile"
+          ></image>
         </view>
         <view class="search-box">
           <view class="search-input-wrapper" @click="navigateToSearch">
@@ -24,30 +28,6 @@
           </view>
         </view>
       </view>
-      <!-- 分类导航 -->
-      <scroll-view 
-        scroll-x="true" 
-        class="category-nav" 
-        :scroll-left="scrollLeft"
-        :show-scrollbar="false"
-        :scroll-with-animation="true"
-        :scroll-animation-duration="300"
-        @scroll="onScroll"
-        ref="scrollView"
-      >
-        <view class="tabs-wrapper">
-          <view 
-            v-for="(tab, index) in tabs" 
-            :key="index"
-            class="tab"
-            :class="{ active: currentTab === index }"
-            :id="'tab-' + index"
-            @click="switchTab(index)"
-          >
-            {{ tab.name }}
-          </view>
-        </view>
-      </scroll-view>
     </view>
 
     <!-- 主要内容区域 -->
@@ -73,7 +53,7 @@
       <view class="recommend">
         <view class="section-header">
           <text class="section-title">精选推荐</text>
-          <text class="more-link">查看更多</text>
+          <text class="more-link" @click="navigateToAllArticles">查看更多</text>
         </view>
         <scroll-view scroll-x="true" class="book-scroll">
           <!-- 加载状态 -->
@@ -98,10 +78,7 @@
             <view class="book-info">
               <text class="book-title">{{ item.title }}</text>
               <text class="book-age">{{ item.tags || '推荐阅读' }}</text>
-              <view class="book-stats">
-                <text class="fas fa-eye stats-icon"></text>
-                <text class="stats-text">{{ formatViewCount(item.viewCount) }}</text>
-              </view>
+                          <!-- 移除浏览量显示 -->
             </view>
           </view>
           
@@ -271,7 +248,8 @@ const loadRecommendedContents = async () => {
       size: 6,
       sortField: 'recommendation_score',
       sortOrder: 'desc',
-      status: 1 // 只查询正常状态的内容
+      status: 1, // 只查询正常状态的内容
+      type: 1 // 只查询文章内容，不包含视频（type=2）
     })
     
     if (response && response.data && response.data.records) {
@@ -322,7 +300,8 @@ const loadContentsFallback = async (type) => {
     const params = {
       current: 1,
       size: type === 'recommended' ? 6 : 4,
-      status: 1
+      status: 1,
+      type: 1 // 只查询文章内容，不包含视频（type=2）
     }
     
     // 根据类型设置不同的排序
@@ -400,6 +379,13 @@ const navigateToSearch = () => {
   })
 }
 
+// 跳转到全部文章页面
+const navigateToAllArticles = () => {
+  uni.navigateTo({
+    url: '/pages/parent/bookshelf/all-articles'
+  })
+}
+
 // 轮播图数据
 const swiperList = ref([
   {
@@ -425,58 +411,7 @@ const swiperList = ref([
   
 ])
 
-// 导航标签数据
-const tabs = ref([
-  { name: '推荐', id: 'recommend' },
-  { name: '热门', id: 'hot' },
-  { name: '亲子互动', id: 'interaction' },
-  { name: '育儿经验', id: 'parenting' },
-  { name: '教育心得', id: 'education' },
-  { name: '亲子游戏', id: 'games' },
-  { name: '营养健康', id: 'health' },
-  { name: '心理成长', id: 'psychology' }
-])
 
-// 当前选中的标签索引
-const currentTab = ref(0)
-// 滚动位置
-const scrollLeft = ref(0)
-// scroll-view 引用
-const scrollView = ref(null)
-
-// 切换标签
-const switchTab = async (index) => {
-  if (currentTab.value === index) return
-  
-  currentTab.value = index
-  
-  // 等待DOM更新
-  await nextTick()
-  
-  // 获取被点击的标签元素
-  const query = uni.createSelectorQuery().in(this)
-  query.select(`#tab-${index}`).boundingClientRect()
-  query.select('.category-nav').boundingClientRect()
-  
-  query.exec((res) => {
-    if (!res[0] || !res[1]) return
-    
-    const tabElement = res[0]
-    const scrollView = res[1]
-    
-    // 计算需要滚动的距离
-    // 目标：将选中的标签滚动到最左侧
-    const newScrollLeft = tabElement.left - scrollView.left
-    
-    // 设置滚动位置（会触发动画）
-    scrollLeft.value = newScrollLeft
-  })
-}
-
-// 监听滚动事件
-const onScroll = (e) => {
-  scrollLeft.value = e.detail.scrollLeft
-}
 
 // 格式化浏览量显示
 const formatViewCount = (count) => {
@@ -665,76 +600,11 @@ const toggleLike = async (item, listType) => {
   color: #ffffff;
 }
 
-/* 分类导航样式 */
-.category-nav {
-  width: 100%;
-  background-color: #f3f4f6;
-  padding: 8px 0;
-  white-space: nowrap;
-  border-bottom: 1px solid #e5e7eb;
-  overflow: hidden;
-}
 
-.tabs-wrapper {
-  display: inline-flex;
-  padding: 0 16px;
-  gap: 12px;
-  transition: transform 0.3s ease;
-}
-
-/* 隐藏滚动条但保持可滚动 */
-.category-nav ::-webkit-scrollbar {
-  display: none;
-  width: 0 !important;
-  height: 0 !important;
-  -webkit-appearance: none;
-  background: transparent;
-}
-
-/* 适配不同浏览器 */
-.category-nav {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-
-.tab {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 14px;
-  font-size: 13px;
-  color: #6b7280;
-  background-color: #ffffff;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  position: relative;
-  overflow: hidden;
-}
-
-.tab::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background-color: #3b82f6;
-  transition: all 0.3s ease;
-  transform: translateX(-50%);
-}
-
-.tab.active {
-  background-color: #3b82f6;
-  color: white;
-  transform: scale(1.05);
-}
-
-.tab.active::after {
-  width: 50%;
-}
 
 /* 主要内容区域 */
 .main-content {
-  margin-top: 200rpx;
+  margin-top: 120rpx;
 }
 
 /* 轮播图 */
@@ -879,10 +749,20 @@ const toggleLike = async (item, listType) => {
 
 .more-link {
   font-size: 14px;
-  color: #6b7280;
+  color: #3b82f6;
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.more-link:hover {
+  color: #1d4ed8;
+}
+
+.more-link:active {
+  opacity: 0.7;
 }
 
 .book-scroll {
@@ -897,7 +777,7 @@ const toggleLike = async (item, listType) => {
   background-color: #fff;
   border-radius: 20rpx;
   overflow: hidden;
-  height: 440rpx;
+  height: 460rpx;
 }
 
 .book-cover {
@@ -1029,7 +909,7 @@ const toggleLike = async (item, listType) => {
 .rating {
   display: flex;
   align-items: center;
-  margin-right: 30rpx;
+  margin-right: 80rpx;
   cursor: pointer;
   padding: 10rpx;
   margin: -10rpx;

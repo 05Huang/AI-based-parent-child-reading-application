@@ -188,6 +188,24 @@ export const favoriteApi = {
       userId,
       ids
     })
+  },
+  
+  // 获取收藏状态
+  getFavoriteStatus(userId, contentId) {
+    console.log('调用获取收藏状态接口，用户ID：', userId, '内容ID：', contentId)
+    return request.get('/api/user/favorite/status', {
+      userId,
+      contentId
+    })
+  },
+  
+  // 切换收藏状态（收藏/取消收藏）
+  toggleFavorite(userId, contentId) {
+    console.log('调用切换收藏状态接口，用户ID：', userId, '内容ID：', contentId)
+    return request.post('/api/user/favorite/toggle', null, {
+      userId,
+      contentId
+    })
   }
 }
 
