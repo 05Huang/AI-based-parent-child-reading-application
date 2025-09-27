@@ -188,49 +188,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
+import { chatApi } from '../../../utils/api.js'
 
 // 群组信息
 const groupInfo = ref({
   id: '',
-  name: '幸福家庭群',
-  memberCount: 4
+  name: '加载中...',
+  memberCount: 0
 })
 
 // 用户信息
 const userInfo = ref({
-  id: 'user123',
-  name: '爸爸',
-  avatar: 'https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128'
+  id: '',
+  name: '我',
+  avatar: 'https://ui-avatars.com/api/?name=我&background=3b82f6&color=fff&size=128'
 })
 
 // 群成员列表
-const groupMembers = ref([
-  {
-    id: 'user123',
-    name: '爸爸',
-    role: '家长',
-    avatar: 'https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128'
-  },
-  {
-    id: 'mom456',
-    name: '妈妈',
-    role: '家长',
-    avatar: 'https://ui-avatars.com/api/?name=妈妈&background=10b981&color=fff&size=128'
-  },
-  {
-    id: 'child789',
-    name: '小明',
-    role: '孩子',
-    avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128'
-  },
-  {
-    id: 'grandpa012',
-    name: '爷爷',
-    role: '家长',
-    avatar: 'https://ui-avatars.com/api/?name=爷爷&background=8b5cf6&color=fff&size=128'
-  }
-])
+const groupMembers = ref([])
 
 // 消息列表
 const messages = ref([])
@@ -241,31 +217,171 @@ const inputMessage = ref('')
 const showMorePanel = ref(false)
 const showMemberPanel = ref(false)
 
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(20)
+const hasMore = ref(true)
+
 // 获取路由参数
 onMounted(() => {
+  console.log('群聊页面加载')
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
   const groupId = currentPage.options.id
+  const groupName = currentPage.options.name
   
-  // 模拟加载群聊信息
-  loadGroupInfo(groupId)
-  // 模拟加载消息历史
-  loadMessages()
+  console.log('群组参数：', { groupId, groupName })
+  
+  if (groupId) {
+    groupInfo.value.id = groupId
+    if (groupName) {
+      groupInfo.value.name = decodeURIComponent(groupName)
+    }
+    
+    // 加载群聊数据
+    loadGroupData()
+  } else {
+    console.error('缺少群组ID参数')
+    uni.showToast({
+      title: '参数错误',
+      icon: 'none'
+    })
+  }
 })
 
-// 加载群聊信息
-const loadGroupInfo = (groupId) => {
-  // 模拟API调用
-  groupInfo.value = {
-    id: groupId,
-    name: '幸福家庭群',
-    memberCount: 4
+// 加载群聊数据
+const loadGroupData = async () => {
+  try {
+    console.log('开始加载群聊数据，群组ID：', groupInfo.value.id)
+    
+    // 加载消息列表
+    await loadMessages()
+    
+  } catch (error) {
+    console.error('加载群聊数据失败：', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
+    
+    // 加载默认数据
+    loadDefaultData()
   }
 }
 
 // 加载消息历史
-const loadMessages = () => {
-  // 模拟API调用
+const loadMessages = async (page = 1) => {
+  try {
+    if (isLoading.value) return
+    
+    console.log('开始加载群消息，页码：', page)
+    isLoading.value = true
+    
+    const response = await chatApi.getGroupMessages(groupInfo.value.id, page, pageSize.value)
+    console.log('群消息API响应：', response)
+    
+    if (response.code === 200 && response.data) {
+      const data = response.data
+      
+      // 更新群组信息
+      if (data.groupInfo) {
+        groupInfo.value = {
+          ...groupInfo.value,
+          ...data.groupInfo
+        }
+      }
+      
+      // 更新群成员列表
+      if (data.members) {
+        groupMembers.value = data.members
+      }
+      
+      // 处理消息列表
+      if (data.messages) {
+        const newMessages = data.messages.map(msg => ({
+          id: msg.id,
+          type: msg.type ? 'image' : 'text', // false=文字, true=图片
+          content: msg.content,
+          time: formatMessageTime(msg.sendTime),
+          isSelf: msg.isSelf,
+          showTime: true, // 可以根据时间间隔优化
+          senderName: msg.senderName,
+          avatar: msg.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(msg.senderName)
+        }))
+        
+        if (page === 1) {
+          // 第一页，直接替换
+          messages.value = newMessages.reverse() // 反转顺序，最新的在下面
+        } else {
+          // 后续页，添加到前面
+          messages.value = [...newMessages.reverse(), ...messages.value]
+        }
+        
+        // 更新分页信息
+        hasMore.value = data.hasMore || false
+        currentPage.value = page
+        
+        // 滚动到最新消息（仅第一页）
+        if (page === 1 && newMessages.length > 0) {
+          lastMessageId.value = 'msg-' + newMessages[newMessages.length - 1].id
+          nextTick(() => {
+            scrollTop.value = 9999
+          })
+        }
+      }
+      
+      console.log('群消息加载成功，当前消息数：', messages.value.length)
+    } else {
+      throw new Error(response.message || '获取消息失败')
+    }
+  } catch (error) {
+    console.error('加载群消息失败：', error)
+    
+    if (page === 1) {
+      // 第一页加载失败，显示默认数据
+      loadDefaultData()
+    } else {
+      uni.showToast({
+        title: '加载更多失败',
+        icon: 'none'
+      })
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 加载默认数据（API失败时的备用方案）
+const loadDefaultData = () => {
+  console.log('加载默认群聊数据')
+  
+  groupInfo.value = {
+    id: groupInfo.value.id,
+    name: groupInfo.value.name || '幸福家庭群',
+    memberCount: 4
+  }
+  
+  groupMembers.value = [
+    {
+      id: 'user123',
+      name: '爸爸',
+      role: '家长',
+      avatar: 'https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128'
+    },
+    {
+      id: 'mom456',
+      name: '妈妈',
+      role: '家长',
+      avatar: 'https://ui-avatars.com/api/?name=妈妈&background=10b981&color=fff&size=128'
+    },
+    {
+      id: 'child789',
+      name: '小明',
+      role: '孩子',
+      avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128'
+    }
+  ]
+  
   messages.value = [
     {
       id: 1,
@@ -275,56 +391,107 @@ const loadMessages = () => {
       isSelf: false,
       showTime: true,
       senderName: '小明',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345'
-    },
-    {
-      id: 2,
-      type: 'reading-progress',
-      bookName: '小王子',
-      chapter: 3,
-      time: '10:31',
-      isSelf: true,
-      showTime: false,
-      senderName: '爸爸',
-      avatar: userInfo.value.avatar
+      avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128'
     }
   ]
-  lastMessageId.value = 'msg-' + messages.value[messages.value.length - 1].id
+  
+  userInfo.value = {
+    id: 'user123',
+    name: '爸爸',
+    avatar: 'https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128'
+  }
+}
+
+// 格式化消息时间
+const formatMessageTime = (time) => {
+  if (!time) return ''
+  
+  try {
+    const date = new Date(time)
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })
+  } catch (error) {
+    console.error('时间格式化错误：', error)
+    return ''
+  }
 }
 
 // 加载更多消息
 const loadMoreMessages = () => {
-  if (isLoading.value) return
-  isLoading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    isLoading.value = false
-  }, 1000)
+  if (isLoading.value || !hasMore.value) return
+  
+  console.log('加载更多消息，下一页：', currentPage.value + 1)
+  loadMessages(currentPage.value + 1)
 }
 
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!inputMessage.value.trim()) return
   
-  const newMessage = {
-    id: messages.value.length + 1,
-    type: 'text',
-    content: inputMessage.value,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    isSelf: true,
-    showTime: true,
-    senderName: userInfo.value.name,
-    avatar: userInfo.value.avatar
+  console.log('准备发送群消息：', inputMessage.value)
+  
+  try {
+    const content = inputMessage.value.trim()
+    const tempMessage = {
+      id: Date.now(), // 临时ID
+      type: 'text',
+      content: content,
+      time: formatMessageTime(new Date()),
+      isSelf: true,
+      showTime: true,
+      senderName: userInfo.value.name,
+      avatar: userInfo.value.avatar,
+      sending: true // 标记为发送中
+    }
+    
+    // 先添加到界面显示
+    messages.value.push(tempMessage)
+    inputMessage.value = ''
+    
+    // 滚动到底部
+    nextTick(() => {
+      scrollTop.value = 9999
+    })
+    
+    // 调用API发送消息
+    const response = await chatApi.sendGroupMessage(groupInfo.value.id, content, 0)
+    console.log('发送群消息API响应：', response)
+    
+    if (response.code === 200 && response.data) {
+      // 更新消息状态
+      const messageIndex = messages.value.findIndex(msg => msg.id === tempMessage.id)
+      if (messageIndex !== -1) {
+        messages.value[messageIndex] = {
+          ...tempMessage,
+          id: response.data.id,
+          sending: false
+        }
+      }
+      
+      console.log('群消息发送成功')
+    } else {
+      throw new Error(response.message || '发送失败')
+    }
+  } catch (error) {
+    console.error('发送群消息失败：', error)
+    
+    // 移除失败的消息或标记为失败
+    const messageIndex = messages.value.findIndex(msg => msg.sending)
+    if (messageIndex !== -1) {
+      messages.value.splice(messageIndex, 1)
+    }
+    
+    uni.showToast({
+      title: error.message || '发送失败',
+      icon: 'none'
+    })
+    
+    // 恢复输入框内容
+    inputMessage.value = content
   }
-  
-  messages.value.push(newMessage)
-  lastMessageId.value = 'msg-' + newMessage.id
-  inputMessage.value = ''
-  
-  // 模拟滚动到底部
-  nextTick(() => {
-    scrollTop.value = 9999
-  })
 }
 
 // 显示群成员
@@ -353,13 +520,17 @@ const chooseImage = () => {
         id: messages.value.length + 1,
         type: 'image',
         content: tempFilePath,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        time: formatMessageTime(new Date()),
         isSelf: true,
         showTime: true,
         senderName: userInfo.value.name,
         avatar: userInfo.value.avatar
       }
       messages.value.push(newMessage)
+      
+      nextTick(() => {
+        scrollTop.value = 9999
+      })
     }
   })
 }
@@ -386,13 +557,17 @@ const shareProgress = () => {
     type: 'reading-progress',
     bookName: '小王子',
     chapter: 3,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    time: formatMessageTime(new Date()),
     isSelf: true,
     showTime: true,
     senderName: userInfo.value.name,
     avatar: userInfo.value.avatar
   }
   messages.value.push(newMessage)
+  
+  nextTick(() => {
+    scrollTop.value = 9999
+  })
 }
 
 // 查看阅读进度
@@ -404,7 +579,7 @@ const viewReadingProgress = (message) => {
 
 // 打开AI助手
 const openAIChat = () => {
-  uni.navigateTo({
+  uni.switchTab({
     url: '/pages/parent/ai-chat/ai-chat'
   })
 }

@@ -360,4 +360,63 @@ export const likeApi = {
       type
     })
   }
+}
+
+// 聊天相关API
+export const chatApi = {
+  // 获取聊天列表（包括群聊、私聊、AI助手）
+  getChatList() {
+    console.log('调用获取聊天列表接口')
+    return request.get('/api/chat/list')
+  },
+  
+  // 获取群聊列表
+  getGroupChats() {
+    console.log('调用获取群聊列表接口')
+    return request.get('/api/groupMessage/groups')
+  },
+  
+  // 获取私聊联系人列表
+  getPrivateContacts() {
+    console.log('调用获取私聊联系人列表接口')
+    return request.get('/api/privateMessage/contacts')
+  },
+  
+  // 获取群消息列表
+  getGroupMessages(groupId, page = 1, size = 20) {
+    console.log('调用获取群消息列表接口，群组ID：', groupId, '页码：', page, '每页大小：', size)
+    return request.get(`/api/groupMessage/${groupId}`, {
+      page,
+      size
+    })
+  },
+  
+  // 获取私聊消息列表
+  getPrivateMessages(contactId, page = 1, size = 20) {
+    console.log('调用获取私聊消息列表接口，联系人ID：', contactId, '页码：', page, '每页大小：', size)
+    return request.get(`/api/privateMessage/${contactId}`, {
+      page,
+      size
+    })
+  },
+  
+  // 发送群消息
+  sendGroupMessage(groupId, content, type = 0) {
+    console.log('调用发送群消息接口，群组ID：', groupId, '内容：', content, '类型：', type)
+    return request.post('/api/groupMessage/send', {
+      groupId,
+      content,
+      type
+    })
+  },
+  
+  // 发送私聊消息
+  sendPrivateMessage(contactId, content, type = 0) {
+    console.log('调用发送私聊消息接口，联系人ID：', contactId, '内容：', content, '类型：', type)
+    return request.post('/api/privateMessage/send', {
+      contactId,
+      content,
+      type
+    })
+  }
 } 

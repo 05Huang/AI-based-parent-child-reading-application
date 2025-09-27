@@ -106,19 +106,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
+import { chatApi } from '../../../utils/api.js'
 
 // 聊天信息
 const chatInfo = ref({
   id: '',
-  name: '小明',
-  avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128',
+  name: '加载中...',
+  avatar: '',
   online: true
 })
 
 // 用户信息
 const userInfo = ref({
-  avatar: 'https://ui-avatars.com/api/?name=爸爸&background=3b82f6&color=fff&size=128'
+  avatar: 'https://ui-avatars.com/api/?name=我&background=3b82f6&color=fff&size=128'
 })
 
 // 消息列表
@@ -128,32 +129,144 @@ const scrollTop = ref(0)
 const lastMessageId = ref('')
 const inputMessage = ref('')
 
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(20)
+const hasMore = ref(true)
+
 // 获取路由参数
 onMounted(() => {
+  console.log('私聊页面加载')
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
-  const chatId = currentPage.options.id
+  const contactId = currentPage.options.id
+  const contactName = currentPage.options.name
   
-  // 模拟加载聊天信息
-  loadChatInfo(chatId)
-  // 模拟加载消息历史
-  loadMessages()
+  console.log('联系人参数：', { contactId, contactName })
+  
+  if (contactId) {
+    chatInfo.value.id = contactId
+    if (contactName) {
+      chatInfo.value.name = decodeURIComponent(contactName)
+    }
+    
+    // 加载私聊数据
+    loadChatData()
+  } else {
+    console.error('缺少联系人ID参数')
+    uni.showToast({
+      title: '参数错误',
+      icon: 'none'
+    })
+  }
 })
 
-// 加载聊天信息
-const loadChatInfo = (chatId) => {
-  // 模拟API调用
-  chatInfo.value = {
-    id: chatId,
-    name: '小明',
-    avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128',
-    online: true
+// 加载私聊数据
+const loadChatData = async () => {
+  try {
+    console.log('开始加载私聊数据，联系人ID：', chatInfo.value.id)
+    
+    // 加载消息列表
+    await loadMessages()
+    
+  } catch (error) {
+    console.error('加载私聊数据失败：', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
+    
+    // 加载默认数据
+    loadDefaultData()
   }
 }
 
 // 加载消息历史
-const loadMessages = () => {
-  // 模拟API调用
+const loadMessages = async (page = 1) => {
+  try {
+    if (isLoading.value) return
+    
+    console.log('开始加载私聊消息，页码：', page)
+    isLoading.value = true
+    
+    const response = await chatApi.getPrivateMessages(chatInfo.value.id, page, pageSize.value)
+    console.log('私聊消息API响应：', response)
+    
+    if (response.code === 200 && response.data) {
+      const data = response.data
+      
+      // 更新联系人信息
+      if (data.contactInfo) {
+        chatInfo.value = {
+          ...chatInfo.value,
+          ...data.contactInfo
+        }
+      }
+      
+      // 处理消息列表
+      if (data.messages) {
+        const newMessages = data.messages.map(msg => ({
+          id: msg.id,
+          type: msg.type ? 'image' : 'text', // false=文字, true=图片
+          content: msg.content,
+          time: formatMessageTime(msg.sendTime),
+          isSelf: msg.isSelf,
+          showTime: true // 可以根据时间间隔优化
+        }))
+        
+        if (page === 1) {
+          // 第一页，直接替换
+          messages.value = newMessages.reverse() // 反转顺序，最新的在下面
+        } else {
+          // 后续页，添加到前面
+          messages.value = [...newMessages.reverse(), ...messages.value]
+        }
+        
+        // 更新分页信息
+        hasMore.value = data.hasMore || false
+        currentPage.value = page
+        
+        // 滚动到最新消息（仅第一页）
+        if (page === 1 && newMessages.length > 0) {
+          lastMessageId.value = 'msg-' + newMessages[newMessages.length - 1].id
+          nextTick(() => {
+            scrollTop.value = 9999
+          })
+        }
+      }
+      
+      console.log('私聊消息加载成功，当前消息数：', messages.value.length)
+    } else {
+      throw new Error(response.message || '获取消息失败')
+    }
+  } catch (error) {
+    console.error('加载私聊消息失败：', error)
+    
+    if (page === 1) {
+      // 第一页加载失败，显示默认数据
+      loadDefaultData()
+    } else {
+      uni.showToast({
+        title: '加载更多失败',
+        icon: 'none'
+      })
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 加载默认数据（API失败时的备用方案）
+const loadDefaultData = () => {
+  console.log('加载默认私聊数据')
+  
+  chatInfo.value = {
+    id: chatInfo.value.id,
+    name: chatInfo.value.name || '小明',
+    avatar: 'https://ui-avatars.com/api/?name=小明&background=6366f1&color=fff&size=128',
+    online: true
+  }
+  
   messages.value = [
     {
       id: 1,
@@ -172,40 +285,96 @@ const loadMessages = () => {
       showTime: false
     }
   ]
-  lastMessageId.value = 'msg-' + messages.value[messages.value.length - 1].id
+}
+
+// 格式化消息时间
+const formatMessageTime = (time) => {
+  if (!time) return ''
+  
+  try {
+    const date = new Date(time)
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })
+  } catch (error) {
+    console.error('时间格式化错误：', error)
+    return ''
+  }
 }
 
 // 加载更多消息
 const loadMoreMessages = () => {
-  if (isLoading.value) return
-  isLoading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    isLoading.value = false
-  }, 1000)
+  if (isLoading.value || !hasMore.value) return
+  
+  console.log('加载更多消息，下一页：', currentPage.value + 1)
+  loadMessages(currentPage.value + 1)
 }
 
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!inputMessage.value.trim()) return
   
-  const newMessage = {
-    id: messages.value.length + 1,
-    type: 'text',
-    content: inputMessage.value,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    isSelf: true,
-    showTime: true
+  console.log('准备发送私聊消息：', inputMessage.value)
+  
+  try {
+    const content = inputMessage.value.trim()
+    const tempMessage = {
+      id: Date.now(), // 临时ID
+      type: 'text',
+      content: content,
+      time: formatMessageTime(new Date()),
+      isSelf: true,
+      showTime: true,
+      sending: true // 标记为发送中
+    }
+    
+    // 先添加到界面显示
+    messages.value.push(tempMessage)
+    inputMessage.value = ''
+    
+    // 滚动到底部
+    nextTick(() => {
+      scrollTop.value = 9999
+    })
+    
+    // 调用API发送消息
+    const response = await chatApi.sendPrivateMessage(chatInfo.value.id, content, 0)
+    console.log('发送私聊消息API响应：', response)
+    
+    if (response.code === 200 && response.data) {
+      // 更新消息状态
+      const messageIndex = messages.value.findIndex(msg => msg.id === tempMessage.id)
+      if (messageIndex !== -1) {
+        messages.value[messageIndex] = {
+          ...tempMessage,
+          id: response.data.id,
+          sending: false
+        }
+      }
+      
+      console.log('私聊消息发送成功')
+    } else {
+      throw new Error(response.message || '发送失败')
+    }
+  } catch (error) {
+    console.error('发送私聊消息失败：', error)
+    
+    // 移除失败的消息或标记为失败
+    const messageIndex = messages.value.findIndex(msg => msg.sending)
+    if (messageIndex !== -1) {
+      messages.value.splice(messageIndex, 1)
+    }
+    
+    uni.showToast({
+      title: error.message || '发送失败',
+      icon: 'none'
+    })
+    
+    // 恢复输入框内容
+    inputMessage.value = content
   }
-  
-  messages.value.push(newMessage)
-  lastMessageId.value = 'msg-' + newMessage.id
-  inputMessage.value = ''
-  
-  // 模拟滚动到底部
-  nextTick(() => {
-    scrollTop.value = 9999
-  })
 }
 
 // 返回上一页
@@ -221,14 +390,18 @@ const chooseImage = () => {
       const tempFilePath = res.tempFilePaths[0]
       // 这里应该先上传图片，获取到URL后再发送消息
       const newMessage = {
-        id: messages.value.length + 1,
+        id: Date.now(),
         type: 'image',
         content: tempFilePath,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        time: formatMessageTime(new Date()),
         isSelf: true,
         showTime: true
       }
       messages.value.push(newMessage)
+      
+      nextTick(() => {
+        scrollTop.value = 9999
+      })
     }
   })
 }

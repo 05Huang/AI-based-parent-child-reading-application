@@ -12,62 +12,32 @@
 
     <!-- 主要内容区域 -->
     <scroll-view scroll-y="true" class="main-content">
-      
+      <!-- 加载中状态 -->
+      <view v-if="loading" class="loading-container">
+        <text class="loading-text">加载中...</text>
+      </view>
 
       <!-- 消息列表 -->
-      <view class="chat-list">
-        <!-- 家庭群聊 -->
-        <view class="chat-item" @click="navigateToChat('family')">
-          <view class="chat-avatar family-group">
-            <image src="https://ui-avatars.com/api/?name=幸福家庭&background=3b82f6&color=fff&size=128" mode="aspectFill"></image>
-          </view>
-          <view class="chat-content">
-            <view class="chat-header">
-              <text class="chat-name">幸福家庭群</text>
-              <text class="chat-time">12:30</text>
-            </view>
-            <view class="chat-info">
-              <text class="chat-message">小明：今天我读完了《小王子》</text>
-              <view class="unread-badge">2</view>
-            </view>
-          </view>
-        </view>
-
-        <!-- AI助手 -->
-        <view class="chat-item" @click="navigateToAIChat">
-          <view class="chat-avatar ai-assistant">
-            <text class="fas fa-robot"></text>
-          </view>
-          <view class="chat-content">
-            <view class="chat-header">
-              <text class="chat-name">AI阅读助手</text>
-              <text class="chat-time">11:45</text>
-            </view>
-            <view class="chat-info">
-              <text class="chat-message">根据您的阅读习惯，为您推荐...</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 私聊列表 -->
+      <view v-else class="chat-list">
+        <!-- 遍历聊天列表 -->
         <view 
           class="chat-item" 
           v-for="chat in chatList" 
-          :key="chat.id"
-          @click="navigateToChat(chat.id)"
+          :key="chat.id + '_' + chat.type"
+          @click="navigateToChat(chat)"
         >
-          <view class="chat-avatar">
-            <image :src="chat.avatar" mode="aspectFill"></image>
-            <view class="online-status" v-if="chat.online"></view>
+          <view class="chat-avatar" :class="getChatAvatarClass(chat.type)">
+            <image v-if="chat.type !== 'ai'" :src="chat.avatar" mode="aspectFill"></image>
+            <text v-else class="fas fa-robot"></text>
           </view>
           <view class="chat-content">
             <view class="chat-header">
               <text class="chat-name">{{ chat.name }}</text>
-              <text class="chat-time">{{ chat.lastTime }}</text>
+              <text class="chat-time">{{ formatTime(chat.lastTime) }}</text>
             </view>
             <view class="chat-info">
-              <text class="chat-message">{{ chat.lastMessage }}</text>
-              <view class="unread-badge" v-if="chat.unread">{{ chat.unread }}</view>
+              <text class="chat-message">{{ chat.lastMessage || '暂无消息' }}</text>
+              <view v-if="chat.unread > 0" class="unread-badge">{{ chat.unread }}</view>
             </view>
           </view>
         </view>
@@ -77,63 +47,201 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { chatApi } from '../../../utils/api.js'
 
-// 聊天列表数据
-const chatList = ref([
-  {
-    id: '1',
-    name: '小明',
-    avatar: 'https://ui-avatars.com/api/?name=小明&background=3b82f6&color=fff&size=128',
-    lastMessage: '爸爸，我们今晚一起读书吧！',
-    lastTime: '10:30',
-    unread: 1,
-    online: true
-  },
-  {
-    id: '2',
-    name: '妈妈',
-    avatar: 'https://ui-avatars.com/api/?name=妈妈&background=10b981&color=fff&size=128',
-    lastMessage: '小明今天的阅读报告不错呢',
-    lastTime: '09:15',
-    unread: 0,
-    online: true
-  },
-  {
-    id: '3',
-    name: '爷爷',
-    avatar: 'https://ui-avatars.com/api/?name=爷爷&background=6366f1&color=fff&size=128',
-    lastMessage: '给小明讲了一个有趣的故事',
-    lastTime: '昨天',
-    unread: 0,
-    online: false
-  }
-])
+// 响应式数据
+const chatList = ref([])
+const loading = ref(true)
 
-// 跳转到聊天页面
-const navigateToChat = (chatId) => {
-  if (chatId === 'family') {
-    uni.navigateTo({
-      url: `/pages/parent/chat/group-chat?id=${chatId}`
+// 页面加载时获取聊天列表
+onMounted(() => {
+  console.log('notification页面加载，开始获取聊天列表')
+  loadChatList()
+})
+
+// 获取聊天列表
+const loadChatList = async () => {
+  try {
+    console.log('开始调用聊天列表API')
+    loading.value = true
+    
+    const response = await chatApi.getChatList()
+    console.log('聊天列表API响应：', response)
+    
+    if (response.code === 200 && response.data) {
+      chatList.value = response.data.chatList || []
+      console.log('聊天列表加载成功，数量：', chatList.value.length)
+    } else {
+      console.error('获取聊天列表失败：', response.message || '未知错误')
+      uni.showToast({
+        title: response.message || '获取聊天列表失败',
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('获取聊天列表异常：', error)
+    uni.showToast({
+      title: '网络错误，请稍后重试',
+      icon: 'none'
     })
-  } else {
-    uni.navigateTo({
-      url: `/pages/parent/chat/private-chat?id=${chatId}`
-    })
+    
+    // 如果API失败，显示默认数据以保证基本功能
+    loadDefaultChatList()
+  } finally {
+    loading.value = false
   }
 }
 
-// 跳转到AI聊天页面
-const navigateToAIChat = () => {
-  uni.switchTab({
-    url: '/pages/parent/ai-chat/ai-chat'
-  })
+// 加载默认聊天列表（API失败时的备用方案）
+const loadDefaultChatList = () => {
+  console.log('加载默认聊天列表作为备用方案')
+  chatList.value = [
+    {
+      id: 'family',
+      type: 'group',
+      name: '幸福家庭群',
+      avatar: 'https://ui-avatars.com/api/?name=幸福家庭&background=3b82f6&color=fff&size=128',
+      lastMessage: '小明：今天我读完了《小王子》',
+      lastTime: new Date(),
+      unread: 2,
+      memberCount: 4
+    },
+    {
+      id: -1,
+      type: 'ai',
+      name: 'AI阅读助手',
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ai123',
+      lastMessage: '根据您的阅读习惯，为您推荐...',
+      lastTime: new Date(),
+      unread: 0
+    }
+  ]
+}
+
+// 获取聊天头像样式类
+const getChatAvatarClass = (type) => {
+  switch (type) {
+    case 'group':
+      return 'family-group'
+    case 'ai':
+      return 'ai-assistant'
+    default:
+      return ''
+  }
+}
+
+// 格式化时间显示
+const formatTime = (time) => {
+  if (!time) return ''
+  
+  try {
+    const date = new Date(time)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    
+    if (messageDate.getTime() === today.getTime()) {
+      // 今天，显示时间
+      return date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      })
+    } else if (messageDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
+      // 昨天
+      return '昨天'
+    } else {
+      // 更早的日期，显示月日
+      return date.toLocaleDateString('zh-CN', { 
+        month: '2-digit', 
+        day: '2-digit' 
+      })
+    }
+  } catch (error) {
+    console.error('时间格式化错误：', error)
+    return ''
+  }
+}
+
+// 跳转到聊天页面
+const navigateToChat = (chat) => {
+  console.log('点击聊天项，准备跳转：', chat)
+  
+  try {
+    if (chat.type === 'group') {
+      // 跳转到群聊页面
+      console.log('跳转到群聊页面，群组ID：', chat.id)
+      uni.navigateTo({
+        url: `/pages/parent/chat/group-chat?id=${chat.id}&name=${encodeURIComponent(chat.name)}`
+      })
+    } else if (chat.type === 'private') {
+      // 跳转到私聊页面
+      console.log('跳转到私聊页面，联系人ID：', chat.id)
+      uni.navigateTo({
+        url: `/pages/parent/chat/private-chat?id=${chat.id}&name=${encodeURIComponent(chat.name)}`
+      })
+    } else if (chat.type === 'ai') {
+      // 跳转到AI聊天页面
+      console.log('跳转到AI聊天页面')
+      uni.switchTab({
+        url: '/pages/parent/ai-chat/ai-chat'
+      })
+    }
+  } catch (error) {
+    console.error('页面跳转错误：', error)
+    uni.showToast({
+      title: '页面跳转失败',
+      icon: 'none'
+    })
+  }
 }
 
 // 返回上一页
 const goBack = () => {
-  uni.navigateBack({
-    delta: 1
+  console.log('返回上一页')
+  
+  try {
+    // 获取当前页面栈
+    const pages = getCurrentPages()
+    console.log('当前页面栈长度：', pages.length)
+    
+    if (pages.length > 1) {
+      // 如果页面栈中有上一页，直接返回
+      console.log('使用navigateBack返回上一页')
+      uni.navigateBack({
+        delta: 1,
+        success: () => {
+          console.log('成功返回上一页')
+        },
+        fail: (error) => {
+          console.error('返回失败：', error)
+          // 如果返回失败，跳转到首页
+          fallbackToHome()
+        }
+      })
+    } else {
+      // 如果没有上一页，跳转到首页
+      console.log('没有上一页，跳转到首页')
+      fallbackToHome()
+    }
+  } catch (error) {
+    console.error('返回处理异常：', error)
+    fallbackToHome()
+  }
+}
+
+// 备用方案：跳转到首页
+const fallbackToHome = () => {
+  console.log('使用备用方案跳转到首页')
+  uni.switchTab({
+    url: '/pages/parent/home/home',
+    success: () => {
+      console.log('成功跳转到首页')
+    },
+    fail: (error) => {
+      console.error('跳转到首页失败：', error)
+    }
   })
 }
 </script>
@@ -341,6 +449,19 @@ const goBack = () => {
   align-items: center;
   justify-content: center;
   margin-left: 16rpx;
+}
+
+/* 加载状态样式 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 100rpx 0;
+}
+
+.loading-text {
+  color: #9ca3af;
+  font-size: 28rpx;
 }
 
 /* 修复滚动问题 */
