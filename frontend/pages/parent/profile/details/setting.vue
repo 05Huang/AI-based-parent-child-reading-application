@@ -23,6 +23,13 @@
             </view>
             <text class="fas fa-chevron-right arrow-icon"></text>
           </view>
+          <view class="settings-item" @click="handleSettingClick('bindChild')">
+            <view class="item-left">
+              <text class="fas fa-child item-icon"></text>
+              <text class="item-text">绑定孩子</text>
+            </view>
+            <text class="fas fa-chevron-right arrow-icon"></text>
+          </view>
           <view class="settings-item" @click="handleSettingClick('security')">
             <view class="item-left">
               <text class="fas fa-shield-alt item-icon"></text>
@@ -148,6 +155,7 @@ const handleLogout = () => {
 const handleSettingClick = (type) => {
   const routes = {
     profile: '/pages/parent/profile/details/profile',
+    bindChild: '/pages/parent/profile/details/bind-child',
     security: '/pages/parent/profile/details/security',
     notification: '/pages/parent/profile/details/notification',
     readingMode: '/pages/parent/profile/details/reading-mode',

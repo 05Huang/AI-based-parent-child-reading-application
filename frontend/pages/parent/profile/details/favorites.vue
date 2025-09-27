@@ -12,21 +12,6 @@
 
     <!-- 主要内容区域 -->
     <scroll-view scroll-y="true" class="main-content">
-      <!-- 分类标签 -->
-      <scroll-view scroll-x="true" class="category-scroll" show-scrollbar="false">
-        <view class="category-tags">
-          <view 
-            v-for="(tag, index) in categories" 
-            :key="index"
-            class="category-tag"
-            :class="{ active: currentCategory === tag }"
-            @click="selectCategory(tag)"
-          >
-            <text>{{ tag }}</text>
-          </view>
-        </view>
-      </scroll-view>
-
       <!-- 收藏统计 -->
       <view class="stats-card">
         <view class="stats-grid">
@@ -51,7 +36,7 @@
 
       <!-- 收藏列表 -->
       <view class="favorites-list">
-        <view v-for="(article, index) in filteredArticles" :key="index" class="book-card">
+        <view v-for="(article, index) in articles" :key="index" class="book-card">
           <view class="book-cover-container">
             <image :src="article.coverUrl" class="book-cover"></image>
             <view class="book-actions">
@@ -71,21 +56,6 @@
           </view>
           <view class="book-info">
             <text class="book-title">{{ article.title }}</text>
-            <text class="book-author">{{ article.author }}</text>
-            <view class="book-meta">
-              <view class="meta-item">
-                <text class="fas fa-tag meta-icon"></text>
-                <text class="meta-text">{{ article.category }}</text>
-              </view>
-              <view class="meta-item like-item" @click.stop="toggleLike(article)">
-                <text class="fas fa-thumbs-up meta-icon" :class="{ 'liked': article.isLiked }"></text>
-                <text class="meta-text">{{ article.likes }}赞</text>
-              </view>
-              <view class="meta-item">
-                <text class="fas fa-comment meta-icon"></text>
-                <text class="meta-text">{{ article.comments }}评论</text>
-              </view>
-            </view>
           </view>
         </view>
       </view>
@@ -106,8 +76,6 @@ const collectionStats = ref({
   interactionCount: 0
 })
 const articles = ref([])
-const categories = ref(['全部'])
-const currentCategory = ref('全部')
 const loading = ref(false)
 
 // 计算统计数据显示
@@ -120,13 +88,7 @@ const statsDisplay = computed(() => {
   }
 })
 
-// 根据分类筛选文章
-const filteredArticles = computed(() => {
-  if (currentCategory.value === '全部') {
-    return articles.value
-  }
-  return articles.value.filter(article => article.category === currentCategory.value)
-})
+// 删除分类筛选相关代码
 
 // 获取当前用户信息
 const loadCurrentUser = async () => {
@@ -164,28 +126,7 @@ const loadCollectionStats = async () => {
   }
 }
 
-// 获取分类数据
-const loadCategories = async () => {
-  try {
-    console.log('开始获取分类数据')
-    const response = await categoryApi.getAllActiveCategories()
-    
-    if (response && response.data) {
-      console.log('获取分类数据成功，共', response.data.length, '个分类')
-      
-      // 构建分类列表
-      const categoryList = ['全部']
-      response.data.forEach(category => {
-        categoryList.push(category.name)
-      })
-      categories.value = categoryList
-    }
-  } catch (error) {
-    console.error('获取分类数据失败：', error)
-    // 使用默认分类
-    categories.value = ['全部', '育儿经验', '亲子互动', '教育心得', '营养健康', '生活记录']
-  }
-}
+// 删除分类加载相关代码
 
 // 获取收藏列表
 const loadFavorites = async () => {
@@ -209,31 +150,15 @@ const loadFavorites = async () => {
       // 转换数据格式并获取点赞状态
       articles.value = await Promise.all(
         response.data.records.map(async (item) => {
-          const articleItem = {
+          return {
             id: item.id,
             title: item.contentTitle || '无标题',
-            author: '佚名', // 后端响应中没有作者信息，使用默认值
             coverUrl: item.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-            category: getCategoryFromType(item.contentType),
-            addTime: formatTime(item.createdTime),
-            likes: Math.floor(Math.random() * 500) + 100, // 模拟点赞数
-            comments: Math.floor(Math.random() * 100) + 10, // 模拟评论数
-            shares: Math.floor(Math.random() * 50) + 5, // 模拟分享数
             contentId: item.contentId,
             contentType: item.contentType,
             favoriteId: item.id, // 收藏记录ID，用于删除
-            isLiked: false // 默认未点赞
+            addTime: formatTime(item.createdTime)
           }
-          
-          // 获取当前用户对该内容的点赞状态
-          try {
-            const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.contentId, 1)
-            articleItem.isLiked = likeStatusResponse.data || false
-          } catch (error) {
-            console.warn('获取点赞状态失败：', error)
-          }
-          
-          return articleItem
         })
       )
     }
@@ -248,15 +173,7 @@ const loadFavorites = async () => {
   }
 }
 
-// 根据内容类型获取分类名称
-const getCategoryFromType = (contentType) => {
-  if (contentType === 1) {
-    return '图文内容'
-  } else if (contentType === 2) {
-    return '视频内容'
-  }
-  return '未分类'
-}
+// 删除不再需要的分类函数
 
 // 格式化时间
 const formatTime = (timeStr) => {
@@ -268,11 +185,7 @@ const formatTime = (timeStr) => {
   return `${year}-${month}-${day}`
 }
 
-// 选择分类
-const selectCategory = (category) => {
-  console.log('选择分类：', category)
-  currentCategory.value = category
-}
+// 删除分类选择相关代码
 
 // 返回上一页
 const goBack = () => {
@@ -398,56 +311,12 @@ const deleteArticle = async (article) => {
   })
 }
 
-// 点赞/取消点赞功能
-const toggleLike = async (article) => {
-  if (!currentUser.value?.id) {
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none'
-    })
-    return
-  }
-  
-  try {
-    console.log('切换点赞状态，内容ID：', article.contentId, '当前状态：', article.isLiked)
-    
-    const response = await likeApi.toggleLike(currentUser.value.id, article.contentId, 1)
-    
-    if (response && response.data) {
-      // 更新本地数据
-      const isLiked = response.data.isLiked
-      const likeCount = response.data.likeCount
-      
-      // 更新收藏列表中的数据
-      const index = articles.value.findIndex(item => item.contentId === article.contentId)
-      if (index !== -1) {
-        articles.value[index].isLiked = isLiked
-        articles.value[index].likes = likeCount
-      }
-      
-      // 给用户反馈
-      uni.showToast({
-        title: isLiked ? '点赞成功' : '取消点赞',
-        icon: 'success',
-        duration: 1000
-      })
-      
-      console.log('点赞状态更新成功，新状态：', isLiked, '新点赞数：', likeCount)
-    }
-  } catch (error) {
-    console.error('点赞操作失败：', error)
-    uni.showToast({
-      title: '操作失败',
-      icon: 'none'
-    })
-  }
-}
+// 删除点赞功能相关代码
 
 // 页面加载时获取数据
 onMounted(async () => {
   console.log('收藏页面已挂载，开始加载数据')
   await loadCurrentUser()
-  await loadCategories()
   await loadCollectionStats()
   await loadFavorites()
 })
@@ -505,32 +374,7 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 
-/* 分类标签样式 */
-.category-scroll {
-  width: 100%;
-  white-space: nowrap;
-  margin-bottom: 30rpx;
-}
-
-.category-tags {
-  display: inline-flex;
-  padding: 0 10rpx;
-}
-
-.category-tag {
-  padding: 12rpx 32rpx;
-  margin-right: 20rpx;
-  background-color: #ffffff;
-  border-radius: 9999rpx;
-  font-size: 28rpx;
-  color: #6b7280;
-  transition: all 0.3s ease;
-}
-
-.category-tag.active {
-  background-color: #3b82f6;
-  color: #ffffff;
-}
+/* 删除分类标签样式 */
 
 /* 统计卡片样式 */
 .stats-card {
@@ -572,21 +416,27 @@ onMounted(async () => {
 .favorites-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+  gap: 24rpx;
   width: 100%;
 }
 
 .book-card {
   background-color: #ffffff;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.book-card:active {
+  transform: translateY(-4rpx);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.12);
 }
 
 .book-cover-container {
   position: relative;
   width: 100%;
-  padding-top: 140%;
+  padding-top: 120%;
 }
 
 .book-cover {
@@ -668,70 +518,22 @@ onMounted(async () => {
 }
 
 .book-info {
-  padding: 20rpx;
+  padding: 24rpx 20rpx;
 }
 
 .book-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  margin-bottom: 8rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-align: center;
 }
 
-.book-author {
-  font-size: 24rpx;
-  color: #6b7280;
-  margin-bottom: 12rpx;
-}
-
-.book-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  background-color: #ffffff;
-  padding: 10rpx 20rpx;
-  border-radius: 8rpx;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.meta-icon {
-  font-size: 24rpx;
-  color: #60a5fa;
-  transition: color 0.3s ease;
-}
-
-.like-item {
-  cursor: pointer;
-  padding: 8rpx;
-  margin: -8rpx;
-  border-radius: 8rpx;
-  transition: background-color 0.3s ease;
-}
-
-.like-item:hover {
-  background-color: rgba(244, 63, 94, 0.1);
-}
-
-.like-item .meta-icon {
-  color: #9ca3af;
-}
-
-.like-item .meta-icon.liked {
-  color: #f43f5e;
-}
-
-.meta-text {
-  font-size: 24rpx;
-  color: #6b7280;
-}
+/* 删除不再需要的元数据样式 */
 
 /* 修复滚动问题 */
 ::-webkit-scrollbar {

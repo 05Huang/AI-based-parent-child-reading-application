@@ -120,6 +120,13 @@
       }
     },
     {
+      "path": "pages/parent/profile/details/bind-child",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "绑定孩子"
+      }
+    },
+    {
       "path": "pages/parent/profile/details/profile",
       "style": {
         "navigationStyle": "custom",

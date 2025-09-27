@@ -37,7 +37,7 @@ const request = {
         } else {
           // 业务错误处理
           uni.showToast({
-            title: response.data.msg || '请求失败',
+            title: response.data.message || response.data.msg || '请求失败',
             icon: 'none'
           });
           return Promise.reject(response.data);
@@ -88,6 +88,15 @@ const request = {
     return this.request({
       url,
       method: 'PUT',
+      data
+    });
+  },
+
+  // DELETE请求
+  delete(url, data) {
+    return this.request({
+      url,
+      method: 'DELETE',
       data
     });
   }

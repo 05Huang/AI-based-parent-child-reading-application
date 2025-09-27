@@ -17,8 +17,8 @@
         <view class="user-info">
           <image class="avatar" :src="currentUser.avatar" mode="aspectFill"></image>
           <view class="user-details">
-            <text class="username">{{currentUser.nickname}}</text>
-            <text class="user-id">ID: {{currentUser.id}}</text>
+            <text class="nickname">{{currentUser.nickname}}</text>
+            <text class="username">@{{currentUser.username}}</text>
           </view>
         </view>
         <view class="stats-row">
@@ -108,6 +108,7 @@ import { userApi, intimacyApi, userBehaviorApi } from '@/utils/api.js'
 // 响应式状态
 const currentUser = ref({
   nickname: '张爸爸',
+  username: 'zhangbaba',
   id: 888888,
   avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4'
 })
@@ -214,6 +215,7 @@ const loadCurrentUser = async () => {
       console.log('获取用户信息成功：', response.data)
       currentUser.value = {
         nickname: response.data.nickname || '张爸爸',
+        username: response.data.username || 'zhangbaba',
         id: response.data.id || 888888,
         avatar: response.data.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4'
       }
@@ -344,8 +346,8 @@ onMounted(async () => {
 
 .container {
   min-height: 100vh;
-  background-color: #f5f7fa;  /* 更柔和的背景色 */
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom)); /* 增加底部padding */
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 }
 
 /* 顶部导航栏样式 */
@@ -387,11 +389,11 @@ onMounted(async () => {
 
 /* 用户信息卡片 */
 .user-card {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);  /* 更动感的渐变角度 */
-  padding: 40rpx 32rpx;  /* 增加上下内边距 */
-  margin: 24rpx;  /* 添加外边距 */
-  border-radius: 24rpx;  /* 更大的圆角 */
-  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.15);  /* 柔和的阴影 */
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  padding: 40rpx 32rpx 32rpx 32rpx;
+  margin: 24rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.15);
 }
 
 .user-info {
@@ -410,38 +412,49 @@ onMounted(async () => {
 
 .user-details {
   margin-left: 32rpx;
+  flex: 1;
+}
+
+.nickname {
+  font-size: 40rpx;
+  font-weight: 600;
+  letter-spacing: -0.5rpx;
+  color: #ffffff;
+  margin-bottom: 8rpx;
 }
 
 .username {
-  font-size: 40rpx;  /* 略微增大字号 */
-  font-weight: 600;  /* 使用更现代的字重 */
-  letter-spacing: -0.5rpx;  /* 字母间距调整 */
-  color: #ffffff;
-}
-
-.user-id {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 400;
 }
 
 .stats-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-around;
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16rpx;
+  padding: 24rpx 16rpx;
+  backdrop-filter: blur(10px);
 }
 
 .stat-item {
   text-align: center;
+  flex: 1;
 }
 
 .stat-number {
-  font-size: 36rpx;
-  font-weight: bold;
+  font-size: 32rpx;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4rpx;
 }
 
 .stat-label {
-  font-size: 24rpx;
-  opacity: 0.8;
+  font-size: 22rpx;
+  opacity: 0.9;
+  font-weight: 400;
 }
 
 
@@ -451,28 +464,37 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   background-color: #ffffff;
-  margin: 24rpx;  /* 添加外边距 */
-  padding: 32rpx;
-  border-radius: 24rpx;  /* 统一的圆角 */
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);  /* 柔和的阴影 */
+  margin: 24rpx;
+  padding: 40rpx 20rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  gap: 20rpx;
 }
 
 .feature-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 16rpx 8rpx;
+  border-radius: 16rpx;
+  transition: all 0.3s ease;
+}
+
+.feature-item:active {
+  transform: scale(0.95);
+  background-color: #f8fafc;
 }
 
 .feature-icon {
-  width: 108rpx;  /* 略微增大图标 */
-  height: 108rpx;
-  border-radius: 24rpx;  /* 方形圆角 */
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12rpx;
-  font-size: 44rpx;
-  transition: transform 0.3s ease;  /* 添加过渡效果 */
+  margin-bottom: 16rpx;
+  font-size: 40rpx;
+  transition: all 0.3s ease;
 }
 
 .feature-icon.blue {
@@ -496,8 +518,11 @@ onMounted(async () => {
 }
 
 .feature-text {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #4b5563;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
 }
 
 /* 阅读成就 */
@@ -510,8 +535,11 @@ onMounted(async () => {
 }
 
 .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 32rpx;
-  border-bottom: 1rpx solid rgba(229, 231, 235, 0.6);  /* 更细腻的分割线 */
+  border-bottom: 1rpx solid rgba(229, 231, 235, 0.6);
 }
 
 .section-title {
