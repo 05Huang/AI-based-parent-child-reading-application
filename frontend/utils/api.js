@@ -283,6 +283,28 @@ export const userApi = {
   getUserById(id) {
     console.log('调用获取用户详情接口，用户ID：', id)
     return request.get(`/api/user/${id}`)
+  },
+  
+  // 更新用户信息
+  updateUser(userInfo) {
+    console.log('调用更新用户信息接口，用户信息：', userInfo)
+    return request.put('/api/user', userInfo)
+  }
+}
+
+// 文件上传相关API
+export const fileApi = {
+  // 上传图片文件
+  uploadImage(file, path = 'register/avatar') {
+    console.log('调用上传图片接口，路径：', path)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'image')
+    formData.append('path', path)
+    
+    return request.post('/api/file/upload', formData, {
+      'Content-Type': 'multipart/form-data'
+    })
   }
 }
 
