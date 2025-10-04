@@ -60,8 +60,8 @@ dashscope:
 minio:
   endpoint: http://127.0.0.1:9000 #内网地址
   domain: http://127.0.0.1:9000  #外网访问地址
-  accessKey: admin
-  secretKey: admin123456
+  accessKey: root
+  secretKey: 12345678
   bucketName: qz-sns
   imagePath: image
   filePath: file

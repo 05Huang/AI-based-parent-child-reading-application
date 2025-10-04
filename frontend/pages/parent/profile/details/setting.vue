@@ -26,7 +26,7 @@
           <view class="settings-item" @click="handleSettingClick('bindChild')">
             <view class="item-left">
               <text class="fas fa-child item-icon"></text>
-              <text class="item-text">绑定孩子</text>
+              <text class="item-text">绑定家人</text>
             </view>
             <text class="fas fa-chevron-right arrow-icon"></text>
           </view>

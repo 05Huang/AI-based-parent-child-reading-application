@@ -289,6 +289,36 @@ export const userApi = {
   updateUser(userInfo) {
     console.log('调用更新用户信息接口，用户信息：', userInfo)
     return request.put('/api/user', userInfo)
+  },
+  
+  // 删除用户（注销账号）
+  deleteUser(id) {
+    console.log('调用删除用户接口，用户ID：', id)
+    return request.delete(`/api/user/${id}`)
+  },
+  
+  // 重置密码
+  resetPassword(resetData) {
+    console.log('调用重置密码接口，数据：', resetData)
+    return request.post('/api/user/reset-password', resetData)
+  },
+  
+  // 发送邮箱验证码
+  sendEmailCode(email) {
+    console.log('调用发送邮箱验证码接口，邮箱：', email)
+    return request.post('/api/user/send-email-code', { email })
+  },
+  
+  // 发送手机验证码
+  sendSmsCode(phone) {
+    console.log('调用发送手机验证码接口，手机号：', phone)
+    return request.get('/api/user/smscode', { phone })
+  },
+  
+  // 验证密码（用于修改密码时验证当前密码）
+  verifyPassword(loginData) {
+    console.log('调用验证密码接口，数据：', loginData)
+    return request.post('/api/user/login', loginData)
   }
 }
 

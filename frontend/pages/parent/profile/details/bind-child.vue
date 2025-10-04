@@ -6,7 +6,7 @@
         <view class="back-btn" @click="goBack">
           <text class="fas fa-arrow-left text-gray-600"></text>
         </view>
-        <text class="nav-title">绑定孩子</text>
+        <text class="nav-title">绑定家人</text>
       </view>
     </view>
 
@@ -177,7 +177,7 @@ const relationTypes = ref([
 
 // 页面加载时获取已绑定的孩子列表
 onMounted(() => {
-  console.log('绑定孩子页面加载，开始获取家庭成员列表')
+  console.log('绑定家人页面加载，开始获取家庭成员列表')
   getFamilyMembers()
 })
 
@@ -268,7 +268,7 @@ const bindChild = async () => {
       relationType: selectedRelationType.value.value
     })
 
-      console.log('绑定孩子响应：', response)
+      console.log('绑定家人响应：', response)
 
       if (response.code === 200) {
         uni.showToast({
@@ -282,7 +282,7 @@ const bindChild = async () => {
         await getFamilyMembers()
       }
     } catch (error) {
-      console.error('绑定孩子异常：', error)
+      console.error('绑定家人异常：', error)
       // 如果error包含业务错误信息，显示具体错误；否则显示网络错误
       if (error && error.message) {
         // 业务错误，request.js已经显示了toast，这里不需要重复显示
