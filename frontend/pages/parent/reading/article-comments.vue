@@ -105,7 +105,7 @@
     </scroll-view>
 
     <!-- 评论输入区域 -->
-    <view class="comment-input-container" :style="{ bottom: keyboardHeight + 'px' }">
+    <view class="comment-input-container" :class="{ 'with-emoji': showEmojiPicker }" :style="{ bottom: keyboardHeight + 'px' }">
       <!-- 回复提示 -->
       <view v-if="replyTo" class="reply-hint">
         <text class="reply-hint-text">回复 {{ replyTo.username }}</text>
@@ -114,6 +114,9 @@
         </view>
       </view>
       <view class="input-wrapper">
+        <view class="emoji-btn" @click="toggleEmojiPicker">
+          <text class="fas fa-smile"></text>
+        </view>
         <input 
           class="comment-input"
           v-model="newComment"
@@ -126,6 +129,28 @@
         <view class="submit-btn" :class="{ 'active': newComment.trim().length > 0 }" @click="submitComment">
           <text class="fas fa-paper-plane"></text>
         </view>
+      </view>
+      
+      <!-- 表情包选择器 -->
+      <view v-if="showEmojiPicker" class="emoji-picker">
+        <view class="emoji-header">
+          <text class="emoji-title">选择表情</text>
+          <view class="close-emoji" @click="toggleEmojiPicker">
+            <text class="fas fa-times"></text>
+          </view>
+        </view>
+        <scroll-view scroll-y="true" class="emoji-list">
+          <view class="emoji-grid">
+            <view 
+              v-for="emoji in emojiList" 
+              :key="emoji" 
+              class="emoji-item" 
+              @click="insertEmoji(emoji)"
+            >
+              <text class="emoji-text">{{ emoji }}</text>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </view>
 
@@ -379,6 +404,33 @@ const keyboardHeight = ref(0)
 const newComment = ref('')
 const replyTo = ref(null)
 
+// 表情包相关
+const showEmojiPicker = ref(false)
+const emojiList = ref([
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+  '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+  '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+  '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+  '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+  '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠',
+  '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '😮',
+  '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰',
+  '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+  '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈',
+  '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+  '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼',
+  '😽', '🙀', '😿', '😾', '👏', '🙌', '👍', '👎',
+  '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘',
+  '👌', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋',
+  '🤚', '🖐️', '🖖', '👋', '🤙', '💪', '🦾', '🙏',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+  '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+  '💘', '💝', '💟', '⭐', '🌟', '✨', '⚡', '🔥',
+  '💯', '💢', '💥', '💫', '💦', '💨', '🕊️', '🦋',
+  '🌸', '💮', '🏵️', '🌹', '🥀', '🌺', '🌻', '🌼'
+])
+
 // 返回上一页
 const goBack = () => {
   // 获取当前页面栈
@@ -547,6 +599,7 @@ const submitComment = async () => {
       
       newComment.value = ''
       replyTo.value = null
+      showEmojiPicker.value = false // 关闭表情选择器
       
       // 刷新评论列表
       await loadComments(true)
@@ -558,6 +611,19 @@ const submitComment = async () => {
       icon: 'none'
     })
   }
+}
+
+// 切换表情包选择器
+const toggleEmojiPicker = () => {
+  console.log('切换表情包选择器，当前状态：', showEmojiPicker.value)
+  showEmojiPicker.value = !showEmojiPicker.value
+}
+
+// 插入表情
+const insertEmoji = (emoji) => {
+  console.log('插入表情：', emoji)
+  newComment.value += emoji
+  // 不自动关闭表情选择器，方便连续选择
 }
 </script>
 
@@ -853,6 +919,11 @@ const submitComment = async () => {
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
   z-index: 40;
+  transition: bottom 0.3s ease;
+}
+
+.comment-input-container.with-emoji {
+  bottom: 300px; /* 表情选择器高度 */
 }
 
 .reply-hint {
@@ -888,7 +959,27 @@ const submitComment = async () => {
 .input-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.emoji-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.emoji-btn:active {
+  background-color: #e5e7eb;
+}
+
+.emoji-btn .fas {
+  color: #6b7280;
+  font-size: 20px;
 }
 
 .comment-input {
@@ -985,5 +1076,99 @@ const submitComment = async () => {
   .comment-item:hover {
     transform: translateY(-2px);
   }
+}
+
+/* 表情包选择器样式 */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%; /* 在输入框正上方 */
+  left: 0;
+  right: 0;
+  width: 100%; /* 与父容器（输入框区域）同宽 */
+  height: 300px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px 12px 0 0; /* 顶部圆角 */
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.emoji-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0; /* 顶部圆角 */
+}
+
+.emoji-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.close-emoji {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-emoji:active {
+  background-color: #e5e7eb;
+}
+
+.close-emoji .fas {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.emoji-list {
+  height: calc(100% - 48px);
+  background-color: #ffffff;
+}
+
+.emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px;
+}
+
+.emoji-item {
+  width: 12.5%; /* 每行8个 */
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 8px;
+}
+
+.emoji-item:active {
+  background-color: #f3f4f6;
+  transform: scale(1.3);
+}
+
+.emoji-text {
+  font-size: 32px;
+  line-height: 1;
 }
 </style> 

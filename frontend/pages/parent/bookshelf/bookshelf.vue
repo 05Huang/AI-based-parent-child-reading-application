@@ -93,23 +93,28 @@
           class="book-card" 
           @click="navigateToBookDetail(book)"
         >
-          <view class="book-cover">
+          <view class="book-cover-wrapper">
             <image 
               :src="book.cover || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop'" 
               mode="aspectFill"
+              class="book-cover-image"
             ></image>
           </view>
           <view class="book-card-info">
-            <text class="book-card-title">{{ book.title }}</text>
-            <text class="book-card-author">{{ book.author }}</text>
-            <view class="book-card-stats">
-              <view class="rating" @click.stop="toggleLike(book)">
-                <text class="fas fa-thumbs-up" :class="{ 'liked': book.isLiked }"></text>
-                <text class="rating-text">{{ formatCount(book.likeCount) }}</text>
-              </view>
-              <view class="views">
-                <text class="fas fa-eye"></text>
-                <text class="views-text">{{ formatCount(book.viewCount) }}</text>
+            <view class="book-card-content">
+              <text class="book-card-title">{{ book.title }}</text>
+              <text class="book-card-author">作者：{{ book.author }}</text>
+            </view>
+            <view class="book-card-footer">
+              <view class="book-card-stats">
+                <view class="stat-btn" @click.stop="toggleLike(book)">
+                  <text class="fas fa-thumbs-up stat-icon" :class="{ 'liked': book.isLiked }"></text>
+                  <text class="stat-value">{{ formatCount(book.likeCount) }}</text>
+                </view>
+                <view class="stat-btn">
+                  <text class="fas fa-eye stat-icon"></text>
+                  <text class="stat-value">{{ formatCount(book.viewCount) }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -257,26 +262,30 @@ const loadBrowsingHistory = async () => {
     if (response && response.data && response.data.records) {
       console.log('浏览历史原始数据：', response.data)
       
-      // 转换为统一格式，根据UserViewHistoryResponseDTO结构，并添加点赞状态
+      // 转换为统一格式，根据UserViewHistoryResponseDTO结构，并添加点赞状态，过滤掉无效数据
+      const validRecords = response.data.records.filter(item => {
+        // 过滤掉没有contentId或没有标题的记录
+        return item.contentId && item.contentTitle && item.contentTitle.trim() !== ''
+      })
+      
       browsingHistory.value = await Promise.all(
-        response.data.records.map(async (item) => {
+        validRecords.map(async (item) => {
           const historyItem = {
             id: item.contentId,
-            title: item.contentTitle || '无标题',
+            title: item.contentTitle,
             author: item.creatorName || '匿名作者',
             cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&auto=format&fit=crop',
-            likeCount: item.likeCount || 0, // 使用后端返回的真实数据
-            viewCount: item.viewCount || 0, // 使用后端返回的真实数据
-            commentCount: item.commentCount || 0, // 使用后端返回的真实数据
+            likeCount: item.likeCount || 0,
+            viewCount: item.viewCount || 0,
+            commentCount: item.commentCount || 0,
             categoryId: item.categoryId,
             categoryName: item.categoryName,
-            createdTime: item.viewTime, // 使用浏览时间作为排序依据
+            createdTime: item.viewTime,
             contentType: item.contentType,
-            viewHistoryId: item.id, // 浏览记录的ID
-            isLiked: false // 默认未点赞
+            viewHistoryId: item.id,
+            isLiked: false
           }
           
-          // 获取当前用户对该内容的点赞状态
           if (currentUserId.value) {
             try {
               const likeStatusResponse = await likeApi.getLikeStatus(currentUserId.value, item.contentId, 1)
@@ -745,26 +754,34 @@ const toggleLike = async (book) => {
 .books-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
   width: 100%;
   box-sizing: border-box;
 }
 
 .book-card {
   background-color: white;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
 }
 
-.book-card .book-cover {
+.book-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.book-cover-wrapper {
   width: 100%;
   height: 0;
-  padding-bottom: 100%; /* 1:1 aspect ratio for social media style images */
+  padding-bottom: 75%; /* 4:3 aspect ratio - 更适合文章封面 */
   position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
 }
 
-.book-card .book-cover image {
+.book-cover-image {
   position: absolute;
   top: 0;
   left: 0;
@@ -774,80 +791,88 @@ const toggleLike = async (book) => {
 }
 
 .book-card-info {
-  padding: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.book-card-content {
+  flex: 1;
+  min-height: 80px;
 }
 
 .book-card-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: #1f2937;
-  margin-bottom: 4px;
+  line-height: 1.5;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.4;
-  height: 4.2em;
+  word-break: break-word;
 }
 
 .book-card-author {
-  font-size: 12px;
+  font-size: 13px;
   color: #6b7280;
-  margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: block;
+}
+
+.book-card-footer {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 10px;
 }
 
 .book-card-stats {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
-.rating, .views {
+.stat-btn {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #f9fafb;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-.rating {
-  cursor: pointer;
-  padding: 8rpx;
-  margin: -8rpx;
-  border-radius: 8rpx;
-  transition: background-color 0.3s ease;
+.stat-btn:active {
+  background-color: #f3f4f6;
+  transform: scale(0.95);
 }
 
-.rating:hover {
-  background-color: rgba(244, 63, 94, 0.1);
-}
-
-.rating .fas {
+.stat-icon {
+  font-size: 14px;
   color: #9ca3af;
-  font-size: 12px;
   transition: color 0.3s ease;
 }
 
-.rating .fas.liked {
-  color: #f43f5e;
+.stat-icon.liked {
+  color: #3b82f6;
 }
 
-.rating-text, .views-text {
-  font-size: 12px;
+.stat-value {
+  font-size: 13px;
   color: #6b7280;
-}
-
-.views .fas {
-  color: #6b7280;
-  font-size: 12px;
+  font-weight: 500;
 }
 
 @media screen and (min-width: 768px) {
   .books-grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    gap: 20px;
   }
 
   .main-content {
@@ -863,11 +888,24 @@ const toggleLike = async (book) => {
     width: 120px;
     height: 160px;
   }
+
+  .book-card-info {
+    padding: 16px;
+  }
+
+  .book-card-title {
+    font-size: 16px;
+  }
+
+  .book-card-author {
+    font-size: 14px;
+  }
 }
 
 @media screen and (min-width: 1024px) {
   .books-grid {
     grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
   }
 }
 

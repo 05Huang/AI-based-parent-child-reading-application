@@ -325,6 +325,7 @@ const formatViewCount = (count) => {
   font-weight: 500;
   color: #1f2937;
   line-height: 1.4;
+  height: 39.2px; /* 固定高度：14px * 1.4 * 2 = 39.2px (2行) */
   margin-bottom: 8px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -455,7 +456,7 @@ const formatViewCount = (count) => {
 
 /* 动画效果 */
 .article-item {
-  animation: fadeInUp 0.3s ease-out;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 @keyframes fadeInUp {

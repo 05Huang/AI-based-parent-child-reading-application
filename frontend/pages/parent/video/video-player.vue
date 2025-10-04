@@ -142,6 +142,9 @@
                 class="user-avatar"
                 mode="aspectFill"
               ></image>
+              <view class="emoji-btn-inline" @click="toggleEmojiPicker">
+                <text class="fas fa-smile"></text>
+              </view>
               <input 
                 type="text" 
                 :placeholder="replyTo ? `回复 ${replyTo.userName}：` : '说点什么...'" 
@@ -152,6 +155,28 @@
               <view class="submit-btn" :class="{ 'active': commentText.trim().length > 0 }" @click="submitComment">
                 <text class="fas fa-paper-plane"></text>
               </view>
+            </view>
+            
+            <!-- 表情包选择器 -->
+            <view v-if="showEmojiPicker" class="emoji-picker">
+              <view class="emoji-header">
+                <text class="emoji-title">选择表情</text>
+                <view class="close-emoji" @click="toggleEmojiPicker">
+                  <text class="fas fa-times"></text>
+                </view>
+              </view>
+              <scroll-view scroll-y="true" class="emoji-list">
+                <view class="emoji-grid">
+                  <view 
+                    v-for="emoji in emojiList" 
+                    :key="emoji" 
+                    class="emoji-item" 
+                    @click="insertEmoji(emoji)"
+                  >
+                    <text class="emoji-text">{{ emoji }}</text>
+                  </view>
+                </view>
+              </scroll-view>
             </view>
           </view>
           
@@ -249,6 +274,33 @@ const isVideoLiked = ref(false);
 // 回复相关
 const replyTo = ref(null);
 
+// 表情包相关
+const showEmojiPicker = ref(false);
+const emojiList = ref([
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+  '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+  '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+  '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+  '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+  '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠',
+  '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '😮',
+  '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰',
+  '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+  '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈',
+  '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+  '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼',
+  '😽', '🙀', '😿', '😾', '👏', '🙌', '👍', '👎',
+  '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘',
+  '👌', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋',
+  '🤚', '🖐️', '🖖', '👋', '🤙', '💪', '🦾', '🙏',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+  '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+  '💘', '💝', '💟', '⭐', '🌟', '✨', '⚡', '🔥',
+  '💯', '💢', '💥', '💫', '💦', '💨', '🕊️', '🦋',
+  '🌸', '💮', '🏵️', '🌹', '🥀', '🌺', '🌻', '🌼'
+]);
+
 onMounted(async () => {
   console.log('视频播放页面初始化');
   
@@ -323,17 +375,34 @@ const loadVideoInfo = async () => {
   }
 };
 
-// 加载相关视频
+// 加载相关视频（随机）
 const loadRelatedVideos = async () => {
   try {
-    console.log('开始加载相关视频');
-    const response = await videoApi.getRecommendedVideos(10);
+    console.log('开始加载相关视频（随机）');
+    const firstResponse = await videoApi.getVideoPage({
+      current: 1,
+      size: 10,
+      sortField: 'created_time',
+      sortOrder: 'desc'
+    });
     
-    if (response.code === 200 && response.data) {
-      // 过滤出视频内容并排除当前播放的视频
-      const videos = response.data.filter(item => item.type === 2 && item.id != videoId.value);
-      relatedVideos.value = videos.slice(0, 6);
-      console.log('相关视频加载成功，共', relatedVideos.value.length, '个');
+    if (firstResponse.code === 200 && firstResponse.data) {
+      const totalPages = firstResponse.data.pages || 1;
+      const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 5)) + 1 : 1;
+      
+      const response = randomPage === 1 ? firstResponse : await videoApi.getVideoPage({
+        current: randomPage,
+        size: 10,
+        sortField: 'created_time',
+        sortOrder: 'desc'
+      });
+      
+      if (response.data && response.data.records && response.data.records.length > 0) {
+        const videos = response.data.records.filter(item => item.type === 2 && item.id != videoId.value);
+        const shuffled = videos.sort(() => Math.random() - 0.5);
+        relatedVideos.value = shuffled.slice(0, 3);
+        console.log('相关视频加载成功（随机），共', relatedVideos.value.length, '个');
+      }
     }
   } catch (error) {
     console.error('加载相关视频异常：', error);
@@ -567,6 +636,19 @@ const cancelReply = () => {
   commentText.value = '';
 };
 
+// 切换表情包选择器
+const toggleEmojiPicker = () => {
+  console.log('切换表情包选择器，当前状态：', showEmojiPicker.value);
+  showEmojiPicker.value = !showEmojiPicker.value;
+};
+
+// 插入表情
+const insertEmoji = (emoji) => {
+  console.log('插入表情：', emoji);
+  commentText.value += emoji;
+  // 不自动关闭表情选择器，方便连续选择
+};
+
 // 提交评论
 const submitComment = async () => {
   if (!commentText.value.trim()) {
@@ -700,17 +782,218 @@ const goBack = () => {
 
 // 分享视频
 const shareVideo = () => {
-  uni.showActionSheet({
-    itemList: ['分享到微信', '分享到朋友圈', '复制链接'],
-    success: (res) => {
-      console.log('选择分享方式：', res.tapIndex);
+  console.log('开始分享视频：', videoInfo.value.title)
+  
+  if (!videoId.value) {
+    uni.showToast({
+      title: '视频数据未加载',
+      icon: 'none'
+    })
+    return
+  }
+  
+  const shareTitle = videoInfo.value.title || '精彩视频'
+  const shareContent = `推荐观看：《${shareTitle}》`
+  
+  const systemInfo = uni.getSystemInfoSync()
+  console.log('当前平台：', systemInfo.platform)
+  
+  // H5环境
+  // #ifdef H5
+  if (navigator.share) {
+    console.log('使用Web Share API')
+    navigator.share({
+      title: shareTitle,
+      text: shareContent,
+      url: window.location.href
+    }).then(() => {
+      console.log('分享成功')
       uni.showToast({
-        title: '分享功能开发中',
+        title: '分享成功',
+        icon: 'success'
+      })
+    }).catch((error) => {
+      console.error('分享失败：', error)
+      if (error.name !== 'AbortError') {
+        showShareActionSheet()
+      }
+    })
+  } else {
+    console.log('不支持Web Share API，显示分享选项')
+    showShareActionSheet()
+  }
+  // #endif
+  
+  // 小程序环境
+  // #ifdef MP-WEIXIN
+  console.log('微信小程序环境，使用小程序分享')
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    success: () => {
+      uni.showToast({
+        title: '请点击右上角分享',
         icon: 'none'
-      });
+      })
+    },
+    fail: () => {
+      uni.showToast({
+        title: '分享失败',
+        icon: 'none'
+      })
     }
-  });
-};
+  })
+  // #endif
+  
+  // App环境
+  // #ifdef APP-PLUS
+  console.log('App环境，尝试使用系统分享')
+  
+  uni.share({
+    provider: 'system',
+    type: 1,
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/video/${videoId.value}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败，降级使用操作菜单：', err)
+      showShareActionSheet()
+    }
+  })
+  // #endif
+}
+
+// 显示分享操作菜单
+const showShareActionSheet = () => {
+  console.log('显示分享操作菜单')
+  
+  // #ifdef APP-PLUS
+  uni.showActionSheet({
+    itemList: ['复制链接', '使用系统分享', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          copyVideoLink()
+          break
+        case 1:
+          useSystemShare()
+          break
+        case 2:
+          generateSharePoster()
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+  
+  // #ifndef APP-PLUS
+  uni.showActionSheet({
+    itemList: ['复制链接', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          copyVideoLink()
+          break
+        case 1:
+          generateSharePoster()
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+}
+
+// 使用系统分享（App环境）
+const useSystemShare = () => {
+  console.log('使用系统分享')
+  
+  // #ifdef APP-PLUS
+  const shareTitle = videoInfo.value.title || '精彩视频'
+  
+  uni.share({
+    provider: 'system',
+    type: 1,
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/video/${videoId.value}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败：', err)
+      uni.showToast({
+        title: '分享失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+}
+
+// 复制视频链接
+const copyVideoLink = () => {
+  console.log('复制视频链接')
+  
+  let videoLink = ''
+  
+  // #ifdef H5
+  videoLink = window.location.href
+  // #endif
+  
+  // #ifndef H5
+  videoLink = `https://parentreading.com/video/${videoId.value}`
+  // #endif
+  
+  const shareText = `${videoInfo.value.title}\n\n${videoLink}`
+  
+  uni.setClipboardData({
+    data: shareText,
+    success: () => {
+      console.log('链接复制成功')
+      uni.showToast({
+        title: '链接已复制',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败：', err)
+      uni.showToast({
+        title: '复制失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
+// 生成分享海报
+const generateSharePoster = () => {
+  console.log('生成分享海报')
+  uni.showToast({
+    title: '海报生成功能开发中',
+    icon: 'none'
+  })
+}
 
 // 工具函数
 const formatViewCount = (count) => {
@@ -1054,6 +1337,7 @@ const getTagList = (tags) => {
 
 .comment-input-area {
   margin-bottom: 16px;
+  position: relative;
 }
 
 .reply-hint {
@@ -1089,7 +1373,7 @@ const getTagList = (tags) => {
 .comment-input {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 12px;
   background-color: #f9fafb;
   border-radius: 8px;
@@ -1099,6 +1383,28 @@ const getTagList = (tags) => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.emoji-btn-inline {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.emoji-btn-inline:active {
+  background-color: #f3f4f6;
+}
+
+.emoji-btn-inline .fas {
+  color: #6b7280;
+  font-size: 18px;
 }
 
 .comment-text-input {
@@ -1119,6 +1425,7 @@ const getTagList = (tags) => {
   background-color: #e5e7eb;
   border-radius: 50%;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .submit-btn.active {
@@ -1133,6 +1440,101 @@ const getTagList = (tags) => {
 
 .submit-btn.active .fas {
   color: #ffffff;
+}
+
+/* 表情包选择器样式 */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 280px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px 12px 0 0;
+  animation: slideUp 0.3s ease;
+  z-index: 10;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.emoji-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+}
+
+.emoji-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.close-emoji {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-emoji:active {
+  background-color: #e5e7eb;
+}
+
+.close-emoji .fas {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.emoji-list {
+  height: calc(100% - 48px);
+  background-color: #ffffff;
+}
+
+.emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px;
+}
+
+.emoji-item {
+  width: 12.5%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 8px;
+}
+
+.emoji-item:active {
+  background-color: #f3f4f6;
+  transform: scale(1.3);
+}
+
+.emoji-text {
+  font-size: 30px;
+  line-height: 1;
 }
 
 .comments-list {

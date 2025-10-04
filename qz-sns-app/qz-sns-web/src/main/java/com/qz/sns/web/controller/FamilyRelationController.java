@@ -161,62 +161,120 @@ public class FamilyRelationController {
             Map<String, Object> result = new HashMap<>();
             result.put("currentUser", user);
 
-            if (user.getRole() == 1) {
-                // 家长用户 - 获取绑定的孩子列表
-                QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
-                queryWrapper.eq("user_id", userId);
-                List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
-                
-                List<Map<String, Object>> children = relations.stream()
-                    .filter(relation -> {
-                        User child = userService.getUserById(relation.getRelativeId());
-                        return child != null && child.getRole() == 2; // 只保留角色为孩子(2)的用户
-                    })
-                    .map(relation -> {
-                        User child = userService.getUserById(relation.getRelativeId());
-                        Map<String, Object> childInfo = new HashMap<>();
-                        childInfo.put("id", child.getId());
-                        childInfo.put("nickname", child.getNickname());
-                        childInfo.put("username", child.getUsername());
-                        childInfo.put("avatar", child.getAvatar());
-                        childInfo.put("avatarThumb", child.getAvatarThumb());
-                        childInfo.put("bindTime", relation.getCreatedTime());
-                        childInfo.put("relationType", relation.getRelationType()); // 添加关系类型
-                        childInfo.put("sex", child.getSex()); // 添加性别信息
-                        return childInfo;
-                    }).collect(Collectors.toList());
-                
-                result.put("children", children);
-                log.info("家长用户获取家庭成员成功，绑定了{}个孩子", children.size());
-                
-            } else if (user.getRole() == 2) {
-                // 孩子用户 - 获取绑定的家长列表
-                QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
-                queryWrapper.eq("relative_id", userId);
-                List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
-                
-                List<Map<String, Object>> parents = relations.stream()
-                    .filter(relation -> {
-                        User parent = userService.getUserById(relation.getUserId());
-                        return parent != null && parent.getRole() == 1; // 只保留角色为家长(1)的用户
-                    })
-                    .map(relation -> {
-                        User parent = userService.getUserById(relation.getUserId());
-                        Map<String, Object> parentInfo = new HashMap<>();
-                        parentInfo.put("id", parent.getId());
-                        parentInfo.put("nickname", parent.getNickname());
-                        parentInfo.put("username", parent.getUsername());
-                        parentInfo.put("avatar", parent.getAvatar());
-                        parentInfo.put("avatarThumb", parent.getAvatarThumb());
-                        parentInfo.put("bindTime", relation.getCreatedTime());
-                        parentInfo.put("relationType", relation.getRelationType()); // 添加关系类型
-                        parentInfo.put("sex", parent.getSex()); // 添加性别信息
-                        return parentInfo;
-                    }).collect(Collectors.toList());
-                
-                result.put("parents", parents);
-                log.info("孩子用户获取家庭成员成功，绑定了{}个家长", parents.size());
+            // 获取所有家庭关系（不再区分role）
+            QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", userId);
+            List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
+            
+            log.info("用户ID：{}的家庭关系记录数：{}", userId, relations.size());
+            
+            // 转换为家庭成员信息列表
+            List<Map<String, Object>> allMembers = relations.stream()
+                .map(relation -> {
+                    User relative = userService.getUserById(relation.getRelativeId());
+                    if (relative == null) {
+                        log.warn("未找到家庭成员用户，ID：{}", relation.getRelativeId());
+                        return null;
+                    }
+                    
+                    Map<String, Object> memberInfo = new HashMap<>();
+                    memberInfo.put("id", relative.getId());
+                    memberInfo.put("nickname", relative.getNickname());
+                    memberInfo.put("username", relative.getUsername());
+                    memberInfo.put("avatar", relative.getAvatar());
+                    memberInfo.put("avatarThumb", relative.getAvatarThumb());
+                    memberInfo.put("bindTime", relation.getCreatedTime());
+                    memberInfo.put("relationType", relation.getRelationType());
+                    memberInfo.put("sex", relative.getSex());
+                    memberInfo.put("role", relative.getRole());
+                    
+                    log.info("家庭成员 - 昵称：{}，用户名：{}，关系类型：{}", 
+                        relative.getNickname(), relative.getUsername(), relation.getRelationType());
+                    
+                    return memberInfo;
+                })
+                .filter(info -> info != null)
+                .collect(Collectors.toList());
+            
+            // 按关系类型分类家庭成员
+            List<Map<String, Object>> children = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("子") && (relationType.startsWith("父") || relationType.startsWith("母")) ||
+                        relationType.contains("女") && (relationType.startsWith("父") || relationType.startsWith("母"))
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> parents = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("子") && (relationType.contains("父") || relationType.contains("母")) ||
+                        relationType.startsWith("女") && (relationType.contains("父") || relationType.contains("母"))
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            Map<String, Object> spouse = allMembers.stream()
+                .filter(m -> "夫妻".equals(m.get("relationType")))
+                .findFirst()
+                .orElse(null);
+            
+            List<Map<String, Object>> siblings = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("兄") || relationType.contains("弟") ||
+                        relationType.contains("姐") || relationType.contains("妹")
+                    ) && !relationType.contains("父") && !relationType.contains("母");
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> grandparents = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("孙") || relationType.startsWith("女")
+                    ) && (relationType.contains("祖") || relationType.contains("奶") || relationType.contains("外"));
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> grandchildren = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("祖") || relationType.startsWith("奶") || relationType.startsWith("外")
+                    ) && (relationType.contains("孙") || relationType.contains("女"));
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> others = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("叔") || relationType.contains("婶") ||
+                        relationType.contains("侄") || relationType.contains("舅") ||
+                        relationType.contains("甥") || relationType.equals("其他亲属")
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            // 添加所有分类到结果中
+            result.put("children", children);
+            result.put("parents", parents);
+            if (spouse != null) {
+                result.put("spouse", spouse);
             }
+            result.put("siblings", siblings);
+            result.put("grandparents", grandparents);
+            result.put("grandchildren", grandchildren);
+            result.put("others", others);
+            
+            log.info("获取家庭成员成功 - 子女：{}，父母：{}，配偶：{}，兄弟姐妹：{}，祖辈：{}，孙辈：{}，其他：{}", 
+                children.size(), parents.size(), spouse != null ? 1 : 0, 
+                siblings.size(), grandparents.size(), grandchildren.size(), others.size());
 
             return ResultUtils.success(result);
 

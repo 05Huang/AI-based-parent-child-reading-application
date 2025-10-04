@@ -33,7 +33,6 @@
         scroll-x="true" 
         class="category-container" 
         :show-scrollbar="false"
-        :scroll-into-view="activeTab"
         @scroll="handleScroll"
         :scroll-left="scrollLeft"
         :scroll-with-animation="true"
@@ -297,18 +296,35 @@ const loadCategories = async () => {
   }
 };
 
-// 加载推荐视频
+// 加载推荐视频（随机）
 const loadFeaturedVideo = async () => {
   try {
-    console.log('开始加载推荐视频');
-    const response = await videoApi.getHotVideos(10);
+    console.log('开始加载推荐视频（随机）');
+    const firstResponse = await videoApi.getVideoPage({
+      current: 1,
+      size: 10,
+      sortField: 'created_time',
+      sortOrder: 'desc'
+    });
     
-    if (response.code === 200 && response.data && response.data.length > 0) {
-      // 过滤出视频内容（type=2）
-      const videos = response.data.filter(item => item.type === 2);
-      if (videos.length > 0) {
-        featuredVideo.value = videos[0];
-        console.log('推荐视频加载成功：', featuredVideo.value.title, '时长：', featuredVideo.value.contentLength, '秒');
+    if (firstResponse.code === 200 && firstResponse.data) {
+      const totalPages = firstResponse.data.pages || 1;
+      const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 3)) + 1 : 1;
+      
+      const response = randomPage === 1 ? firstResponse : await videoApi.getVideoPage({
+        current: randomPage,
+        size: 10,
+        sortField: 'created_time',
+        sortOrder: 'desc'
+      });
+      
+      if (response.data && response.data.records && response.data.records.length > 0) {
+        const videos = response.data.records.filter(item => item.type === 2);
+        const shuffled = videos.sort(() => Math.random() - 0.5);
+        if (shuffled.length > 0) {
+          featuredVideo.value = shuffled[0];
+          console.log('推荐视频加载成功（随机）：', featuredVideo.value.title);
+        }
       }
     }
   } catch (error) {
@@ -316,34 +332,68 @@ const loadFeaturedVideo = async () => {
   }
 };
 
-// 加载热门视频
+// 加载热门视频（随机）
 const loadHotVideos = async () => {
   try {
-    console.log('开始加载热门视频');
-    const response = await videoApi.getHotVideos(20);
+    console.log('开始加载热门视频（随机）');
+    const firstResponse = await videoApi.getVideoPage({
+      current: 1,
+      size: 10,
+      sortField: 'view_count',
+      sortOrder: 'desc'
+    });
     
-    if (response.code === 200 && response.data) {
-      // 过滤出视频内容（type=2）
-      const videos = response.data.filter(item => item.type === 2);
-      hotVideos.value = videos.slice(1, 4); // 跳过第一个（已用作推荐视频），取2-4个作为热门视频
-      console.log('热门视频加载成功，共', hotVideos.value.length, '个');
+    if (firstResponse.code === 200 && firstResponse.data) {
+      const totalPages = firstResponse.data.pages || 1;
+      const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 5)) + 1 : 1;
+      
+      const response = randomPage === 1 ? firstResponse : await videoApi.getVideoPage({
+        current: randomPage,
+        size: 10,
+        sortField: 'view_count',
+        sortOrder: 'desc'
+      });
+      
+      if (response.data && response.data.records && response.data.records.length > 0) {
+        const videos = response.data.records.filter(item => item.type === 2);
+        const shuffled = videos.sort(() => Math.random() - 0.5);
+        hotVideos.value = shuffled.slice(0, 3);
+        console.log('热门视频加载成功（随机），共', hotVideos.value.length, '个');
+      }
     }
   } catch (error) {
     console.error('加载热门视频失败：', error);
   }
 };
 
-// 加载推荐视频列表
+// 加载推荐视频列表（随机）
 const loadRecommendedVideos = async () => {
   try {
-    console.log('开始加载推荐视频列表');
-    const response = await videoApi.getRecommendedVideos(15);
+    console.log('开始加载推荐视频列表（随机）');
+    const firstResponse = await videoApi.getVideoPage({
+      current: 1,
+      size: 8,
+      sortField: 'created_time',
+      sortOrder: 'desc'
+    });
     
-    if (response.code === 200 && response.data) {
-      // 过滤出视频内容（type=2）
-      const videos = response.data.filter(item => item.type === 2);
-      recommendedVideos.value = videos.slice(4, 6); // 跳过前面已使用的，取两个
-      console.log('推荐视频列表加载成功，共', recommendedVideos.value.length, '个');
+    if (firstResponse.code === 200 && firstResponse.data) {
+      const totalPages = firstResponse.data.pages || 1;
+      const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 5)) + 1 : 1;
+      
+      const response = randomPage === 1 ? firstResponse : await videoApi.getVideoPage({
+        current: randomPage,
+        size: 8,
+        sortField: 'created_time',
+        sortOrder: 'desc'
+      });
+      
+      if (response.data && response.data.records && response.data.records.length > 0) {
+        const videos = response.data.records.filter(item => item.type === 2);
+        const shuffled = videos.sort(() => Math.random() - 0.5);
+        recommendedVideos.value = shuffled.slice(0, 2);
+        console.log('推荐视频列表加载成功（随机），共', recommendedVideos.value.length, '个');
+      }
     }
   } catch (error) {
     console.error('加载推荐视频列表失败：', error);

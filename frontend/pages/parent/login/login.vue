@@ -1,69 +1,148 @@
 <template>
   <view class="login-page">
-    <!-- Logo和标题 -->
-    <view class="header">
-      <view class="logo-box">
-        <text class="fa-solid fa-book-reader"></text>
+    <view class="login-container">
+      <!-- Logo和标题 -->
+      <view class="header">
+        <view class="logo-box">
+          <text class="fa-solid fa-book-reader"></text>
+        </view>
+        <text class="title">亲子阅读</text>
+        <text class="subtitle">与AI一起探索阅读的乐趣</text>
       </view>
-      <text class="title">亲子阅读</text>
-      <text class="subtitle">与AI一起探索阅读的乐趣</text>
+
+      <!-- 登录表单 -->
+      <view class="form-container">
+        <!-- 验证码登录 -->
+        <view v-if="loginMode === 'code'" class="login-form">
+          <view class="input-box">
+            <view class="phone-input">
+              <text class="country-code">+86</text>
+              <text class="divider">|</text>
+              <input type="number" placeholder="请输入手机号" class="phone-number" v-model="phoneNumber" />
+            </view>
+          </view>
+          
+          <view class="input-box">
+            <view class="verify-input">
+              <input type="text" placeholder="请输入验证码" class="verify-code" v-model="verifyCode" />
+              <text 
+                class="verify-btn" 
+                :class="{ 'verify-btn-active': phoneNumber.length === 11 && countdown === 0, 'verify-btn-disabled': countdown > 0 }"
+                @click="getVerifyCode"
+              >
+                {{ countdown > 0 ? `${countdown}s后重新获取` : '获取验证码' }}
+              </text>
+            </view>
+          </view>
+
+          <button class="login-btn" @click="handleLogin">登录</button>
+          
+          <!-- 切换到密码登录 -->
+          <view class="switch-mode">
+            <text class="switch-text" @click="switchLoginMode('password')">使用密码登录</text>
+          </view>
+        </view>
+
+        <!-- 密码登录 -->
+        <view v-else class="login-form">
+          <view class="input-box">
+            <view class="username-input">
+              <text class="fas fa-user input-icon"></text>
+              <input type="text" placeholder="请输入用户名或手机号" class="username-field" v-model="username" />
+            </view>
+          </view>
+          
+          <view class="input-box">
+            <view class="password-input">
+              <text class="fas fa-lock input-icon"></text>
+              <input 
+                :type="showPassword ? 'text' : 'password'" 
+                placeholder="请输入密码" 
+                class="password-field" 
+                v-model="password" 
+              />
+              <text 
+                class="fas input-icon toggle-password" 
+                :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"
+                @click="togglePasswordVisibility"
+              ></text>
+            </view>
+          </view>
+
+          <button class="login-btn" @click="handlePasswordLogin">登录</button>
+          
+          <!-- 切换到验证码登录 -->
+          <view class="switch-mode">
+            <text class="switch-text" @click="switchLoginMode('code')">使用验证码登录</text>
+          </view>
+        </view>
+        
+        <!-- 注册入口 -->
+        <view class="register-entry">
+          <text class="register-text" @click="goToRegister">还没有账号？立即注册</text>
+        </view>
+        
+        <!-- 其他登录选项 -->
+        <view class="other-login">
+          <text class="other-title">其他登录方式</text>
+          <view class="social-buttons">
+            <view class="social-btn" @click="handleWechatLogin">
+              <text class="fab fa-weixin"></text>
+            </view>
+            <view class="social-btn" @click="handleQQLogin">
+              <text class="fab fa-qq"></text>
+            </view>
+            <view class="social-btn" @click="showEmailLoginDialog">
+              <text class="fas fa-envelope"></text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部协议 -->
+      <view class="footer">
+        <text class="agreement">
+          登录即表示同意
+          <text class="link" @click="goToUserAgreement">用户协议</text>
+          和
+          <text class="link" @click="goToPrivacyPolicy">隐私政策</text>
+        </text>
+      </view>
     </view>
 
-    <!-- 登录表单 -->
-    <view class="form-container">
-      <view class="input-box">
-        <view class="phone-input">
-          <text class="country-code">+86</text>
-          <text class="divider">|</text>
-          <input type="number" placeholder="请输入手机号" class="phone-number" v-model="phoneNumber" />
+    <!-- 邮箱验证码登录弹窗 -->
+    <view v-if="emailDialogVisible" class="email-dialog-mask" @click="closeEmailDialog">
+      <view class="email-dialog" @click.stop>
+        <view class="dialog-header">
+          <text class="dialog-title">邮箱验证码登录</text>
+          <text class="fas fa-times close-btn" @click="closeEmailDialog"></text>
         </view>
-      </view>
-      
-      <view class="input-box">
-        <view class="verify-input">
-          <input type="text" placeholder="请输入验证码" class="verify-code" v-model="verifyCode" />
-          <text 
-            class="verify-btn" 
-            :class="{ 'verify-btn-active': phoneNumber.length === 11 && countdown === 0, 'verify-btn-disabled': countdown > 0 }"
-            @click="getVerifyCode"
-          >
-            {{ countdown > 0 ? `${countdown}s后重新获取` : '获取验证码' }}
-          </text>
-        </view>
-      </view>
-
-      <button class="login-btn" @click="handleLogin">登录</button>
-      
-      <!-- 注册入口 -->
-      <view class="register-entry">
-        <text class="register-text" @click="goToRegister">还没有账号？立即注册</text>
-      </view>
-      
-      <!-- 其他登录选项 -->
-      <view class="other-login">
-        <text class="other-title">其他登录方式</text>
-        <view class="social-buttons">
-          <view class="social-btn">
-            <text class="fab fa-weixin"></text>
+        <view class="dialog-body">
+          <view class="input-box">
+            <view class="email-input">
+              <text class="fas fa-envelope input-icon"></text>
+              <input type="text" placeholder="请输入邮箱" class="email-field" v-model="email" />
+            </view>
           </view>
-          <view class="social-btn">
-            <text class="fab fa-qq"></text>
-          </view>
-          <view class="social-btn">
-            <text class="fab fa-apple"></text>
+          
+          <view class="input-box">
+            <view class="verify-input">
+              <input type="text" placeholder="请输入验证码" class="verify-code" v-model="emailVerifyCode" />
+              <text 
+                class="verify-btn" 
+                :class="{ 'verify-btn-active': email && emailCountdown === 0, 'verify-btn-disabled': emailCountdown > 0 }"
+                @click="getEmailVerifyCode"
+              >
+                {{ emailCountdown > 0 ? `${emailCountdown}s后重新获取` : '获取验证码' }}
+              </text>
+            </view>
           </view>
         </view>
+        <view class="dialog-footer">
+          <button class="dialog-btn cancel-btn" @click="closeEmailDialog">取消</button>
+          <button class="dialog-btn confirm-btn" @click="handleEmailLogin">登录</button>
+        </view>
       </view>
-    </view>
-
-    <!-- 底部协议 -->
-    <view class="footer">
-      <text class="agreement">
-        登录即表示同意
-        <text class="link">用户协议</text>
-        和
-        <text class="link">隐私政策</text>
-      </text>
     </view>
   </view>
 </template>
@@ -72,11 +151,28 @@
 import { ref } from 'vue'
 import request from '@/utils/request'
 
-// 定义响应式变量
+console.log('登录页面加载')
+
+// 登录模式：'code' 验证码登录，'password' 密码登录
+const loginMode = ref('code')
+
+// 验证码登录相关变量
 const phoneNumber = ref('')
 const verifyCode = ref('')
 const countdown = ref(0)
 const timer = ref(null)
+
+// 密码登录相关变量
+const username = ref('')
+const password = ref('')
+const showPassword = ref(false)
+
+// 邮箱验证码登录相关变量
+const emailDialogVisible = ref(false)
+const email = ref('')
+const emailVerifyCode = ref('')
+const emailCountdown = ref(0)
+const emailTimer = ref(null)
 
 // 验证手机号格式
 const validatePhone = (phone) => {
@@ -282,23 +378,340 @@ const handleLogin = async () => {
   }
 }
 
+// 切换登录模式
+const switchLoginMode = (mode) => {
+  console.log('切换登录模式到：', mode)
+  loginMode.value = mode
+  
+  // 清空输入
+  if (mode === 'code') {
+    username.value = ''
+    password.value = ''
+  } else {
+    phoneNumber.value = ''
+    verifyCode.value = ''
+  }
+}
+
+// 切换密码可见性
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+}
+
+// 密码登录处理
+const handlePasswordLogin = async () => {
+  console.log('开始密码登录流程')
+  
+  // 验证输入
+  if (!username.value) {
+    uni.showToast({
+      title: '请输入用户名或手机号',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!password.value) {
+    uni.showToast({
+      title: '请输入密码',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('发送密码登录请求，用户名：', username.value)
+    
+    // 调用后端密码登录接口
+    const res = await request.post('/api/user/login', {
+      userName: username.value,
+      password: password.value,
+      terminal: 1  // 终端类型：1表示移动端
+    })
+    
+    console.log('密码登录响应：', res)
+    
+    // 保存token和登录状态
+    console.log('登录成功，保存token：', res.data)
+    uni.setStorageSync('token', res.data.accessToken)
+    uni.setStorageSync('isLoggedIn', true)
+    
+    // 显示登录成功提示并跳转
+    uni.showToast({
+      title: '登录成功',
+      icon: 'success',
+      duration: 1500,
+      success: () => {
+        setTimeout(() => {
+          console.log('准备跳转到首页')
+          uni.switchTab({
+            url: '/pages/parent/home/home',
+            fail: (error) => {
+              console.error('switchTab跳转失败，尝试使用reLaunch', error)
+              uni.reLaunch({
+                url: '/pages/parent/home/home'
+              })
+            }
+          })
+        }, 1500)
+      }
+    })
+  } catch (error) {
+    console.error('密码登录出错：', error)
+    
+    let errorMessage = '登录失败，请检查用户名和密码'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      if (responseData.message) {
+        errorMessage = responseData.message
+      }
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
+    })
+  }
+}
+
+// 显示邮箱登录弹窗
+const showEmailLoginDialog = () => {
+  console.log('显示邮箱验证码登录弹窗')
+  emailDialogVisible.value = true
+}
+
+// 关闭邮箱登录弹窗
+const closeEmailDialog = () => {
+  console.log('关闭邮箱验证码登录弹窗')
+  emailDialogVisible.value = false
+  email.value = ''
+  emailVerifyCode.value = ''
+}
+
+// 验证邮箱格式
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+// 获取邮箱验证码
+const getEmailVerifyCode = async () => {
+  console.log('开始获取邮箱验证码流程')
+  
+  if (!email.value) {
+    uni.showToast({
+      title: '请输入邮箱',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!validateEmail(email.value)) {
+    uni.showToast({
+      title: '请输入正确的邮箱格式',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('发送获取邮箱验证码请求，邮箱：', email.value)
+    
+    // 调用后端接口获取验证码
+    const res = await request.post('/api/user/send-email-code', {
+      email: email.value
+    })
+    
+    console.log('获取邮箱验证码响应：', res)
+    
+    uni.showToast({
+      title: '验证码已发送',
+      icon: 'success'
+    })
+    
+    // 开始倒计时
+    emailCountdown.value = 60
+    emailTimer.value = setInterval(() => {
+      if (emailCountdown.value > 0) {
+        emailCountdown.value--
+      } else {
+        clearInterval(emailTimer.value)
+      }
+    }, 1000)
+  } catch (error) {
+    console.error('获取邮箱验证码出错：', error)
+    
+    let errorMessage = '获取验证码失败，请稍后重试'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      if (responseData.message) {
+        errorMessage = responseData.message
+      }
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
+    })
+  }
+}
+
+// 邮箱验证码登录
+const handleEmailLogin = async () => {
+  console.log('开始邮箱验证码登录流程')
+  
+  if (!email.value) {
+    uni.showToast({
+      title: '请输入邮箱',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!validateEmail(email.value)) {
+    uni.showToast({
+      title: '请输入正确的邮箱格式',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!emailVerifyCode.value) {
+    uni.showToast({
+      title: '请输入验证码',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    console.log('发送邮箱登录请求，邮箱：', email.value)
+    
+    // 调用后端邮箱验证码登录接口
+    const res = await request.post('/api/user/login-by-email', {
+      email: email.value,
+      verificationCode: emailVerifyCode.value,
+      terminal: 1
+    })
+    
+    console.log('邮箱登录响应：', res)
+    
+    // 保存token和登录状态
+    uni.setStorageSync('token', res.data.accessToken)
+    uni.setStorageSync('isLoggedIn', true)
+    
+    // 关闭弹窗
+    closeEmailDialog()
+    
+    // 显示登录成功提示并跳转
+    uni.showToast({
+      title: '登录成功',
+      icon: 'success',
+      duration: 1500,
+      success: () => {
+        setTimeout(() => {
+          uni.switchTab({
+            url: '/pages/parent/home/home',
+            fail: () => {
+              uni.reLaunch({
+                url: '/pages/parent/home/home'
+              })
+            }
+          })
+        }, 1500)
+      }
+    })
+  } catch (error) {
+    console.error('邮箱登录出错：', error)
+    
+    let errorMessage = '登录失败，请检查邮箱和验证码'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      if (responseData.message) {
+        errorMessage = responseData.message
+      }
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
+    })
+  }
+}
+
+// 微信登录（暂未实现）
+const handleWechatLogin = () => {
+  uni.showToast({
+    title: '微信登录功能即将上线',
+    icon: 'none'
+  })
+}
+
+// QQ登录（暂未实现）
+const handleQQLogin = () => {
+  uni.showToast({
+    title: 'QQ登录功能即将上线',
+    icon: 'none'
+  })
+}
+
 const goToRegister = () => {
   uni.navigateTo({
     url: '../register/register'
   })
 }
+
+// 跳转到用户协议
+const goToUserAgreement = () => {
+  console.log('跳转到用户协议页面')
+  uni.navigateTo({
+    url: '/pages/parent/agreement/user-agreement'
+  })
+}
+
+// 跳转到隐私政策
+const goToPrivacyPolicy = () => {
+  console.log('跳转到隐私政策页面')
+  uni.navigateTo({
+    url: '/pages/parent/agreement/privacy-policy'
+  })
+}
 </script>
 
-<style>
+<style scoped>
 /* 引入 Font Awesome */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
 
+/* 禁止页面滚动 */
+page {
+  overflow: hidden;
+  height: 100vh;
+}
+
 .login-page {
-  min-height: 100vh;
+  width: 100%;
+  height: 100vh;
   background-color: #F9FAFB;
+  overflow-y: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.login-container {
+  min-height: 100vh;
   padding: 32rpx;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .header {
@@ -339,10 +752,15 @@ const goToRegister = () => {
 .form-container {
   display: flex;
   flex-direction: column;
-  gap: 32rpx;
   margin: 0 auto;
   width: 85%;
   max-width: 600rpx;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
 }
 
 .input-box {
@@ -351,10 +769,29 @@ const goToRegister = () => {
   padding: 24rpx;
 }
 
-.phone-input, .verify-input {
+.phone-input, .verify-input, .username-input, .password-input, .email-input {
   display: flex;
   align-items: center;
-  height: 48rpx;
+  min-height: 48rpx;
+}
+
+.input-icon {
+  color: #9CA3AF;
+  font-size: 32rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.toggle-password {
+  margin-right: 0;
+  margin-left: 16rpx;
+  cursor: pointer;
+}
+
+.username-field, .password-field, .email-field {
+  flex: 1;
+  font-size: 28rpx;
+  min-width: 0;
 }
 
 .country-code {
@@ -439,9 +876,20 @@ const goToRegister = () => {
   transition: 0s;
 }
 
+.switch-mode {
+  text-align: center;
+  margin-top: 16rpx;
+}
+
+.switch-text {
+  color: rgb(59, 130, 246);
+  font-size: 28rpx;
+  text-decoration: underline;
+}
+
 .register-entry {
   text-align: center;
-  margin-top: 24rpx;
+  margin-top: 32rpx;
 }
 
 .register-text {
@@ -492,8 +940,8 @@ const goToRegister = () => {
   font-size: 40rpx;
 }
 
-.social-btn .fa-apple {
-  color: #000000;
+.social-btn .fa-envelope {
+  color: #EF4444;
   font-size: 40rpx;
 }
 
@@ -516,5 +964,88 @@ const goToRegister = () => {
 input {
   outline: none;
   border: none;
+}
+
+/* 邮箱验证码登录弹窗 */
+.email-dialog-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.email-dialog {
+  width: 85%;
+  max-width: 600rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.dialog-header {
+  padding: 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #E5E7EB;
+}
+
+.dialog-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #1F2937;
+}
+
+.close-btn {
+  font-size: 40rpx;
+  color: #9CA3AF;
+  cursor: pointer;
+}
+
+.dialog-body {
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.dialog-footer {
+  padding: 24rpx 32rpx;
+  display: flex;
+  gap: 24rpx;
+  border-top: 1rpx solid #E5E7EB;
+}
+
+.dialog-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 100rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  border: none;
+  padding: 0;
+}
+
+.cancel-btn {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(96, 165, 250) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 8rpx 16rpx rgba(59, 130, 246, 0.2);
+}
+
+.confirm-btn:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 8rpx rgba(59, 130, 246, 0.15);
 }
 </style> 

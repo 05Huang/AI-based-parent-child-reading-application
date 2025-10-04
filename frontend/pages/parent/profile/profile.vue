@@ -14,6 +14,9 @@
     <view class="main-content">
       <!-- 用户信息卡片 -->
       <view class="user-card">
+        <view class="qr-icon-btn" @click="showMyQRCode">
+          <text class="fas fa-qrcode"></text>
+        </view>
         <view class="user-info">
           <image class="avatar" :src="currentUser.avatar" mode="aspectFill"></image>
           <view class="user-details">
@@ -98,6 +101,70 @@
     </view>
 
     <!-- 底部导航栏 -->
+    
+    <!-- 二维码弹窗 -->
+    <view v-if="showQRModal" class="qr-modal" @click="closeQRModal">
+      <view class="qr-modal-content" @click.stop>
+        <!-- 关闭按钮 -->
+        <view class="qr-close-btn" @click="closeQRModal">
+          <text class="fas fa-times"></text>
+        </view>
+        
+        <!-- 渐变背景装饰 -->
+        <view class="qr-bg-decoration"></view>
+        
+        <view class="qr-modal-body">
+          <!-- 标题区域 -->
+          <view class="qr-title-section">
+            <text class="qr-icon">✨</text>
+            <text class="qr-modal-title">我的专属二维码</text>
+            <text class="qr-subtitle">扫码即可快速绑定家庭成员</text>
+          </view>
+          
+          <!-- 用户信息卡片 -->
+          <view class="qr-user-card">
+            <image class="qr-avatar" :src="currentUser.avatar" mode="aspectFill"></image>
+            <view class="qr-user-info">
+              <text class="qr-nickname">{{ currentUser.nickname }}</text>
+              <text class="qr-username">@{{ currentUser.username }}</text>
+            </view>
+          </view>
+          
+          <!-- 二维码容器 -->
+          <view class="qr-code-container">
+            <view class="qr-code-wrapper" @longpress="saveQRCode">
+              <canvas canvas-id="qrCanvas" class="qr-canvas" :style="{ width: qrSize + 'px', height: qrSize + 'px' }"></canvas>
+              <!-- 四角装饰 -->
+              <view class="qr-corner qr-corner-tl"></view>
+              <view class="qr-corner qr-corner-tr"></view>
+              <view class="qr-corner qr-corner-bl"></view>
+              <view class="qr-corner qr-corner-br"></view>
+            </view>
+            <view class="save-qr-btn" @click="saveQRCode">
+              <text class="fas fa-download"></text>
+              <text class="save-qr-text">保存二维码</text>
+            </view>
+          </view>
+          
+          <!-- 提示信息 -->
+          <view class="qr-tips">
+            <view class="qr-tip-item">
+              <text class="fas fa-mobile-alt qr-tip-icon"></text>
+              <text class="qr-tip-text">打开亲子阅读APP扫一扫</text>
+            </view>
+            <view class="qr-tip-item">
+              <text class="fas fa-users qr-tip-icon"></text>
+              <text class="qr-tip-text">选择关系类型完成绑定</text>
+            </view>
+          </view>
+          
+          <!-- 底部装饰 -->
+          <view class="qr-footer">
+            <text class="qr-footer-text">长按保存二维码 · 分享给家人</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -120,6 +187,8 @@ const userStats = ref({
 })
 
 const intimacyRankingPreview = ref([])
+const showQRModal = ref(false)
+const qrSize = 260
 
 // 页面跳转方法
 const navigateToIntimacyRanking = () => {
@@ -204,6 +273,155 @@ const navigateToSettings = () => {
       })
     }
   })
+}
+
+// 显示我的二维码
+const showMyQRCode = () => {
+  console.log('显示我的二维码，用户信息：', currentUser.value)
+  showQRModal.value = true
+  
+  // 延迟生成二维码，确保canvas已渲染
+  setTimeout(() => {
+    generateQRCode()
+  }, 100)
+}
+
+// 关闭二维码弹窗
+const closeQRModal = () => {
+  showQRModal.value = false
+}
+
+// 生成二维码
+const generateQRCode = () => {
+  const qrContent = `qz-family-bind:${currentUser.value.id}:${currentUser.value.username}`
+  console.log('生成二维码，内容：', qrContent)
+  
+  const ctx = uni.createCanvasContext('qrCanvas')
+  
+  // 使用在线API生成二维码
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(qrContent)}`
+  
+  console.log('二维码URL：', qrUrl)
+  
+  // 下载二维码图片并绘制到canvas
+  uni.downloadFile({
+    url: qrUrl,
+    header: {
+      'Accept': 'image/png'
+    },
+    success: (res) => {
+      if (res.statusCode === 200) {
+        console.log('二维码图片下载成功')
+        ctx.drawImage(res.tempFilePath, 0, 0, qrSize, qrSize)
+        ctx.draw(false, () => {
+          console.log('二维码绘制完成')
+        })
+      } else {
+        console.error('二维码下载失败，状态码：', res.statusCode)
+        drawErrorMessage(ctx)
+      }
+    },
+    fail: (err) => {
+      console.error('二维码图片下载失败：', err)
+      drawErrorMessage(ctx)
+    }
+  })
+}
+
+// 绘制错误提示
+const drawErrorMessage = (ctx) => {
+  ctx.setFillStyle('#f3f4f6')
+  ctx.fillRect(0, 0, qrSize, qrSize)
+  ctx.setFillStyle('#000000')
+  ctx.setFontSize(14)
+  ctx.setTextAlign('center')
+  ctx.fillText('二维码生成失败', qrSize / 2, qrSize / 2)
+  ctx.draw()
+}
+
+// 保存二维码
+const saveQRCode = () => {
+  console.log('开始保存二维码')
+  
+  // #ifdef H5
+  // H5环境：将canvas转为图片并下载
+  uni.canvasToTempFilePath({
+    canvasId: 'qrCanvas',
+    success: (res) => {
+      console.log('Canvas转图片成功：', res.tempFilePath)
+      
+      // 创建a标签下载
+      const link = document.createElement('a')
+      link.href = res.tempFilePath
+      link.download = `${currentUser.value.username}_二维码.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      uni.showToast({
+        title: '二维码已保存',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('Canvas转图片失败：', err)
+      uni.showToast({
+        title: '保存失败，请重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+  
+  // #ifdef APP-PLUS
+  // APP环境：保存到相册
+  uni.canvasToTempFilePath({
+    canvasId: 'qrCanvas',
+    success: (res) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: res.tempFilePath,
+        success: () => {
+          uni.showToast({
+            title: '已保存到相册',
+            icon: 'success'
+          })
+        },
+        fail: (err) => {
+          console.error('保存到相册失败：', err)
+          uni.showToast({
+            title: '保存失败，请检查相册权限',
+            icon: 'none'
+          })
+        }
+      })
+    }
+  })
+  // #endif
+  
+  // #ifdef MP-WEIXIN
+  // 小程序环境：保存到相册
+  uni.canvasToTempFilePath({
+    canvasId: 'qrCanvas',
+    success: (res) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: res.tempFilePath,
+        success: () => {
+          uni.showToast({
+            title: '已保存到相册',
+            icon: 'success'
+          })
+        },
+        fail: (err) => {
+          console.error('保存到相册失败：', err)
+          uni.showToast({
+            title: '保存失败，请授权相册权限',
+            icon: 'none'
+          })
+        }
+      })
+    }
+  })
+  // #endif
 }
 
 // 获取当前用户信息
@@ -394,6 +612,30 @@ onMounted(async () => {
   margin: 24rpx;
   border-radius: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.15);
+  position: relative;
+}
+
+.qr-icon-btn {
+  position: absolute;
+  top: 75rpx;
+  right: 75rpx;
+  width: 72rpx;
+  height: 72rpx;
+  background-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: #ffffff;
+  transition: all 0.3s ease;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.qr-icon-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .user-info {
@@ -770,5 +1012,303 @@ onMounted(async () => {
 .setting-icon,
 .arrow-icon {
   opacity: 0.7;
+}
+
+/* 二维码弹窗 */
+.qr-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(147, 51, 234, 0.9));
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  padding: 40rpx;
+}
+
+.qr-modal-content {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 32rpx;
+  width: 640rpx;
+  max-width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 渐变背景装饰 */
+.qr-bg-decoration {
+  position: absolute;
+  top: -100rpx;
+  right: -100rpx;
+  width: 400rpx;
+  height: 400rpx;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 50%;
+  opacity: 0.1;
+  filter: blur(60rpx);
+}
+
+/* 关闭按钮 */
+.qr-close-btn {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.qr-close-btn:active {
+  transform: scale(0.9);
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.qr-close-btn .fas {
+  font-size: 32rpx;
+  color: #6b7280;
+}
+
+.qr-modal-body {
+  padding: 60rpx 40rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 标题区域 */
+.qr-title-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.qr-icon {
+  font-size: 48rpx;
+  margin-bottom: 16rpx;
+}
+
+.qr-modal-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12rpx;
+  letter-spacing: 1rpx;
+}
+
+.qr-subtitle {
+  font-size: 24rpx;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* 用户信息卡片 */
+.qr-user-card {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #eff6ff, #f3e8ff);
+  padding: 24rpx 32rpx;
+  border-radius: 20rpx;
+  margin-bottom: 40rpx;
+  width: 100%;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.1);
+}
+
+.qr-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  border: 4rpx solid #ffffff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  margin-right: 24rpx;
+}
+
+.qr-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.qr-nickname {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6rpx;
+}
+
+.qr-username {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+/* 二维码容器 */
+.qr-code-container {
+  margin-bottom: 40rpx;
+  width: 100%;
+}
+
+.qr-code-wrapper {
+  position: relative;
+  padding: 32rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+}
+
+.qr-canvas {
+  display: block;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+}
+
+/* 四角装饰 */
+.qr-corner {
+  position: absolute;
+  width: 32rpx;
+  height: 32rpx;
+  border-style: solid;
+  border-color: #3b82f6;
+}
+
+.qr-corner-tl {
+  top: 16rpx;
+  left: 16rpx;
+  border-width: 4rpx 0 0 4rpx;
+  border-radius: 8rpx 0 0 0;
+}
+
+.qr-corner-tr {
+  top: 16rpx;
+  right: 16rpx;
+  border-width: 4rpx 4rpx 0 0;
+  border-radius: 0 8rpx 0 0;
+}
+
+.qr-corner-bl {
+  bottom: 16rpx;
+  left: 16rpx;
+  border-width: 0 0 4rpx 4rpx;
+  border-radius: 0 0 0 8rpx;
+}
+
+.qr-corner-br {
+  bottom: 16rpx;
+  right: 16rpx;
+  border-width: 0 4rpx 4rpx 0;
+  border-radius: 0 0 8rpx 0;
+}
+
+/* 保存二维码按钮 */
+.save-qr-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  padding: 20rpx 32rpx;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 16rpx;
+  transition: all 0.3s ease;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
+}
+
+.save-qr-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(59, 130, 246, 0.3);
+}
+
+.save-qr-btn .fas {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+
+.save-qr-text {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* 提示信息 */
+.qr-tips {
+  width: 100%;
+  margin-bottom: 32rpx;
+}
+
+.qr-tip-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background-color: rgba(59, 130, 246, 0.05);
+  border-radius: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.qr-tip-item:last-child {
+  margin-bottom: 0;
+}
+
+.qr-tip-icon {
+  font-size: 28rpx;
+  color: #3b82f6;
+  margin-right: 20rpx;
+  width: 40rpx;
+  text-align: center;
+}
+
+.qr-tip-text {
+  font-size: 26rpx;
+  color: #4b5563;
+  flex: 1;
+}
+
+/* 底部装饰 */
+.qr-footer {
+  padding-top: 24rpx;
+  border-top: 1rpx solid #e5e7eb;
+  width: 100%;
+}
+
+.qr-footer-text {
+  font-size: 24rpx;
+  color: #9ca3af;
+  text-align: center;
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(60rpx) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 </style> 

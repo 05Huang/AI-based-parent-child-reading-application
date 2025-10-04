@@ -67,37 +67,6 @@
             </view>
             <switch :checked="showDuration" @change="handleDurationChange" color="#3b82f6" />
           </view>
-          <view class="settings-item">
-            <view class="item-left">
-              <text class="fas fa-comment-dots item-icon"></text>
-              <text class="item-text">显示读后感</text>
-            </view>
-            <switch :checked="showReviews" @change="handleReviewsChange" color="#3b82f6" />
-          </view>
-        </view>
-      </view>
-
-      <!-- 自动分享设置 -->
-      <view class="settings-section">
-        <text class="section-title">自动分享设置</text>
-        <view class="settings-list">
-          <view class="settings-item">
-            <view class="item-left">
-              <text class="fas fa-share-alt item-icon"></text>
-              <text class="item-text">完成阅读时自动分享</text>
-            </view>
-            <switch :checked="autoShare" @change="handleAutoShareChange" color="#3b82f6" />
-          </view>
-          <view class="auto-share-options" v-if="autoShare">
-            <view class="share-option">
-              <checkbox :checked="shareToTimeline" @change="handleTimelineChange" color="#3b82f6" />
-              <text class="option-text">分享到朋友圈</text>
-            </view>
-            <view class="share-option">
-              <checkbox :checked="shareToFriends" @change="handleFriendsChange" color="#3b82f6" />
-              <text class="option-text">分享给好友</text>
-            </view>
-          </view>
         </view>
       </view>
 
@@ -110,7 +79,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+// 存储键名
+const STORAGE_KEY = 'reading_visibility_settings'
 
 // 返回上一页
 const goBack = () => {
@@ -120,60 +92,72 @@ const goBack = () => {
 // 可见性设置
 const visibility = ref('friends')
 const setVisibility = (type) => {
+  console.log('设置可见性:', type)
   visibility.value = type
 }
 
 // 详细设置
 const showProgress = ref(true)
 const showDuration = ref(true)
-const showReviews = ref(true)
 
 const handleProgressChange = (e) => {
+  console.log('显示阅读进度变更:', e.detail.value)
   showProgress.value = e.detail.value
 }
 
 const handleDurationChange = (e) => {
+  console.log('显示阅读时长变更:', e.detail.value)
   showDuration.value = e.detail.value
 }
 
-const handleReviewsChange = (e) => {
-  showReviews.value = e.detail.value
-}
+// 页面加载时读取设置
+onMounted(() => {
+  console.log('阅读记录可见性设置页面初始化')
+  loadSettings()
+})
 
-// 自动分享设置
-const autoShare = ref(false)
-const shareToTimeline = ref(false)
-const shareToFriends = ref(false)
-
-const handleAutoShareChange = (e) => {
-  autoShare.value = e.detail.value
-}
-
-const handleTimelineChange = (e) => {
-  shareToTimeline.value = e.detail.value
-}
-
-const handleFriendsChange = (e) => {
-  shareToFriends.value = e.detail.value
+// 读取设置
+const loadSettings = () => {
+  console.log('开始读取阅读记录可见性设置')
+  
+  try {
+    const settings = uni.getStorageSync(STORAGE_KEY)
+    if (settings) {
+      visibility.value = settings.visibility || 'friends'
+      showProgress.value = settings.showProgress !== undefined ? settings.showProgress : true
+      showDuration.value = settings.showDuration !== undefined ? settings.showDuration : true
+      console.log('读取到的设置:', settings)
+    }
+  } catch (error) {
+    console.error('读取阅读记录可见性设置失败:', error)
+  }
 }
 
 // 保存设置
 const handleSave = () => {
-  // 保存设置到本地存储
-  uni.setStorageSync('visibilitySettings', {
-    visibility: visibility.value,
-    showProgress: showProgress.value,
-    showDuration: showDuration.value,
-    showReviews: showReviews.value,
-    autoShare: autoShare.value,
-    shareToTimeline: shareToTimeline.value,
-    shareToFriends: shareToFriends.value
-  })
+  console.log('保存阅读记录可见性设置')
   
-  uni.showToast({
-    title: '设置已保存',
-    icon: 'success'
-  })
+  try {
+    const settings = {
+      visibility: visibility.value,
+      showProgress: showProgress.value,
+      showDuration: showDuration.value
+    }
+    
+    uni.setStorageSync(STORAGE_KEY, settings)
+    console.log('阅读记录可见性设置保存成功:', settings)
+    
+    uni.showToast({
+      title: '设置已保存',
+      icon: 'success'
+    })
+  } catch (error) {
+    console.error('保存阅读记录可见性设置失败:', error)
+    uni.showToast({
+      title: '保存失败',
+      icon: 'error'
+    })
+  }
 }
 </script>
 
@@ -311,30 +295,6 @@ const handleSave = () => {
   font-size: 30rpx;
   color: #111827;
   margin-left: 20rpx;
-}
-
-/* 自动分享选项样式 */
-.auto-share-options {
-  padding: 20rpx;
-  background-color: #f9fafb;
-  margin: 0 20rpx 20rpx;
-  border-radius: 12rpx;
-}
-
-.share-option {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-
-.share-option:last-child {
-  margin-bottom: 0;
-}
-
-.option-text {
-  font-size: 28rpx;
-  color: #4b5563;
-  margin-left: 12rpx;
 }
 
 /* 保存按钮样式 */

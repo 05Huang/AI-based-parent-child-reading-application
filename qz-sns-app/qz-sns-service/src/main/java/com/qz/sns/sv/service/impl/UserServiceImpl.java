@@ -199,21 +199,44 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public LoginVO login(LoginDTO dto) {
-        User user = this.findUserByUserName(dto.getUserName());
+        System.out.println("开始密码登录，用户名/手机号：" + dto.getUserName());
+        
+        // 1. 判断输入的是用户名还是手机号，并查找用户
+        User user = null;
+        if (RegexUtil.isPhone(dto.getUserName())) {
+            // 如果是手机号格式，按手机号查找
+            System.out.println("检测到手机号格式，按手机号查找用户");
+            user = this.findUserByPhone(dto.getUserName());
+        } else {
+            // 否则按用户名查找
+            System.out.println("按用户名查找用户");
+            user = this.findUserByUserName(dto.getUserName());
+        }
+        
+        // 2. 检查用户是否存在
         if (Objects.isNull(user)) {
+            System.out.println("用户不存在");
             throw new GlobalException("用户不存在");
         }
+        
+        System.out.println("找到用户：" + user.getUsername() + "，手机号：" + user.getPhone());
 
+        // 3. 检查账号状态
         if (user.getStatus() == 0) {
+            System.out.println("账号已被封禁");
             throw new GlobalException("您的账号已被管理员封禁,请联系客服!");
         }
 
-        // 验证密码
+        // 4. 验证密码
+        System.out.println("开始验证密码");
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            System.out.println("密码错误");
             throw new GlobalException("密码错误");
         }
+        
+        System.out.println("密码验证成功，准备生成token");
 
-        // 生成token
+        // 5. 生成token
         UserSession session = BeanUtils.copyProperties(user, UserSession.class);
         session.setUserId(user.getId());
         session.setTerminal(dto.getTerminal());
@@ -225,6 +248,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String refreshToken = JwtUtil.sign(user.getId(), strJson, jwtProperties.getRefreshTokenExpireIn(),
                 jwtProperties.getRefreshTokenSecret());
 
+        System.out.println("Token生成成功，返回登录信息");
+        
         LoginVO vo = new LoginVO();
         vo.setAccessToken(accessToken);
         vo.setAccessTokenExpiresIn(jwtProperties.getAccessTokenExpireIn());

@@ -48,43 +48,52 @@
             {{ loading ? '绑定中...' : '绑定家庭成员' }}
           </button>
         </view>
-        <text class="search-tip">提示：请确保输入的是准确的用户名，并选择正确的关系类型</text>
+        <view class="button-container">
+          <button 
+            class="scan-btn" 
+            @click="scanQRCode"
+          >
+            <text class="fas fa-qrcode"></text>
+            扫码绑定
+          </button>
+        </view>
+        <text class="search-tip">提示：请确保输入的是准确的用户名，并选择正确的关系类型，或使用扫码绑定</text>
       </view>
 
       <!-- 已绑定的家庭成员列表 -->
       <view class="children-section">
-        <text class="section-title">已绑定的家庭成员 ({{ childrenList.length }})</text>
-        <view v-if="childrenList.length === 0" class="empty-state">
+        <text class="section-title">已绑定的家庭成员 ({{ familyMembers.length }})</text>
+        <view v-if="familyMembers.length === 0" class="empty-state">
           <text class="fas fa-users empty-icon"></text>
           <text class="empty-text">还没有绑定任何家庭成员</text>
           <text class="empty-tip">使用上方表单添加家庭成员</text>
         </view>
         <view v-else class="children-list">
           <view 
-            v-for="child in childrenList" 
-            :key="child.id" 
+            v-for="member in familyMembers" 
+            :key="member.id" 
             class="child-item"
           >
             <view class="child-avatar">
               <image 
-                :src="child.avatarThumb || child.avatar || '/static/images/avatars/default-child.png'" 
+                :src="member.avatarThumb || member.avatar || '/static/images/avatars/default-child.png'" 
                 class="avatar-img"
                 mode="aspectFill"
               />
             </view>
             <view class="child-info">
-              <text class="child-nickname">{{ child.nickname }}</text>
-              <text class="child-username">@{{ child.username }}</text>
-              <text class="relation-type" v-if="child.relationType">关系：{{ child.relationType }}</text>
-              <text class="bind-time">绑定时间：{{ formatTime(child.bindTime) }}</text>
+              <text class="child-nickname">{{ member.nickname }}</text>
+              <text class="child-username">@{{ member.username }}</text>
+              <text class="relation-type" v-if="member.relationType">关系：{{ member.relationType }}</text>
+              <text class="bind-time">绑定时间：{{ formatTime(member.bindTime) }}</text>
             </view>
             <view class="child-actions">
               <button 
                 class="unbind-btn" 
-                @click="showUnbindConfirm(child)"
-                :disabled="unbindingId === child.id"
+                @click="showUnbindConfirm(member)"
+                :disabled="unbindingId === member.id"
               >
-                {{ unbindingId === child.id ? '解绑中...' : '解绑' }}
+                {{ unbindingId === member.id ? '解绑中...' : '解绑' }}
               </button>
             </view>
           </view>
@@ -103,7 +112,7 @@ import request from '@/utils/request.js'
 // 响应式数据
 const searchUsername = ref('')
 const loading = ref(false)
-const childrenList = ref([])
+const familyMembers = ref([])
 const unbindingId = ref(null)
 const relationTypeIndex = ref(-1)
 const selectedRelationType = ref(null)
@@ -209,8 +218,40 @@ const getFamilyMembers = async () => {
     console.log('获取家庭成员响应：', response)
     
     if (response.code === 200) {
-      childrenList.value = response.data.children || []
-      console.log('已绑定的孩子列表：', childrenList.value)
+      // 合并所有家庭成员（children、parents、spouse等）
+      const allMembers = []
+      
+      if (response.data.children && response.data.children.length > 0) {
+        allMembers.push(...response.data.children)
+      }
+      
+      if (response.data.parents && response.data.parents.length > 0) {
+        allMembers.push(...response.data.parents)
+      }
+      
+      if (response.data.spouse) {
+        allMembers.push(response.data.spouse)
+      }
+      
+      if (response.data.siblings && response.data.siblings.length > 0) {
+        allMembers.push(...response.data.siblings)
+      }
+      
+      if (response.data.grandparents && response.data.grandparents.length > 0) {
+        allMembers.push(...response.data.grandparents)
+      }
+      
+      if (response.data.grandchildren && response.data.grandchildren.length > 0) {
+        allMembers.push(...response.data.grandchildren)
+      }
+      
+      if (response.data.others && response.data.others.length > 0) {
+        allMembers.push(...response.data.others)
+      }
+      
+      familyMembers.value = allMembers
+      console.log('已绑定的家庭成员列表：', familyMembers.value)
+      console.log('家庭成员总数：', allMembers.length)
     }
   } catch (error) {
     console.error('获取家庭成员异常：', error)
@@ -299,32 +340,173 @@ const bindChild = async () => {
     }
 }
 
+// 扫码绑定
+const scanQRCode = () => {
+  console.log('开始扫描二维码')
+  
+  // #ifdef H5
+  // H5环境：提示用户手动输入或使用移动端APP
+  uni.showModal({
+    title: '扫码功能提示',
+    content: 'Web浏览器环境暂不支持扫码功能，建议：\n1. 使用移动端APP扫码\n2. 或手动输入用户名绑定',
+    confirmText: '我知道了',
+    showCancel: false
+  })
+  // #endif
+  
+  // #ifdef APP-PLUS
+  uni.scanCode({
+    success: (res) => {
+      console.log('扫码成功，结果：', res)
+      handleScanResult(res.result)
+    },
+    fail: (err) => {
+      console.error('扫码失败：', err)
+      uni.showToast({
+        title: '扫码失败，请重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+  
+  // #ifdef MP-WEIXIN
+  uni.scanCode({
+    onlyFromCamera: true,
+    scanType: ['qrCode'],
+    success: (res) => {
+      console.log('扫码成功，结果：', res)
+      handleScanResult(res.result)
+    },
+    fail: (err) => {
+      console.error('扫码失败：', err)
+      uni.showToast({
+        title: '扫码失败，请重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+}
+
+// 处理扫码结果
+const handleScanResult = async (scanResult) => {
+  console.log('处理扫码结果：', scanResult)
+  
+  try {
+    // 解析二维码内容，格式：qz-family-bind:{userId}:{username}
+    if (!scanResult.startsWith('qz-family-bind:')) {
+      uni.showToast({
+        title: '无效的二维码',
+        icon: 'none'
+      })
+      return
+    }
+    
+    const parts = scanResult.split(':')
+    if (parts.length < 3) {
+      uni.showToast({
+        title: '二维码格式错误',
+        icon: 'none'
+      })
+      return
+    }
+    
+    const targetUserId = parts[1]
+    const targetUsername = parts[2]
+    
+    console.log('扫描到的用户信息 - ID：', targetUserId, '用户名：', targetUsername)
+    
+    // 弹出关系选择对话框
+    const relationTypeItems = relationTypes.value.map(item => item.label)
+    
+    uni.showActionSheet({
+      title: `即将绑定 ${targetUsername}，请选择关系类型`,
+      itemList: relationTypeItems,
+      success: async (res) => {
+        console.log('选择的关系类型索引：', res.tapIndex)
+        const selectedRelation = relationTypes.value[res.tapIndex]
+        console.log('选择的关系类型：', selectedRelation)
+        
+        // 执行绑定
+        await bindByQRCode(targetUsername, selectedRelation.value)
+      },
+      fail: () => {
+        console.log('用户取消选择关系类型')
+      }
+    })
+    
+  } catch (error) {
+    console.error('解析二维码失败：', error)
+    uni.showToast({
+      title: '二维码解析失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 通过二维码绑定
+const bindByQRCode = async (username, relationType) => {
+  console.log('通过二维码绑定，用户名：', username, '关系类型：', relationType)
+  loading.value = true
+  
+  try {
+    const response = await request.post('/api/family/bind-child', null, {
+      childUsername: username,
+      relationType: relationType
+    })
+    
+    console.log('扫码绑定响应：', response)
+    
+    if (response.code === 200) {
+      uni.showToast({
+        title: '绑定成功',
+        icon: 'success'
+      })
+      // 重新获取列表
+      await getFamilyMembers()
+    }
+  } catch (error) {
+    console.error('扫码绑定异常：', error)
+    if (error && error.message) {
+      console.log('业务错误已由request.js处理，错误信息：', error.message)
+    } else {
+      uni.showToast({
+        title: '绑定失败，请重试',
+        icon: 'none'
+      })
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
 // 显示解绑确认对话框
-const showUnbindConfirm = (child) => {
-  console.log('显示解绑确认对话框，孩子：', child)
+const showUnbindConfirm = (member) => {
+  console.log('显示解绑确认对话框，家庭成员：', member)
   uni.showModal({
     title: '解绑确认',
-    content: `确定要解除与 ${child.nickname} 的绑定关系吗？解绑后将无法查看该孩子的阅读记录。`,
+    content: `确定要解除与 ${member.nickname} 的绑定关系吗？解绑后将无法查看该成员的相关信息。`,
     confirmText: '确认解绑',
     cancelText: '取消',
     confirmColor: '#ef4444',
     success: (res) => {
       if (res.confirm) {
-        confirmUnbind(child)
+        confirmUnbind(member)
       }
     }
   })
 }
 
 // 确认解绑
-const confirmUnbind = async (child) => {
-  console.log('确认解绑孩子，孩子ID：', child.id)
-  unbindingId.value = child.id
+const confirmUnbind = async (member) => {
+  console.log('确认解绑家庭成员，成员ID：', member.id)
+  unbindingId.value = member.id
 
   try {
-    const response = await request.delete(`/api/family/unbind/${child.id}`)
+    const response = await request.delete(`/api/family/unbind/${member.id}`)
 
-    console.log('解绑孩子响应：', response)
+    console.log('解绑家庭成员响应：', response)
 
     if (response.code === 200) {
       uni.showToast({
@@ -335,7 +517,7 @@ const confirmUnbind = async (child) => {
       await getFamilyMembers()
     }
   } catch (error) {
-    console.error('解绑孩子异常：', error)
+    console.error('解绑家庭成员异常：', error)
     // 如果error包含业务错误信息，request.js已经处理；否则显示网络错误
     if (error && error.message) {
       console.log('业务错误已由request.js处理，错误信息：', error.message)
@@ -503,6 +685,25 @@ const formatTime = (timeStr) => {
 .bind-btn:disabled {
   background-color: #9ca3af;
   opacity: 0.6;
+}
+
+.scan-btn {
+  width: 100%;
+  height: 88rpx;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.scan-btn .fas {
+  font-size: 36rpx;
 }
 
 .search-tip {

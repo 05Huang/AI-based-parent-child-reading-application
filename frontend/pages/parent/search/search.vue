@@ -59,6 +59,47 @@
           </view>
         </view>
       </view>
+
+      <!-- 推荐内容 -->
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">推荐内容</text>
+          <text class="refresh-text" @click="loadRecommendedContent">
+            <text class="fas fa-sync-alt"></text>
+            换一换
+          </text>
+        </view>
+        <view class="recommended-grid">
+          <view 
+            v-for="item in recommendedContent" 
+            :key="item.id"
+            class="recommended-item"
+            @click="navigateToContent(item)"
+          >
+            <view class="recommended-cover">
+              <image 
+                :src="item.cover" 
+                mode="aspectFill"
+                class="cover-image"
+              ></image>
+              <!-- 内容类型标识 -->
+              <view class="content-badge" :class="{ 'video-badge': item.type === 2 }">
+                <text class="fas" :class="item.type === 2 ? 'fa-play' : 'fa-file-alt'"></text>
+              </view>
+            </view>
+            <view class="recommended-info">
+              <text class="recommended-title">{{ item.title }}</text>
+              <view class="recommended-meta">
+                <text class="recommended-author">{{ item.author }}</text>
+                <view class="recommended-stats">
+                  <text class="fas fa-eye"></text>
+                  <text class="stats-text">{{ item.views }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 搜索结果 -->
@@ -117,7 +158,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { searchApi } from '@/utils/api.js'
+import { searchApi, contentApi } from '@/utils/api.js'
 
 // 搜索文本
 const searchText = ref('')
@@ -143,11 +184,15 @@ const suggestionTags = ref([
   '亲子阅读'
 ])
 
+// 推荐内容
+const recommendedContent = ref([])
+
 // 页面初始化
 onMounted(() => {
   console.log('搜索页面初始化')
   loadSearchHistory()
   loadHotSearchKeywords()
+  loadRecommendedContent()
 })
 
 // 从本地存储加载搜索历史
@@ -375,6 +420,55 @@ const loadMore = async () => {
     })
   } finally {
     isLoading.value = false
+  }
+}
+
+// 加载推荐内容
+const loadRecommendedContent = async () => {
+  try {
+    console.log('开始加载推荐内容（随机）')
+    
+    // 先获取第一页确定总页数
+    const firstResponse = await contentApi.getContentPage({
+      current: 1,
+      size: 10,
+      status: 1,
+      sortField: 'created_time',
+      sortOrder: 'desc'
+    })
+    
+    if (firstResponse && firstResponse.data) {
+      const totalPages = firstResponse.data.pages || 1
+      // 随机选择一页（最多前10页）
+      const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 10)) + 1 : 1
+      
+      // 获取随机页的数据
+      const response = randomPage === 1 ? firstResponse : await contentApi.getContentPage({
+        current: randomPage,
+        size: 10,
+        status: 1,
+        sortField: 'created_time',
+        sortOrder: 'desc'
+      })
+      
+      if (response.data && response.data.records) {
+        // 随机打乱并选择6个
+        const shuffled = response.data.records.sort(() => Math.random() - 0.5).slice(0, 6)
+        
+        recommendedContent.value = shuffled.map(item => ({
+          id: item.id,
+          cover: item.coverUrl || 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=400&fit=crop',
+          title: item.title || '无标题',
+          author: item.creatorName || '匿名作者',
+          views: formatViewCount(item.viewCount || 0),
+          type: item.type || 1
+        }))
+        
+        console.log('推荐内容加载成功，共', recommendedContent.value.length, '条')
+      }
+    }
+  } catch (error) {
+    console.error('加载推荐内容失败：', error)
   }
 }
 
@@ -731,5 +825,180 @@ const navigateToContent = (item) => {
 
 .suggestion-tag:active {
   background-color: #dbeafe;
+}
+
+/* 推荐内容样式 */
+.refresh-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+.refresh-text .fas {
+  font-size: 12px;
+}
+
+.recommended-grid {
+  column-count: 2;
+  column-gap: 12px;
+}
+
+.recommended-item {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.6s ease-out;
+  break-inside: avoid;
+  margin-bottom: 12px;
+  display: inline-block;
+  width: 100%;
+}
+
+/* 实现错落效果：随机高度 */
+.recommended-item:nth-child(6n+1) .recommended-cover {
+  height: 180px;
+}
+
+.recommended-item:nth-child(6n+2) .recommended-cover {
+  height: 160px;
+}
+
+.recommended-item:nth-child(6n+3) .recommended-cover {
+  height: 200px;
+}
+
+.recommended-item:nth-child(6n+4) .recommended-cover {
+  height: 140px;
+}
+
+.recommended-item:nth-child(6n+5) .recommended-cover {
+  height: 170px;
+}
+
+.recommended-item:nth-child(6n) .recommended-cover {
+  height: 190px;
+}
+
+.recommended-item:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.recommended-cover {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.content-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-badge.video-badge {
+  background-color: rgba(234, 179, 8, 0.9);
+}
+
+.content-badge .fas {
+  color: white;
+  font-size: 12px;
+}
+
+.recommended-info {
+  padding: 12px;
+}
+
+.recommended-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.4;
+  height: 19.6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recommended-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recommended-author {
+  font-size: 12px;
+  color: #6b7280;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.recommended-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.recommended-stats .fas {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.stats-text {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 响应式设计 */
+@media screen and (min-width: 768px) {
+  .recommended-grid {
+    column-count: 3;
+    column-gap: 16px;
+  }
+  
+  .recommended-item {
+    margin-bottom: 16px;
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .recommended-grid {
+    column-count: 4;
+  }
 }
 </style> 

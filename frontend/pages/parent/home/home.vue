@@ -121,17 +121,23 @@
               mode="aspectFill"
             ></image>
             <view class="hot-book-info">
-              <text class="hot-book-title">{{ item.title }}</text>
-              <text class="hot-book-author">{{ item.creatorName || '匿名作者' }}</text>
-              <text class="hot-book-tags">{{ item.tags || '热门推荐' }}</text>
-              <view class="hot-book-stats">
-                <view class="rating" @click.stop="toggleLike(item, 'hot')">
-                  <text class="fas fa-thumbs-up rating-icon" :class="{ 'liked': item.isLiked }"></text>
-                  <text class="rating-text">{{ formatViewCount(item.likeCount) }}</text>
+              <view class="hot-book-content">
+                <text class="hot-book-title">{{ item.title }}</text>
+                <text class="hot-book-author">作者：{{ item.creatorName || '匿名作者' }}</text>
+              </view>
+              <view class="hot-book-footer">
+                <view class="hot-book-tags-wrapper">
+                  <text class="hot-book-tag">{{ item.tags || '热门推荐' }}</text>
                 </view>
-                <view class="views">
-                  <text class="fas fa-eye views-icon"></text>
-                  <text class="views-text">{{ formatViewCount(item.viewCount) }}</text>
+                <view class="hot-book-stats">
+                  <view class="stat-item" @click.stop="toggleLike(item, 'hot')">
+                    <text class="fas fa-thumbs-up stat-icon" :class="{ 'liked': item.isLiked }"></text>
+                    <text class="stat-text">{{ formatViewCount(item.likeCount) }}</text>
+                  </view>
+                  <view class="stat-item">
+                    <text class="fas fa-eye stat-icon"></text>
+                    <text class="stat-text">{{ formatViewCount(item.viewCount) }}</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -240,25 +246,47 @@ const loadHomeData = async () => {
 // 加载精选推荐内容
 const loadRecommendedContents = async () => {
   try {
-    console.log('开始加载精选推荐内容...')
-    // 这里可以使用推荐接口，也可以使用分页查询接口按推荐分数排序
-    // 先尝试使用分页查询，按推荐分数排序
-    const response = await contentApi.getContentPage({
+    console.log('开始加载精选推荐内容（随机排序）...')
+    
+    // 先获取总页数
+    const firstResponse = await contentApi.getContentPage({
       current: 1,
       size: 6,
-      sortField: 'recommendation_score',
+      sortField: 'created_time',
       sortOrder: 'desc',
-      status: 1, // 只查询正常状态的内容
-      type: 1 // 只查询文章内容，不包含视频（type=2）
+      status: 1,
+      type: 1
     })
     
-    if (response && response.data && response.data.records) {
-      // 为每个内容添加点赞状态
+    if (!firstResponse || !firstResponse.data || !firstResponse.data.records) {
+      console.warn('精选推荐内容响应格式异常：', firstResponse)
+      return
+    }
+    
+    const totalPages = firstResponse.data.pages || 1
+    console.log('总页数：', totalPages)
+    
+    // 随机选择页码，但不超过总页数
+    const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 3)) + 1 : 1
+    console.log('随机选择第', randomPage, '页')
+    
+    const response = randomPage === 1 ? firstResponse : await contentApi.getContentPage({
+      current: randomPage,
+      size: 6,
+      sortField: 'created_time',
+      sortOrder: 'desc',
+      status: 1,
+      type: 1
+    })
+    
+    if (response && response.data && response.data.records && response.data.records.length > 0) {
+      // 随机打乱数组
+      const shuffled = response.data.records.sort(() => Math.random() - 0.5)
+      
       recommendedContents.value = await Promise.all(
-        response.data.records.map(async (item) => {
+        shuffled.map(async (item) => {
           const contentWithLikeStatus = { ...item, isLiked: false }
           
-          // 获取当前用户对该内容的点赞状态
           if (currentUser.value?.id) {
             try {
               const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
@@ -271,13 +299,12 @@ const loadRecommendedContents = async () => {
           return contentWithLikeStatus
         })
       )
-      console.log('精选推荐内容加载成功：', recommendedContents.value.length, '条')
+      console.log('精选推荐内容加载成功（随机）：', recommendedContents.value.length, '条')
     } else {
-      console.warn('精选推荐内容响应格式异常：', response)
+      console.warn('精选推荐内容为空')
     }
   } catch (error) {
     console.error('加载精选推荐内容失败：', error)
-    // 如果推荐接口失败，降级使用普通查询
     await loadContentsFallback('recommended')
   }
 }
@@ -293,35 +320,51 @@ const loadHotContents = async () => {
   }
 }
 
-// 降级方案：使用普通分页查询
+// 降级方案：使用普通分页查询（随机）
 const loadContentsFallback = async (type) => {
   try {
-    console.log(`使用降级方案加载${type}内容...`)
-    const params = {
+    console.log(`使用降级方案加载${type}内容（随机）...`)
+    
+    // 先获取第一页确定总页数
+    const firstParams = {
       current: 1,
-      size: type === 'recommended' ? 6 : 4,
+      size: type === 'recommended' ? 6 : 8,
       status: 1,
-      type: 1 // 只查询文章内容，不包含视频（type=2）
+      type: 1,
+      sortField: type === 'recommended' ? 'created_time' : 'view_count',
+      sortOrder: 'desc'
     }
     
-    // 根据类型设置不同的排序
-    if (type === 'recommended') {
-      params.sortField = 'created_time'
-      params.sortOrder = 'desc'
-    } else {
-      params.sortField = 'view_count'
-      params.sortOrder = 'desc'
+    const firstResponse = await contentApi.getContentPage(firstParams)
+    
+    if (!firstResponse || !firstResponse.data || !firstResponse.data.records) {
+      console.warn(`${type}内容响应格式异常`)
+      return
     }
     
-    const response = await contentApi.getContentPage(params)
+    const totalPages = firstResponse.data.pages || 1
+    console.log(`${type}总页数：`, totalPages)
     
-    if (response && response.data && response.data.records) {
-      // 为每个内容添加点赞状态
+    // 随机选择页码，但不超过总页数
+    const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 5)) + 1 : 1
+    console.log(`${type}随机选择第`, randomPage, '页')
+    
+    const response = randomPage === 1 ? firstResponse : await contentApi.getContentPage({
+      ...firstParams,
+      current: randomPage
+    })
+    
+    if (response && response.data && response.data.records && response.data.records.length > 0) {
+      // 随机打乱数组
+      const shuffled = response.data.records.sort(() => Math.random() - 0.5)
+      
+      // 热门只取前4个
+      const finalRecords = type === 'hot' ? shuffled.slice(0, 4) : shuffled
+      
       const contentsWithLikeStatus = await Promise.all(
-        response.data.records.map(async (item) => {
+        finalRecords.map(async (item) => {
           const contentWithLikeStatus = { ...item, isLiked: false }
           
-          // 获取当前用户对该内容的点赞状态
           if (currentUser.value?.id) {
             try {
               const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
@@ -340,7 +383,9 @@ const loadContentsFallback = async (type) => {
       } else {
         hotContents.value = contentsWithLikeStatus
       }
-      console.log(`${type}内容降级加载成功：`, response.data.records.length, '条')
+      console.log(`${type}内容降级加载成功（随机）：`, contentsWithLikeStatus.length, '条')
+    } else {
+      console.warn(`${type}内容为空`)
     }
   } catch (error) {
     console.error(`降级加载${type}内容失败：`, error)
@@ -862,95 +907,115 @@ const toggleLike = async (item, listType) => {
 .hot-book-item {
   display: flex;
   background-color: #fff;
-  border-radius: 20rpx;
-  padding: 20rpx;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.hot-book-item:hover {
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  transform: translateY(-2rpx);
 }
 
 .hot-book-cover {
-  width: 180rpx;
-  height: 240rpx;
-  border-radius: 10rpx;
+  width: 200rpx;
+  height: 260rpx;
+  border-radius: 12rpx;
   object-fit: cover;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .hot-book-info {
   flex: 1;
-  margin-left: 20rpx;
+  margin-left: 24rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hot-book-content {
+  flex: 1;
 }
 
 .hot-book-title {
   font-size: 32rpx;
-  font-weight: 500;
-  margin-bottom: 12rpx;
-  line-height: 1.4;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
 }
 
 .hot-book-author {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #6b7280;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
+  display: block;
 }
 
-.hot-book-tags {
-  font-size: 24rpx;
-  color: #9ca3af;
-  margin-bottom: 20rpx;
+.hot-book-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.hot-book-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.hot-book-tag {
+  display: inline-block;
+  padding: 8rpx 20rpx;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+  font-size: 22rpx;
+  border-radius: 24rpx;
+  font-weight: 500;
 }
 
 .hot-book-stats {
   display: flex;
   align-items: center;
+  gap: 32rpx;
 }
 
-.rating {
+.stat-item {
   display: flex;
   align-items: center;
-  margin-right: 80rpx;
-  cursor: pointer;
-  padding: 10rpx;
-  margin: -10rpx;
-  border-radius: 8rpx;
-  transition: background-color 0.3s ease;
+  gap: 8rpx;
+  padding: 8rpx 16rpx;
+  background-color: #f9fafb;
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
 }
 
-.rating:hover {
-  background-color: rgba(244, 63, 94, 0.1);
+.stat-item:active {
+  background-color: #f3f4f6;
+  transform: scale(0.95);
 }
 
-.rating-icon {
-  color: #9ca3af;
+.stat-icon {
   font-size: 24rpx;
+  color: #9ca3af;
   transition: color 0.3s ease;
 }
 
-.rating-icon.liked {
-  color: #f43f5e;
+.stat-icon.liked {
+  color: #3b82f6;
 }
 
-.rating-text {
+.stat-text {
   font-size: 24rpx;
   color: #6b7280;
-  margin-left: 10rpx;
-}
-
-.views {
-  display: flex;
-  align-items: center;
-}
-
-.views-icon {
-  color: #9ca3af;
-  font-size: 24rpx;
-}
-
-.views-text {
-  font-size: 24rpx;
-  color: #6b7280;
-  margin-left: 10rpx;
+  font-weight: 500;
 }
 
 /* 隐藏滚动条 */

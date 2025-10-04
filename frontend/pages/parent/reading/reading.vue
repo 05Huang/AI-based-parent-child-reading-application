@@ -13,7 +13,7 @@
           <view class="action-btn" @click="goToReadingMode">
             <text class="fas fa-font"></text>
           </view>
-          <view class="action-btn">
+          <view class="action-btn" @click="shareArticle">
             <text class="fas fa-share-alt"></text>
           </view>
           <view class="action-btn" @click="toggleBookmark">
@@ -76,7 +76,7 @@
               <view v-if="!hasShownTip" class="function-tip">
                 <view class="tip-content">
                   <text class="fas fa-lightbulb"></text>
-                  <text class="tip-text">💡 点击段落右侧的评论按钮可以对该段落进行评论，长按段落可以复制内容</text>
+                  <text class="tip-text">点击段落右侧的评论按钮可以对该段落进行评论，长按段落可以复制内容</text>
                   <view class="tip-close" @click="closeTip">
                     <text class="fas fa-times"></text>
                   </view>
@@ -115,14 +115,9 @@
         </view>
       </scroll-view>
 
-      <!-- 左右翻页指示器 -->
-      <view class="page-indicators">
-        <view class="page-btn prev" @click="scrollToTop" v-if="showTopBtn">
-          <text class="fas fa-arrow-up"></text>
-        </view>
-        <view class="page-btn next" @click="scrollToBottom" v-if="showBottomBtn">
-          <text class="fas fa-arrow-down"></text>
-        </view>
+      <!-- 回到顶部按钮 -->
+      <view class="back-to-top" @click="scrollToTop" v-if="showTopBtn">
+        <text class="fas fa-arrow-up"></text>
       </view>
     </view>
 
@@ -186,7 +181,6 @@ const currentUser = ref(null)
 // 交互状态
 const scrollTop = ref(0)
 const showTopBtn = ref(false)
-const showBottomBtn = ref(true)
 const isBookmarked = ref(false)
 const isLiked = ref(false)
 const readingProgress = ref(0)
@@ -429,35 +423,99 @@ const goToReadingMode = () => {
 
 // 滚动处理
 const onScroll = (e) => {
-  const { scrollTop: newScrollTop, scrollHeight } = e.detail
-  scrollTop.value = newScrollTop
+  console.log('滚动事件原始数据：', e)
+  console.log('e.detail:', e.detail)
   
-  // 计算阅读进度
-  const clientHeight = e.detail.height || 0
-  if (scrollHeight > clientHeight && scrollHeight > 0) {
-    const progress = Math.round((newScrollTop / (scrollHeight - clientHeight)) * 100)
-    readingProgress.value = Math.max(0, Math.min(100, progress)) // 确保在0-100范围内
+  // 兼容不同平台的参数获取方式
+  const detail = e.detail || {}
+  const newScrollTop = detail.scrollTop || 0
+  const scrollHeight = detail.scrollHeight || 0
+  const clientHeight = detail.scrollHeight ? (detail.height || detail.clientHeight || 0) : 0
+  
+  // 如果scrollHeight为0，尝试通过查询DOM获取
+  if (scrollHeight === 0 || clientHeight === 0) {
+    // 使用uni.createSelectorQuery查询实际高度
+    uni.createSelectorQuery().in(this).select('.content-scroll').boundingClientRect((scrollData) => {
+      if (scrollData) {
+        uni.createSelectorQuery().in(this).select('.article-content').boundingClientRect((contentData) => {
+          if (contentData) {
+            const actualScrollHeight = contentData.height
+            const actualClientHeight = scrollData.height
+            
+            console.log('通过查询获取的高度：', {
+              scrollHeight: actualScrollHeight,
+              clientHeight: actualClientHeight,
+              scrollTop: newScrollTop
+            })
+            
+            // 使用查询到的高度计算进度
+            calculateProgress(newScrollTop, actualScrollHeight, actualClientHeight)
+          }
+        }).exec()
+      }
+    }).exec()
   } else {
-    readingProgress.value = 0
+    // 使用事件参数计算进度
+    console.log('使用事件参数计算，数据：', {
+      scrollTop: newScrollTop,
+      scrollHeight: scrollHeight,
+      clientHeight: clientHeight
+    })
+    calculateProgress(newScrollTop, scrollHeight, clientHeight)
   }
   
-  // 显示/隐藏上下按钮
-  showTopBtn.value = newScrollTop > 100
-  showBottomBtn.value = readingProgress.value < 95
+  scrollTop.value = newScrollTop
+  
+  // 显示/隐藏回到顶部按钮（滚动超过200px时显示）
+  showTopBtn.value = newScrollTop > 200
 }
 
-// 滚动控制
-const scrollToTop = () => {
-  scrollTop.value = 0
-}
-
-const scrollToBottom = () => {
-  const query = uni.createSelectorQuery().in(this)
-  query.select('.content-scroll').boundingClientRect((data) => {
-    if (data) {
-      scrollTop.value = data.height
+// 计算阅读进度的独立函数
+const calculateProgress = (currentScrollTop, totalHeight, visibleHeight) => {
+  console.log('开始计算阅读进度，参数：', {
+    currentScrollTop,
+    totalHeight,
+    visibleHeight
+  })
+  
+  if (totalHeight > 0 && visibleHeight > 0) {
+    // 可滚动的最大距离 = 总高度 - 可见高度
+    const maxScrollTop = totalHeight - visibleHeight
+    
+    console.log('最大可滚动距离：', maxScrollTop)
+    
+    if (maxScrollTop > 0) {
+      // 当前滚动进度 = (已滚动距离 / 可滚动的最大距离) * 100
+      const progress = Math.round((currentScrollTop / maxScrollTop) * 100)
+      readingProgress.value = Math.max(0, Math.min(100, progress))
+      
+      console.log('阅读进度计算结果：', {
+        maxScrollTop,
+        currentScroll: currentScrollTop,
+        progress: readingProgress.value
+      })
+    } else {
+      // 如果内容高度小于或等于可见高度，说明不需要滚动，进度为100%
+      console.log('内容无需滚动，进度设为100%')
+      readingProgress.value = 100
     }
-  }).exec()
+  } else {
+    console.log('高度参数无效，进度设为0')
+    readingProgress.value = 0
+  }
+}
+
+// 滚动到顶部
+const scrollToTop = () => {
+  console.log('点击回到顶部')
+  scrollTop.value = 0
+  
+  // 显示提示
+  uni.showToast({
+    title: '已回到顶部',
+    icon: 'none',
+    duration: 1000
+  })
 }
 
 // 交互功能 - 收藏/取消收藏
@@ -605,11 +663,16 @@ const parseArticleContent = async () => {
         const idMatch = fullMatch.match(/id=["']([^"']+)["']/i)
         const paragraphId = idMatch ? idMatch[1] : `para-temp-${paragraphIndex++}`
         
-        // 提取纯文本内容
-        const textContent = innerContent.replace(/<[^>]*>/g, '').trim()
+        // 提取纯文本内容，并将HTML实体转换为纯文本
+        let textContent = innerContent.replace(/<[^>]*>/g, '').trim()
+        // 将 &nbsp; 等HTML实体替换为空格，然后再次trim
+        textContent = textContent.replace(/&nbsp;/gi, ' ').replace(/&\w+;/g, ' ').trim()
         
-        // 如果段落有文本内容才添加评论功能
-        if (textContent && textContent.length > 5 && !/^[\s\u00A0\u3000]*$/.test(textContent)) { // 至少要有5个字符且不是空白字符才显示评论按钮
+        // 检查是否只包含空白字符（包括空格、&nbsp;、全角空格等）
+        const isOnlyWhitespace = !textContent || /^[\s\u00A0\u3000]+$/.test(textContent)
+        
+        // 如果段落有实际文本内容才添加评论功能
+        if (textContent && textContent.length > 5 && !isOnlyWhitespace) { // 至少要有5个字符且不是纯空白字符
           paragraphs.push({
             id: paragraphId,
             content: fullMatch,
@@ -629,6 +692,7 @@ const parseArticleContent = async () => {
             isImage: true
           })
         }
+        // 否则，忽略这个只包含空白字符的段落
       }
     }
     
@@ -640,14 +704,21 @@ const parseArticleContent = async () => {
         '<img$1 style="width: 100%; height: auto; max-width: 600px; border-radius: 8px; margin: 16px 0; display: block;"$2>'
       )
       
-      const textContent = htmlContent.replace(/<[^>]*>/g, '').trim()
+      // 提取文本内容并清理HTML实体
+      let textContent = htmlContent.replace(/<[^>]*>/g, '').trim()
+      textContent = textContent.replace(/&nbsp;/gi, ' ').replace(/&\w+;/g, ' ').trim()
+      
+      // 检查是否只包含空白字符
+      const isOnlyWhitespace = !textContent || /^[\s\u00A0\u3000]+$/.test(textContent)
+      const hasValidText = textContent && textContent.length > 5 && !isOnlyWhitespace
+      
       paragraphs.push({
-        id: (textContent && textContent.length > 5 && !/^[\s\u00A0\u3000]*$/.test(textContent)) ? 'para-fallback-0' : null,
+        id: hasValidText ? 'para-fallback-0' : null,
         content: processedContent,
         text: textContent,
         tagName: 'div',
         commentCount: 0,
-        isImage: !(textContent && textContent.length > 5)
+        isImage: !hasValidText
       })
     }
     
@@ -766,6 +837,241 @@ const onRichTextClick = (event) => {
   console.log('富文本点击事件：', event)
   // 这里可以处理图片点击等事件
 }
+
+// 分享文章
+const shareArticle = () => {
+  console.log('开始分享文章：', article.value.title)
+  
+  if (!article.value.id) {
+    uni.showToast({
+      title: '文章数据未加载',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 构建分享内容
+  const shareTitle = article.value.title || '精彩文章'
+  const shareContent = `推荐阅读：《${shareTitle}》`
+  
+  // 检测平台
+  const systemInfo = uni.getSystemInfoSync()
+  console.log('当前平台：', systemInfo.platform)
+  
+  // H5环境下使用系统分享或显示分享选项
+  // #ifdef H5
+  if (navigator.share) {
+    console.log('使用Web Share API')
+    navigator.share({
+      title: shareTitle,
+      text: shareContent,
+      url: window.location.href
+    }).then(() => {
+      console.log('分享成功')
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    }).catch((error) => {
+      console.error('分享失败：', error)
+      // 如果用户取消分享，不显示错误提示
+      if (error.name !== 'AbortError') {
+        showShareActionSheet()
+      }
+    })
+  } else {
+    console.log('不支持Web Share API，显示分享选项')
+    showShareActionSheet()
+  }
+  // #endif
+  
+  // 小程序环境下使用小程序分享
+  // #ifdef MP-WEIXIN
+  console.log('微信小程序环境，使用小程序分享')
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    success: () => {
+      uni.showToast({
+        title: '请点击右上角分享',
+        icon: 'none'
+      })
+    },
+    fail: () => {
+      uni.showToast({
+        title: '分享失败',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+  
+  // App环境下优先使用系统分享
+  // #ifdef APP-PLUS
+  console.log('App环境，尝试使用系统分享')
+  
+  // 优先使用uni.share()原生分享
+  uni.share({
+    provider: 'system', // 使用系统分享
+    type: 1, // 图文分享
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${article.value.id}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败，降级使用操作菜单：', err)
+      // 如果系统分享不可用，降级使用操作菜单
+      showShareActionSheet()
+    }
+  })
+  // #endif
+}
+
+// 显示分享操作菜单
+const showShareActionSheet = () => {
+  console.log('显示分享操作菜单')
+  
+  // #ifdef APP-PLUS
+  // App环境下提供更多分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '使用系统分享', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          // 复制链接
+          copyArticleLink()
+          break
+        case 1:
+          // 使用系统分享
+          useSystemShare()
+          break
+        case 2:
+          // 生成分享海报
+          generateSharePoster()
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+  
+  // #ifndef APP-PLUS
+  // 非App环境下的分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          copyArticleLink()
+          break
+        case 1:
+          generateSharePoster()
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+}
+
+// 使用系统分享（App环境）
+const useSystemShare = () => {
+  console.log('使用系统分享')
+  
+  // #ifdef APP-PLUS
+  const shareTitle = article.value.title || '精彩文章'
+  
+  uni.share({
+    provider: 'system',
+    type: 1,
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${article.value.id}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败：', err)
+      uni.showToast({
+        title: '分享失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+}
+
+// 复制文章链接
+const copyArticleLink = () => {
+  console.log('复制文章链接')
+  
+  // 构建文章链接
+  let articleLink = ''
+  
+  // #ifdef H5
+  articleLink = window.location.href
+  // #endif
+  
+  // #ifndef H5
+  // 在非H5环境下，构建一个模拟链接
+  articleLink = `https://parentreading.com/article/${article.value.id}`
+  // #endif
+  
+  const shareText = `${article.value.title}\n\n${articleLink}`
+  
+  uni.setClipboardData({
+    data: shareText,
+    success: () => {
+      console.log('链接复制成功')
+      uni.showToast({
+        title: '链接已复制',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败：', err)
+      uni.showToast({
+        title: '复制失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
+// 生成分享海报
+const generateSharePoster = () => {
+  console.log('生成分享海报')
+  uni.showToast({
+    title: '海报生成功能开发中',
+    icon: 'none'
+  })
+  // TODO: 实现海报生成功能
+  // 可以使用canvas生成包含文章标题、封面、二维码等信息的海报
+}
+
+// 注意：这些方法已不再使用，保留用于后续集成微信SDK时使用
+// 如需集成微信分享，需要：
+// 1. 在manifest.json中配置微信appid
+// 2. 使用uni.share({ provider: 'weixin' })
+// 3. 处理分享回调
 </script>
 
 <style>
@@ -988,42 +1294,48 @@ const onRichTextClick = (event) => {
   font-size: 16px;
 }
 
-/* 翻页指示器样式 */
-.page-indicators {
+/* 回到顶部按钮样式 */
+.back-to-top {
   position: fixed;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 40;
-}
-
-.page-btn {
-  width: 40px;
-  height: 40px;
-  background-color: rgba(255, 255, 255, 0.9);
+  right: 32rpx;
+  bottom: 120rpx;
+  width: 88rpx;
+  height: 88rpx;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8rpx 16rpx rgba(59, 130, 246, 0.3);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  z-index: 40;
+  animation: fadeIn 0.3s ease;
 }
 
-.page-btn:hover {
-  background-color: #3b82f6;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.page-btn:hover .fas {
+.back-to-top:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12rpx 24rpx rgba(59, 130, 246, 0.4);
+}
+
+.back-to-top:active {
+  transform: scale(0.95);
+}
+
+.back-to-top .fas {
+  font-size: 36rpx;
   color: #ffffff;
-}
-
-.page-btn .fas {
-  font-size: 16px;
-  color: #6b7280;
 }
 
 /* 底部工具栏样式 */

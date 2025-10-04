@@ -377,12 +377,11 @@ const formatDuration = (seconds) => {
   font-weight: 500;
   color: #1f2937;
   line-height: 1.4;
+  height: 19.6px; /* 固定高度：14px * 1.4 * 1 = 19.6px (1行) */
   margin-bottom: 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .video-meta {
@@ -507,7 +506,7 @@ const formatDuration = (seconds) => {
 
 /* 动画效果 */
 .video-item {
-  animation: fadeInUp 0.3s ease-out;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 @keyframes fadeInUp {

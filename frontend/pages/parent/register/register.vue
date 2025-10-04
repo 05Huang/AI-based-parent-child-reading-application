@@ -80,9 +80,9 @@
       <view class="footer">
         <text class="agreement">
           注册即表示同意
-          <text class="link">用户协议</text>
+          <text class="link" @click="goToUserAgreement">用户协议</text>
           和
-          <text class="link">隐私政策</text>
+          <text class="link" @click="goToPrivacyPolicy">隐私政策</text>
         </text>
       </view>
     </view>
@@ -428,6 +428,22 @@ const chooseAvatar = () => {
 const goBack = () => {
   uni.navigateBack({
     delta: 1
+  })
+}
+
+// 跳转到用户协议
+const goToUserAgreement = () => {
+  console.log('跳转到用户协议页面')
+  uni.navigateTo({
+    url: '/pages/parent/agreement/user-agreement'
+  })
+}
+
+// 跳转到隐私政策
+const goToPrivacyPolicy = () => {
+  console.log('跳转到隐私政策页面')
+  uni.navigateTo({
+    url: '/pages/parent/agreement/privacy-policy'
   })
 }
 </script>
