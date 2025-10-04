@@ -13,85 +13,47 @@
 
     <!-- 主要内容区域 -->
     <scroll-view scroll-y="true" class="main-content">
-      <!-- 字体大小设置 -->
-      <view class="settings-section">
-        <text class="section-title">字体大小</text>
-        <view class="settings-list">
-          <view class="font-size-setting">
-            <view class="size-preview">
-              <text class="preview-text small">小</text>
-              <text class="preview-text medium">中</text>
-              <text class="preview-text large">大</text>
-            </view>
-            <slider 
-              :value="fontSize" 
-              :min="12" 
-              :max="24" 
-              :step="2"
-              @change="handleFontSizeChange"
-              show-value
-              class="size-slider"
-            />
-          </view>
-          <view class="preview-content">
-            <text class="preview-title">预览效果</text>
-            <text class="preview-paragraph" :style="{ fontSize: fontSize + 'px' }">
-              在清晨的阳光下，小溪流淌着欢快的音符，树叶随风轻轻摇曳，空气中弥漫着泥土和青草的芬芳。这是一个适合阅读的美好时光，让我们一起徜徉在书海中，感受文字的魅力。
-            </text>
-          </view>
-        </view>
-      </view>
-
       <!-- 字体样式设置 -->
       <view class="settings-section">
-        <text class="section-title">字体样式</text>
+        <text class="section-title">选择字体</text>
         <view class="settings-list">
-          <view class="font-style-item" :class="{ active: currentFont === 'system' }" @click="selectFont('system')">
+          <view 
+            v-for="font in fontList" 
+            :key="font.id"
+            class="font-style-item" 
+            :class="{ active: currentFont === font.id }" 
+            @click="selectFont(font.id)"
+          >
             <view class="style-left">
               <text class="fas fa-font item-icon"></text>
-              <text class="style-name">系统默认</text>
+              <view class="font-info">
+                <text class="style-name">{{ font.name }}</text>
+                <text class="style-desc">{{ font.desc }}</text>
+              </view>
             </view>
-            <text class="fas fa-check check-icon" v-if="currentFont === 'system'"></text>
-          </view>
-          <view class="font-style-item" :class="{ active: currentFont === 'serif' }" @click="selectFont('serif')">
-            <view class="style-left">
-              <text class="fas fa-pen-fancy item-icon"></text>
-              <text class="style-name">宋体</text>
-            </view>
-            <text class="fas fa-check check-icon" v-if="currentFont === 'serif'"></text>
-          </view>
-          <view class="font-style-item" :class="{ active: currentFont === 'sans' }" @click="selectFont('sans')">
-            <view class="style-left">
-              <text class="fas fa-pen item-icon"></text>
-              <text class="style-name">黑体</text>
-            </view>
-            <text class="fas fa-check check-icon" v-if="currentFont === 'sans'"></text>
+            <text class="fas fa-check check-icon" v-if="currentFont === font.id"></text>
           </view>
         </view>
       </view>
 
-      <!-- 其他阅读设置 -->
+      <!-- 预览效果 -->
       <view class="settings-section">
-        <text class="section-title">其他设置</text>
-        <view class="settings-list">
-          <view class="settings-item">
-            <view class="item-left">
-              <text class="fas fa-moon item-icon"></text>
-              <text class="item-text">深色模式</text>
-            </view>
-            <switch :checked="isDarkMode" @change="handleDarkModeChange" color="#3b82f6" />
-          </view>
-          <view class="settings-item">
-            <view class="item-left">
-              <text class="fas fa-paragraph item-icon"></text>
-              <text class="item-text">段落间距</text>
-            </view>
-            <view class="spacing-control">
-              <text class="spacing-btn" @click="decreaseSpacing">-</text>
-              <text class="spacing-value">{{ lineSpacing }}</text>
-              <text class="spacing-btn" @click="increaseSpacing">+</text>
-            </view>
-          </view>
+        <text class="section-title">预览效果</text>
+        <view class="preview-content" :style="{ fontFamily: getFontFamily(currentFont) }">
+          <text class="preview-paragraph">
+            在清晨的阳光下，小溪流淌着欢快的音符，树叶随风轻轻摇曳，空气中弥漫着泥土和青草的芬芳。这是一个适合阅读的美好时光，让我们一起徜徉在书海中，感受文字的魅力。
+          </text>
+          <text class="preview-english">
+            The quick brown fox jumps over the lazy dog. Reading is a journey of discovery and wonder.
+          </text>
+        </view>
+      </view>
+
+      <!-- 提示信息 -->
+      <view class="tip-section">
+        <view class="tip-box">
+          <text class="fas fa-lightbulb tip-icon"></text>
+          <text class="tip-text">字体大小、主题、行间距等设置请前往"阅读模式"页面</text>
         </view>
       </view>
 
@@ -104,58 +66,139 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 // 返回上一页
 const goBack = () => {
   uni.navigateBack()
 }
 
-// 字体大小设置
-const fontSize = ref(16)
-const handleFontSizeChange = (e) => {
-  fontSize.value = e.detail.value
-}
-
-// 字体样式设置
-const currentFont = ref('system')
-const selectFont = (font) => {
-  currentFont.value = font
-}
-
-// 深色模式设置
-const isDarkMode = ref(false)
-const handleDarkModeChange = (e) => {
-  isDarkMode.value = e.detail.value
-}
-
-// 行间距设置
-const lineSpacing = ref(1.5)
-const decreaseSpacing = () => {
-  if (lineSpacing.value > 1) {
-    lineSpacing.value = Number((lineSpacing.value - 0.1).toFixed(1))
+// 主流字体列表
+const fontList = [
+  {
+    id: 'system',
+    name: '系统默认',
+    desc: '跟随系统字体设置',
+    family: 'system-ui, -apple-system, sans-serif'
+  },
+  {
+    id: 'songti',
+    name: '宋体',
+    desc: '经典衬线字体，适合长文阅读',
+    family: 'SimSun, STSong, serif'
+  },
+  {
+    id: 'heiti',
+    name: '黑体',
+    desc: '现代无衬线字体，清晰易读',
+    family: 'SimHei, STHeiti, sans-serif'
+  },
+  {
+    id: 'kaiti',
+    name: '楷体',
+    desc: '手写风格，优雅舒适',
+    family: 'KaiTi, STKaiti, cursive'
+  },
+  {
+    id: 'fangsong',
+    name: '仿宋',
+    desc: '书法风格，古朴典雅',
+    family: 'FangSong, STFangsong, serif'
+  },
+  {
+    id: 'yahei',
+    name: '微软雅黑',
+    desc: '圆润舒适，适合屏幕阅读',
+    family: '"Microsoft YaHei", sans-serif'
+  },
+  {
+    id: 'pingfang',
+    name: '苹方',
+    desc: '现代设计，简洁优雅',
+    family: 'PingFang SC, sans-serif'
+  },
+  {
+    id: 'noto',
+    name: 'Noto Sans',
+    desc: '谷歌字体，支持多语言',
+    family: '"Noto Sans SC", sans-serif'
+  },
+  {
+    id: 'source',
+    name: '思源黑体',
+    desc: '开源字体，专业设计',
+    family: '"Source Han Sans SC", sans-serif'
   }
+]
+
+// 当前选中的字体
+const currentFont = ref('system')
+
+// 获取字体family
+const getFontFamily = (fontId) => {
+  const font = fontList.find(f => f.id === fontId)
+  return font ? font.family : fontList[0].family
 }
-const increaseSpacing = () => {
-  if (lineSpacing.value < 2) {
-    lineSpacing.value = Number((lineSpacing.value + 0.1).toFixed(1))
+
+// 选择字体
+const selectFont = (fontId) => {
+  console.log('选择字体:', fontId)
+  currentFont.value = fontId
+  
+  const font = fontList.find(f => f.id === fontId)
+  uni.showToast({
+    title: `已切换至${font.name}`,
+    icon: 'success'
+  })
+}
+
+// 页面加载时读取设置
+onMounted(() => {
+  console.log('字体设置页面初始化')
+  loadFontSettings()
+})
+
+// 读取字体设置
+const loadFontSettings = () => {
+  console.log('开始读取字体设置')
+  
+  try {
+    const savedFont = uni.getStorageSync('fontFamily')
+    if (savedFont) {
+      currentFont.value = savedFont
+      console.log('读取到字体设置:', savedFont)
+    }
+  } catch (error) {
+    console.error('读取字体设置失败:', error)
   }
 }
 
 // 保存设置
 const handleSave = () => {
-  // 保存设置到本地存储
-  uni.setStorageSync('fontSettings', {
-    fontSize: fontSize.value,
-    fontFamily: currentFont.value,
-    isDarkMode: isDarkMode.value,
-    lineSpacing: lineSpacing.value
-  })
+  console.log('保存字体设置 - 字体:', currentFont.value)
   
-  uni.showToast({
-    title: '设置已保存',
-    icon: 'success'
-  })
+  try {
+    // 保存字体设置
+    uni.setStorageSync('fontFamily', currentFont.value)
+    
+    // 同时保存字体family到全局，供阅读页面使用
+    const fontFamily = getFontFamily(currentFont.value)
+    uni.setStorageSync('fontFamilyCSS', fontFamily)
+    
+    console.log('字体设置保存成功 - ID:', currentFont.value, 'Family:', fontFamily)
+    
+    uni.showToast({
+      title: '设置已保存',
+      icon: 'success',
+      duration: 2000
+    })
+  } catch (error) {
+    console.error('保存字体设置失败:', error)
+    uni.showToast({
+      title: '保存失败',
+      icon: 'error'
+    })
+  }
 }
 </script>
 
@@ -227,59 +270,29 @@ const handleSave = () => {
   background-color: #ffffff;
   border-radius: 16rpx;
   overflow: hidden;
-  padding: 20rpx;
 }
 
-/* 字体大小设置样式 */
-.font-size-setting {
-  padding: 20rpx 0;
-}
-
-.size-preview {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
-}
-
-.preview-text {
-  color: #4b5563;
-}
-
-.preview-text.small {
-  font-size: 24rpx;
-}
-
-.preview-text.medium {
-  font-size: 32rpx;
-}
-
-.preview-text.large {
-  font-size: 40rpx;
-}
-
-.size-slider {
-  margin: 0;
-  padding: 0;
-}
-
+/* 预览内容样式 */
 .preview-content {
-  margin-top: 30rpx;
-  padding: 20rpx;
-  background-color: #f9fafb;
-  border-radius: 12rpx;
-}
-
-.preview-title {
-  font-size: 28rpx;
-  color: #6b7280;
-  margin-bottom: 16rpx;
-  display: block;
+  background-color: #ffffff;
+  padding: 30rpx;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
 }
 
 .preview-paragraph {
   color: #1f2937;
+  line-height: 1.8;
+  font-size: 30rpx;
+}
+
+.preview-english {
+  color: #6b7280;
   line-height: 1.6;
+  font-size: 26rpx;
+  margin-top: 10rpx;
 }
 
 /* 字体样式设置 */
@@ -287,8 +300,17 @@ const handleSave = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24rpx 20rpx;
+  padding: 30rpx 24rpx;
   border-bottom: 1rpx solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.font-style-item:active {
+  background-color: #f9fafb;
+}
+
+.font-style-item.active {
+  background-color: #eff6ff;
 }
 
 .font-style-item:last-child {
@@ -299,70 +321,69 @@ const handleSave = () => {
   display: flex;
   align-items: center;
   gap: 20rpx;
+  flex: 1;
 }
 
 .item-icon {
   color: #3b82f6;
   font-size: 36rpx;
+  width: 40rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.font-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
 }
 
 .style-name {
   font-size: 30rpx;
   color: #111827;
+  font-weight: 500;
+}
+
+.style-desc {
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
 .check-icon {
   color: #3b82f6;
-  font-size: 24rpx;
-}
-
-/* 其他设置项样式 */
-.settings-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx 20rpx;
-  border-bottom: 1rpx solid #f3f4f6;
-}
-
-.settings-item:last-child {
-  border-bottom: none;
-}
-
-.item-left {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-
-.item-text {
-  font-size: 30rpx;
-  color: #111827;
-}
-
-.spacing-control {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-
-.spacing-btn {
-  width: 48rpx;
-  height: 48rpx;
-  background-color: #f3f4f6;
-  border-radius: 8rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 32rpx;
-  color: #4b5563;
+  flex-shrink: 0;
 }
 
-.spacing-value {
-  min-width: 60rpx;
-  text-align: center;
-  font-size: 30rpx;
-  color: #111827;
+/* 提示信息样式 */
+.tip-section {
+  margin-bottom: 30rpx;
+  padding: 0 20rpx;
+}
+
+.tip-box {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-radius: 16rpx;
+  border-left: 4rpx solid #3b82f6;
+}
+
+.tip-icon {
+  font-size: 32rpx;
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  font-size: 26rpx;
+  color: #1e40af;
+  line-height: 1.6;
+  flex: 1;
 }
 
 /* 保存按钮样式 */

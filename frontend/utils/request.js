@@ -1,7 +1,9 @@
 // 创建请求拦截器
 const request = {
   // 全局配置
-  baseUrl: 'http://localhost:8888',
+  // 开发环境：使用电脑的局域网IP地址，这样手机才能访问
+  // 生产环境：改为实际的服务器地址
+  baseUrl: 'http://localhost:8888',  // 你的电脑WLAN IP地址
   
   // 请求方法
   async request(options) {

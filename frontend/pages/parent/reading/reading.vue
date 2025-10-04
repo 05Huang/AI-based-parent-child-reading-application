@@ -10,7 +10,7 @@
           <text class="header-title">{{ article.title }}</text>
         </view>
         <view class="header-right">
-          <view class="action-btn">
+          <view class="action-btn" @click="goToReadingMode">
             <text class="fas fa-font"></text>
           </view>
           <view class="action-btn">
@@ -147,8 +147,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { contentApi, commentApi, viewHistoryApi, userApi, likeApi, favoriteApi } from '@/utils/api.js'
+import readingModeManager from '@/utils/readingModeManager.js'
 
 // 文章信息
 const article = ref({
@@ -198,6 +199,9 @@ onLoad(async (option) => {
   const tipShown = uni.getStorageSync('reading_tip_shown')
   hasShownTip.value = !!tipShown
   
+  // 应用阅读模式设置
+  applyReadingModeSettings()
+  
   if (option.id) {
     article.value.id = parseInt(option.id)
     await loadCurrentUser() // 先加载用户信息
@@ -207,6 +211,29 @@ onLoad(async (option) => {
     console.error('缺少文章ID参数')
   }
 })
+
+// 页面卸载时清理
+onUnload(() => {
+  console.log('阅读页面卸载')
+  // 可以在这里清理一些设置，比如屏幕常亮
+  // uni.setKeepScreenOn({ keepScreenOn: false })
+})
+
+// 应用阅读模式设置
+const applyReadingModeSettings = () => {
+  console.log('开始应用阅读模式设置到阅读页面')
+  try {
+    const settings = readingModeManager.loadSettings()
+    console.log('读取到的阅读模式设置:', settings)
+    
+    // 应用所有设置
+    readingModeManager.applySettings(settings)
+    
+    console.log('阅读模式设置应用完成')
+  } catch (error) {
+    console.error('应用阅读模式设置失败:', error)
+  }
+}
 
 // 加载当前用户信息
 const loadCurrentUser = async () => {
@@ -380,6 +407,24 @@ const goBack = () => {
       }
     })
   }
+}
+
+// 跳转到阅读模式设置页面
+const goToReadingMode = () => {
+  console.log('跳转到阅读模式设置')
+  uni.navigateTo({
+    url: '/pages/parent/profile/details/reading-mode',
+    success: () => {
+      console.log('跳转成功')
+    },
+    fail: (error) => {
+      console.error('跳转失败:', error)
+      uni.showToast({
+        title: '跳转失败',
+        icon: 'none'
+      })
+    }
+  })
 }
 
 // 滚动处理
@@ -729,10 +774,11 @@ const onRichTextClick = (event) => {
 
 .container {
   min-height: 100vh;
-  background-color: #ffffff;
+  background-color: var(--reading-bg-color, #ffffff);
   position: relative;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s ease;
 }
 
 /* 顶部导航栏样式 */
@@ -741,8 +787,9 @@ const onRichTextClick = (event) => {
   top: 0;
   left: 0;
   right: 0;
-  background-color: #3b82f6;
+  background-color: var(--reading-header-bg, #3b82f6);
   z-index: 50;
+  transition: background-color 0.3s ease;
 }
 
 .header-content {
@@ -814,7 +861,8 @@ const onRichTextClick = (event) => {
   margin-bottom: 56px;
   position: relative;
   display: flex;
-  background-color: #ffffff;
+  background-color: var(--reading-bg-color, #ffffff);
+  transition: background-color 0.3s ease;
 }
 
 .content-scroll {
@@ -869,9 +917,11 @@ const onRichTextClick = (event) => {
 }
 
 .article-body {
-  font-size: 16px;
-  line-height: 1.8;
-  color: #374151;
+  font-family: var(--reading-font-family, system-ui, -apple-system, sans-serif);
+  font-size: var(--reading-font-size, 16px);
+  line-height: var(--reading-line-height, 1.8);
+  color: var(--reading-text-color, #374151);
+  transition: font-size 0.3s ease, color 0.3s ease, font-family 0.3s ease;
 }
 
 .lead-paragraph {
@@ -1130,9 +1180,10 @@ const onRichTextClick = (event) => {
 }
 
 .rich-content {
-  line-height: 1.8;
-  font-size: 32rpx;
-  color: #374151;
+  line-height: var(--reading-line-height, 1.8);
+  font-size: var(--reading-font-size, 32rpx);
+  color: var(--reading-text-color, #374151);
+  transition: font-size 0.3s ease, color 0.3s ease;
 }
 
 /* 富文本内容样式 */
@@ -1182,9 +1233,10 @@ const onRichTextClick = (event) => {
 }
 
 .paragraph-rich-text {
-  line-height: 1.8;
-  font-size: 32rpx;
-  color: #374151;
+  line-height: var(--reading-line-height, 1.8);
+  font-size: var(--reading-font-size, 32rpx);
+  color: var(--reading-text-color, #374151);
+  transition: font-size 0.3s ease, color 0.3s ease;
 }
 
 .paragraph-actions {

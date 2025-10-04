@@ -58,13 +58,6 @@
             </view>
             <text class="fas fa-chevron-right arrow-icon"></text>
           </view>
-          <view class="settings-item" @click="handleSettingClick('readingReminder')">
-            <view class="item-left">
-              <text class="fas fa-clock item-icon"></text>
-              <text class="item-text">阅读提醒</text>
-            </view>
-            <text class="fas fa-chevron-right arrow-icon"></text>
-          </view>
           <view class="settings-item" @click="handleSettingClick('fontSetting')">
             <view class="item-left">
               <text class="fas fa-font item-icon"></text>
@@ -159,7 +152,6 @@ const handleSettingClick = (type) => {
     security: '/pages/parent/profile/details/security',
     notification: '/pages/parent/profile/details/notification',
     readingMode: '/pages/parent/profile/details/reading-mode',
-    readingReminder: '/pages/parent/profile/details/reading-reminder',
     fontSetting: '/pages/parent/profile/details/font-setting',
     readingVisibility: '/pages/parent/profile/details/reading-visibility',
     friendPermission: '/pages/parent/profile/details/friend-permission',

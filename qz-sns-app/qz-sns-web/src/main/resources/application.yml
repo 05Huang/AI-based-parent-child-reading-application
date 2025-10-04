@@ -1,5 +1,6 @@
 server:
   port: 8888
+  address: 0.0.0.0  # 允许外部访问（开发环境使用，生产环境需要配置安全策略）
 spring:
   profiles:
     active: dev # 环境 dev|test|prod
