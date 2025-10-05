@@ -173,6 +173,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { userApi, intimacyApi, userBehaviorApi } from '@/utils/api.js'
 import eventBus, { EVENTS } from '@/utils/eventBus.js'
+import request from '@/utils/request.js'
 
 // 响应式状态
 const currentUser = ref({
@@ -466,13 +467,44 @@ const loadUserStats = async () => {
       userStats.value.readingLevel = readingLevel
     }
     
-    // 这里关注和粉丝数量暂时设为固定值，后续可以根据实际业务需求调整
-    userStats.value.followingCount = 128
-    userStats.value.followersCount = 256
+    // 获取关注数和粉丝数
+    try {
+      const familyResponse = await request.get('/api/family/members')
+      if (familyResponse && familyResponse.code === 200 && familyResponse.data) {
+        // 后端已经返回了统计数据
+        if (familyResponse.data.stats) {
+          userStats.value.followingCount = familyResponse.data.stats.followingCount || 0
+          userStats.value.followersCount = familyResponse.data.stats.followersCount || 0
+          console.log('关注数（我主动绑定的人）：', userStats.value.followingCount)
+          console.log('粉丝数（绑定我的人）：', userStats.value.followersCount)
+        } else {
+          // 兼容旧版本接口：手动统计
+          let totalMembers = 0
+          if (familyResponse.data.children) totalMembers += familyResponse.data.children.length
+          if (familyResponse.data.parents) totalMembers += familyResponse.data.parents.length
+          if (familyResponse.data.spouse) totalMembers += 1
+          if (familyResponse.data.siblings) totalMembers += familyResponse.data.siblings.length
+          if (familyResponse.data.grandparents) totalMembers += familyResponse.data.grandparents.length
+          if (familyResponse.data.grandchildren) totalMembers += familyResponse.data.grandchildren.length
+          if (familyResponse.data.others) totalMembers += familyResponse.data.others.length
+          
+          userStats.value.followingCount = totalMembers
+          userStats.value.followersCount = 0 // 旧版本无法获取粉丝数
+          console.log('关注数（兼容模式）：', totalMembers)
+          console.log('粉丝数（兼容模式）：0')
+        }
+      }
+    } catch (error) {
+      console.warn('获取关注数和粉丝数失败：', error)
+      userStats.value.followingCount = 0
+      userStats.value.followersCount = 0
+    }
     
   } catch (error) {
     console.error('获取用户统计数据失败：', error)
-    // 不显示错误提示，使用默认值
+    // 使用默认值
+    userStats.value.followingCount = 0
+    userStats.value.followersCount = 0
   }
 }
 

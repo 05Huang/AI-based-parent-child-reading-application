@@ -92,38 +92,33 @@ public class FamilyRelationController {
                 return ResultUtils.error(400, "已经绑定过该用户");
             }
 
-            // 根据用户选择的关系类型确定反向关系类型
-            String reverseRelationType = getReverseRelationType(relationType);
-            log.info("确定关系类型 - 当前用户->目标用户：{}，目标用户->当前用户：{}", 
-                relationType, reverseRelationType);
-
-            // 创建双向家庭关系记录
+            // 创建单向家庭关系记录
+            // user_id = 发起绑定的人（当前用户）
+            // relative_id = 被绑定的人（目标用户）
             LocalDateTime now = LocalDateTime.now();
             
-            // 1. 当前用户->目标用户的关系记录
-            FamilyRelation userToRelative = new FamilyRelation();
-            userToRelative.setUserId(parentId);
-            userToRelative.setRelativeId(relativeUser.getId());
-            userToRelative.setRelationType(relationType);
-            userToRelative.setCreatedTime(now);
-
-            // 2. 目标用户->当前用户的关系记录
-            FamilyRelation relativeToUser = new FamilyRelation();
-            relativeToUser.setUserId(relativeUser.getId());
-            relativeToUser.setRelativeId(parentId);
-            relativeToUser.setRelationType(reverseRelationType);
-            relativeToUser.setCreatedTime(now);
-
-            // 保存双向关系记录
-            boolean saved1 = familyRelationService.save(userToRelative);
-            boolean saved2 = familyRelationService.save(relativeToUser);
+            // 获取反向关系类型
+            String reverseRelationType = getReverseRelationType(relationType);
             
-            if (saved1 && saved2) {
-                log.info("绑定家庭成员成功，当前用户ID：{}，目标用户ID：{}，目标用户昵称：{}，关系类型：{} <-> {}", 
-                    parentId, relativeUser.getId(), relativeUser.getNickname(), relationType, reverseRelationType);
+            log.info("确定关系类型 - 发起者{}->被绑定者{}：{}，反向关系：{}", 
+                parentId, relativeUser.getId(), relationType, reverseRelationType);
+            
+            // 创建单条关系记录，同时存储双向关系类型
+            FamilyRelation relation = new FamilyRelation();
+            relation.setUserId(parentId); // 发起者
+            relation.setRelativeId(relativeUser.getId()); // 被绑定者
+            relation.setRelationType(relationType + "," + reverseRelationType); // 存储双向关系，用逗号分隔
+            relation.setCreatedTime(now);
+
+            // 保存关系记录
+            boolean saved = familyRelationService.save(relation);
+            
+            if (saved) {
+                log.info("绑定家庭成员成功，发起者ID：{}，被绑定者ID：{}，关系类型：{} <-> {}", 
+                    parentId, relativeUser.getId(), relationType, reverseRelationType);
                 return ResultUtils.success("绑定成功");
             } else {
-                log.error("绑定家庭成员失败，保存数据库记录失败，saved1：{}，saved2：{}", saved1, saved2);
+                log.error("绑定家庭成员失败，保存数据库记录失败");
                 return ResultUtils.error(500, "绑定失败");
             }
 
@@ -161,20 +156,54 @@ public class FamilyRelationController {
             Map<String, Object> result = new HashMap<>();
             result.put("currentUser", user);
 
-            // 获取所有家庭关系（不再区分role）
+            // 获取所有家庭关系（使用OR条件查询双向关系）
             QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("user_id", userId);
+            queryWrapper.and(wrapper -> 
+                wrapper.eq("user_id", userId).or().eq("relative_id", userId)
+            );
             List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
             
             log.info("用户ID：{}的家庭关系记录数：{}", userId, relations.size());
             
+            // 统计关注数和粉丝数
+            // 关注数：我主动绑定的人（user_id = 我）
+            QueryWrapper<FamilyRelation> followingWrapper = new QueryWrapper<>();
+            followingWrapper.eq("user_id", userId);
+            long followingCount = familyRelationService.count(followingWrapper);
+            
+            // 粉丝数：绑定我的人（relative_id = 我）
+            QueryWrapper<FamilyRelation> followersWrapper = new QueryWrapper<>();
+            followersWrapper.eq("relative_id", userId);
+            long followersCount = familyRelationService.count(followersWrapper);
+            
+            log.info("用户ID：{}的关注数：{}，粉丝数：{}", userId, followingCount, followersCount);
+            
             // 转换为家庭成员信息列表
             List<Map<String, Object>> allMembers = relations.stream()
                 .map(relation -> {
-                    User relative = userService.getUserById(relation.getRelativeId());
+                    // 确定对方用户ID：如果当前用户是user_id，则对方是relative_id，反之亦然
+                    Long relativeUserId = relation.getUserId().equals(userId) 
+                        ? relation.getRelativeId() 
+                        : relation.getUserId();
+                    
+                    User relative = userService.getUserById(relativeUserId);
                     if (relative == null) {
-                        log.warn("未找到家庭成员用户，ID：{}", relation.getRelativeId());
+                        log.warn("未找到家庭成员用户，ID：{}", relativeUserId);
                         return null;
+                    }
+                    
+                    // 解析关系类型：格式为 "关系1,关系2"
+                    String relationTypeStr = relation.getRelationType();
+                    String[] relationTypes = relationTypeStr.split(",");
+                    
+                    // 确定当前用户的关系类型
+                    String currentUserRelationType;
+                    if (relation.getUserId().equals(userId)) {
+                        // 当前用户是user_id，使用第一个关系类型
+                        currentUserRelationType = relationTypes.length > 0 ? relationTypes[0] : relationTypeStr;
+                    } else {
+                        // 当前用户是relative_id，使用第二个关系类型
+                        currentUserRelationType = relationTypes.length > 1 ? relationTypes[1] : relationTypeStr;
                     }
                     
                     Map<String, Object> memberInfo = new HashMap<>();
@@ -184,12 +213,12 @@ public class FamilyRelationController {
                     memberInfo.put("avatar", relative.getAvatar());
                     memberInfo.put("avatarThumb", relative.getAvatarThumb());
                     memberInfo.put("bindTime", relation.getCreatedTime());
-                    memberInfo.put("relationType", relation.getRelationType());
+                    memberInfo.put("relationType", currentUserRelationType);
                     memberInfo.put("sex", relative.getSex());
                     memberInfo.put("role", relative.getRole());
                     
                     log.info("家庭成员 - 昵称：{}，用户名：{}，关系类型：{}", 
-                        relative.getNickname(), relative.getUsername(), relation.getRelationType());
+                        relative.getNickname(), relative.getUsername(), currentUserRelationType);
                     
                     return memberInfo;
                 })
@@ -272,9 +301,16 @@ public class FamilyRelationController {
             result.put("grandchildren", grandchildren);
             result.put("others", others);
             
-            log.info("获取家庭成员成功 - 子女：{}，父母：{}，配偶：{}，兄弟姐妹：{}，祖辈：{}，孙辈：{}，其他：{}", 
+            // 添加统计数据
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("followingCount", followingCount); // 关注数（我主动绑定的人）
+            stats.put("followersCount", followersCount); // 粉丝数（绑定我的人）
+            result.put("stats", stats);
+            
+            log.info("获取家庭成员成功 - 子女：{}，父母：{}，配偶：{}，兄弟姐妹：{}，祖辈：{}，孙辈：{}，其他：{}，关注数：{}，粉丝数：{}", 
                 children.size(), parents.size(), spouse != null ? 1 : 0, 
-                siblings.size(), grandparents.size(), grandchildren.size(), others.size());
+                siblings.size(), grandparents.size(), grandchildren.size(), others.size(),
+                followingCount, followersCount);
 
             return ResultUtils.success(result);
 
@@ -302,7 +338,7 @@ public class FamilyRelationController {
             Long userId = currentUser.getUserId();
             log.info("当前用户ID：{}", userId);
 
-            // 查找家庭关系记录 - 使用list方法避免多条记录异常
+            // 查找家庭关系记录（单向存储，只有一条记录）
             QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
             queryWrapper.and(wrapper -> 
                 wrapper.and(subWrapper -> 
@@ -312,29 +348,21 @@ public class FamilyRelationController {
                 )
             );
             
-            List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
-            if (relations.isEmpty()) {
+            FamilyRelation relation = familyRelationService.getOne(queryWrapper);
+            if (relation == null) {
                 log.error("未找到绑定关系，用户ID：{}，相关用户ID：{}", userId, relativeId);
                 return ResultUtils.error(404, "未找到绑定关系");
             }
 
-            // 删除所有匹配的绑定关系记录（防止重复记录）
-            int deletedCount = 0;
-            for (FamilyRelation relation : relations) {
-                boolean removed = familyRelationService.removeById(relation.getId());
-                if (removed) {
-                    deletedCount++;
-                    log.info("解除绑定成功，关系ID：{}", relation.getId());
-                } else {
-                    log.error("删除关系记录失败，关系ID：{}", relation.getId());
-                }
-            }
+            // 删除关系记录
+            boolean removed = familyRelationService.removeById(relation.getId());
             
-            if (deletedCount > 0) {
-                log.info("解除绑定操作完成，共删除{}条关系记录", deletedCount);
+            if (removed) {
+                log.info("解除绑定成功，关系ID：{}，用户ID：{} <-> {}", 
+                    relation.getId(), userId, relativeId);
                 return ResultUtils.success("解除绑定成功");
             } else {
-                log.error("解除绑定失败，所有删除操作都失败");
+                log.error("解除绑定失败，删除关系记录失败，关系ID：{}", relation.getId());
                 return ResultUtils.error(500, "解除绑定失败");
             }
 
