@@ -331,21 +331,30 @@ const handleRegister = async () => {
     
     console.log('注册响应：', res)
     
-    // 保存token
+    // 保存token和登录状态
     uni.setStorageSync('token', res.data.token)
+    uni.setStorageSync('isLoggedIn', true)
     
     // 显示注册成功提示
     uni.showToast({
       title: '注册成功',
-      icon: 'success'
+      icon: 'success',
+      duration: 800
     })
     
-    // 跳转到首页
+    // 快速跳转到首页
     setTimeout(() => {
+      console.log('准备跳转到首页')
       uni.reLaunch({
-        url: '/pages/parent/home/home'
+        url: '/pages/parent/home/home',
+        success: () => {
+          console.log('跳转到首页成功')
+        },
+        fail: (error) => {
+          console.error('跳转失败', error)
+        }
       })
-    }, 1500)
+    }, 600)
   } catch (error) {
     console.error('注册出错：', error)
     uni.showToast({
@@ -454,7 +463,19 @@ const goToPrivacyPolicy = () => {
 
 .register-page {
   min-height: 100vh;
-  background-color: #F9FAFB;
+  background: linear-gradient(135deg, #dbeafe, #eff6ff);
+  animation: pageSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .nav-header {
@@ -462,9 +483,23 @@ const goToPrivacyPolicy = () => {
   top: 0;
   left: 0;
   right: 0;
-  background-color: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.95) 0%, rgba(239, 246, 255, 0.95) 100%);
+  backdrop-filter: blur(20rpx);
+  box-shadow: 0 4rpx 20rpx rgba(59, 130, 246, 0.08);
   z-index: 50;
+  animation: navSlideDown 0.6s ease-out 0.2s backwards;
+  border-bottom: 1rpx solid rgba(59, 130, 246, 0.1);
+}
+
+@keyframes navSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nav-content {
@@ -480,17 +515,42 @@ const goToPrivacyPolicy = () => {
   height: 80rpx;
   display: flex;
   align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  color: rgb(59, 130, 246);
+  transform: translateX(-4rpx);
+}
+
+.back-btn:active {
+  transform: translateX(-2rpx) scale(0.95);
 }
 
 .nav-title {
   font-size: 36rpx;
-  font-weight: bold;
+  font-weight: 800;
   margin-left: 16rpx;
+  color: #1f2937;
+  letter-spacing: 1rpx;
 }
 
 .main-content {
   margin-top: 128rpx;
   padding: 32rpx;
+  animation: contentFadeIn 0.8s ease-out 0.4s backwards;
+}
+
+@keyframes contentFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(40rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .avatar-section {
@@ -498,18 +558,42 @@ const goToPrivacyPolicy = () => {
   flex-direction: column;
   align-items: center;
   margin-bottom: 64rpx;
+  animation: avatarZoomIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s backwards;
+}
+
+@keyframes avatarZoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-15deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 .avatar-container {
   position: relative;
   width: 192rpx;
   height: 192rpx;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avatar-container:hover {
+  transform: scale(1.05);
+}
+
+.avatar-container:active {
+  transform: scale(0.98);
 }
 
 .avatar-img {
   width: 100%;
   height: 100%;
   border-radius: 999px;
+  box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.2);
+  border: 4rpx solid #FFFFFF;
 }
 
 .camera-btn {
@@ -518,12 +602,24 @@ const goToPrivacyPolicy = () => {
   right: 0;
   width: 64rpx;
   height: 64rpx;
-  background: rgb(59, 130, 246);
+  background: linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250));
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 6rpx rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6rpx 20rpx rgba(59, 130, 246, 0.4);
+  animation: cameraPulse 2s ease-in-out infinite;
+}
+
+@keyframes cameraPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 6rpx 20rpx rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 8rpx 28rpx rgba(59, 130, 246, 0.6);
+  }
 }
 
 .camera-btn .fas {
@@ -535,6 +631,16 @@ const goToPrivacyPolicy = () => {
   font-size: 24rpx;
   color: #6B7280;
   margin-top: 16rpx;
+  animation: fadeIn 0.6s ease-out 0.8s backwards;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .form-container {
@@ -547,6 +653,41 @@ const goToPrivacyPolicy = () => {
   background: #FFFFFF;
   border-radius: 24rpx;
   padding: 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  animation: inputSlideIn 0.6s ease-out backwards;
+}
+
+.input-box:nth-child(1) {
+  animation-delay: 0.8s;
+}
+
+.input-box:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+.input-box:nth-child(3) {
+  animation-delay: 1s;
+}
+
+.input-box:nth-child(4) {
+  animation-delay: 1.1s;
+}
+
+@keyframes inputSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-40rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.input-box:hover {
+  box-shadow: 0 8rpx 30rpx rgba(59, 130, 246, 0.1);
+  transform: translateY(-2rpx);
 }
 
 .input-field {
@@ -596,12 +737,14 @@ const goToPrivacyPolicy = () => {
 
 .interest-section {
   margin-top: 48rpx;
+  animation: fadeIn 0.8s ease-out 1.2s backwards;
 }
 
 .interest-title {
   font-size: 24rpx;
   color: #6B7280;
   margin-bottom: 24rpx;
+  font-weight: 500;
 }
 
 .interest-tags {
@@ -616,11 +759,47 @@ const goToPrivacyPolicy = () => {
   color: #6B7280;
   border-radius: 999px;
   font-size: 24rpx;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: tagPop 0.5s ease-out backwards;
+}
+
+.interest-tag:nth-child(1) { animation-delay: 1.3s; }
+.interest-tag:nth-child(2) { animation-delay: 1.35s; }
+.interest-tag:nth-child(3) { animation-delay: 1.4s; }
+.interest-tag:nth-child(4) { animation-delay: 1.45s; }
+.interest-tag:nth-child(5) { animation-delay: 1.5s; }
+.interest-tag:nth-child(6) { animation-delay: 1.55s; }
+
+@keyframes tagPop {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-10deg);
+  }
+  70% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.interest-tag:hover {
+  transform: translateY(-4rpx) scale(1.05);
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.1);
 }
 
 .interest-tag.active {
-  background: #EBF5FF;
+  background: linear-gradient(135deg, #EBF5FF, #DBEAFE);
   color: rgb(59, 130, 246);
+  font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.2);
+  transform: scale(1.05);
+}
+
+.interest-tag.active:hover {
+  transform: translateY(-4rpx) scale(1.08);
 }
 
 .register-btn {
@@ -633,15 +812,36 @@ const goToPrivacyPolicy = () => {
   margin-top: 64rpx;
   width: 100%;
   border: none;
-  box-shadow: 0 8rpx 16rpx rgba(59, 130, 246, 0.2);
+  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  animation: buttonBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s backwards;
+}
+
+@keyframes buttonBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(100rpx);
+  }
+  70% {
+    transform: scale(1.05) translateY(-10rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.register-btn:hover {
+  box-shadow: 0 12rpx 32rpx rgba(59, 130, 246, 0.4);
+  transform: translateY(-4rpx);
 }
 
 .register-btn:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 8rpx rgba(59, 130, 246, 0.15);
+  transform: translateY(0);
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.2);
 }
 
 /* 添加按钮点击涟漪效果 */
@@ -671,14 +871,23 @@ const goToPrivacyPolicy = () => {
 .footer {
   text-align: center;
   margin-top: 48rpx;
+  animation: fadeIn 0.8s ease-out 1.8s backwards;
 }
 
 .agreement {
   font-size: 24rpx;
   color: #9CA3AF;
+  line-height: 1.6;
 }
 
 .link {
   color: rgb(59, 130, 246);
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.link:hover {
+  opacity: 0.7;
+  text-decoration: underline;
 }
 </style> 

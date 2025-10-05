@@ -203,6 +203,18 @@ const sendMessage = async () => {
   min-height: 100vh;
   background-color: #f3f4f6;
   position: relative;
+  animation: pageSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 顶部导航栏样式 */

@@ -53,7 +53,7 @@
           <text class="fas fa-plus control-btn" @click="increaseFontSize"></text>
         </view>
         <view class="preview-text" :style="{ fontSize: fontSize + 'px' }">
-          预览文本效果
+          这是字体大小预览效果。通过调整滑块可以改变字体大小，让阅读更加舒适。选择适合自己的字体大小，享受更好的阅读体验。
         </view>
       </view>
 

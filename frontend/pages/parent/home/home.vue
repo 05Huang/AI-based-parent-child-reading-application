@@ -594,6 +594,18 @@ const toggleLike = async (item, listType) => {
   min-height: 100vh;
   background-color: #f3f4f6;
   padding-bottom: 100rpx;
+  animation: homePageFadeIn 0.4s ease-out;
+}
+
+@keyframes homePageFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* 顶部导航 */

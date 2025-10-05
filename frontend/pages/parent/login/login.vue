@@ -312,38 +312,23 @@ const handleLogin = async () => {
     uni.showToast({
       title: '登录成功',
       icon: 'success',
-      duration: 1500,
-      success: () => {
-        // 等待提示显示完毕后跳转
-        setTimeout(() => {
-          console.log('准备跳转到首页')
-          // 尝试使用switchTab跳转
-          uni.switchTab({
-            url: '/pages/parent/home/home',
-            success: () => {
-              console.log('跳转到首页成功')
-            },
-            fail: (error) => {
-              console.error('switchTab跳转失败，尝试使用navigateTo', error)
-              // 如果switchTab失败，尝试使用navigateTo
-              uni.navigateTo({
-                url: '/pages/parent/home/home',
-                success: () => {
-                  console.log('navigateTo跳转成功')
-                },
-                fail: (navError) => {
-                  console.error('所有跳转方式都失败', navError)
-                  // 最后尝试使用reLaunch
-                  uni.reLaunch({
-                    url: '/pages/parent/home/home'
-                  })
-                }
-              })
-            }
-          })
-        }, 1500)
-      }
+      duration: 800
     })
+    
+    // 缩短等待时间，快速跳转减少白屏感知
+    setTimeout(() => {
+      console.log('准备跳转到首页')
+      // 使用 reLaunch 并配置过渡动画
+      uni.reLaunch({
+        url: '/pages/parent/home/home',
+        success: () => {
+          console.log('跳转到首页成功')
+        },
+        fail: (error) => {
+          console.error('跳转失败', error)
+        }
+      })
+    }, 600)
   } catch (error) {
     console.error('登录出错：', error)
     
@@ -440,22 +425,21 @@ const handlePasswordLogin = async () => {
     uni.showToast({
       title: '登录成功',
       icon: 'success',
-      duration: 1500,
-      success: () => {
-        setTimeout(() => {
-          console.log('准备跳转到首页')
-          uni.switchTab({
-            url: '/pages/parent/home/home',
-            fail: (error) => {
-              console.error('switchTab跳转失败，尝试使用reLaunch', error)
-              uni.reLaunch({
-                url: '/pages/parent/home/home'
-              })
-            }
-          })
-        }, 1500)
-      }
+      duration: 800
     })
+    
+    setTimeout(() => {
+      console.log('准备跳转到首页')
+      uni.reLaunch({
+        url: '/pages/parent/home/home',
+        success: () => {
+          console.log('跳转到首页成功')
+        },
+        fail: (error) => {
+          console.error('跳转失败', error)
+        }
+      })
+    }, 600)
   } catch (error) {
     console.error('密码登录出错：', error)
     
@@ -611,20 +595,20 @@ const handleEmailLogin = async () => {
     uni.showToast({
       title: '登录成功',
       icon: 'success',
-      duration: 1500,
-      success: () => {
-        setTimeout(() => {
-          uni.switchTab({
-            url: '/pages/parent/home/home',
-            fail: () => {
-              uni.reLaunch({
-                url: '/pages/parent/home/home'
-              })
-            }
-          })
-        }, 1500)
-      }
+      duration: 800
     })
+    
+    setTimeout(() => {
+      uni.reLaunch({
+        url: '/pages/parent/home/home',
+        success: () => {
+          console.log('跳转到首页成功')
+        },
+        fail: (error) => {
+          console.error('跳转失败', error)
+        }
+      })
+    }, 600)
   } catch (error) {
     console.error('邮箱登录出错：', error)
     
@@ -697,13 +681,25 @@ page {
 .login-page {
   width: 100%;
   height: 100vh;
-  background-color: #F9FAFB;
+  background: linear-gradient(135deg, #dbeafe, #eff6ff);
   overflow-y: auto;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  animation: pageSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .login-container {
@@ -718,17 +714,42 @@ page {
   text-align: center;
   margin-bottom: 96rpx;
   margin-top: 32rpx;
+  animation: headerFadeIn 0.8s ease-out 0.3s backwards;
+}
+
+@keyframes headerFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-40rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .logo-box {
   width: 160rpx;
   height: 160rpx;
-  background-color: rgb(59, 130, 246);
+  background: linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250));
   border-radius: 32rpx;
   margin: 0 auto 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 20rpx 40rpx rgba(59, 130, 246, 0.3);
+  animation: logoScale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s backwards;
+}
+
+@keyframes logoScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 .logo-box .fa-book-reader {
@@ -737,9 +758,11 @@ page {
 }
 
 .title {
-  font-size: 40rpx;
-  font-weight: bold;
+  font-size: 44rpx;
+  font-weight: 800;
   display: block;
+  color: #1f2937;
+  letter-spacing: 1rpx;
 }
 
 .subtitle {
@@ -755,6 +778,18 @@ page {
   margin: 0 auto;
   width: 85%;
   max-width: 600rpx;
+  animation: formSlideUp 0.8s ease-out 0.5s backwards;
+}
+
+@keyframes formSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(60rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .login-form {
@@ -767,6 +802,33 @@ page {
   background: #FFFFFF;
   border-radius: 24rpx;
   padding: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  animation: inputFadeIn 0.6s ease-out backwards;
+}
+
+.input-box:nth-child(1) {
+  animation-delay: 0.6s;
+}
+
+.input-box:nth-child(2) {
+  animation-delay: 0.7s;
+}
+
+@keyframes inputFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-30rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.input-box:hover {
+  box-shadow: 0 8rpx 30rpx rgba(59, 130, 246, 0.1);
+  transform: translateY(-2rpx);
 }
 
 .phone-input, .verify-input, .username-input, .password-input, .email-input {
@@ -840,16 +902,33 @@ page {
   font-weight: 600;
   border: none;
   width: 100%;
-  box-shadow: 0 8rpx 16rpx rgba(59, 130, 246, 0.2);
+  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
   margin-top: 16rpx;
   position: relative;
   overflow: hidden;
+  animation: buttonFadeIn 0.6s ease-out 0.8s backwards;
+}
+
+@keyframes buttonFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.login-btn:hover {
+  box-shadow: 0 12rpx 32rpx rgba(59, 130, 246, 0.4);
+  transform: translateY(-4rpx);
 }
 
 .login-btn:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 8rpx rgba(59, 130, 246, 0.15);
+  transform: translateY(0);
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.2);
 }
 
 /* 添加按钮点击涟漪效果 */
@@ -879,22 +958,36 @@ page {
 .switch-mode {
   text-align: center;
   margin-top: 16rpx;
+  animation: fadeIn 0.6s ease-out 0.9s backwards;
 }
 
 .switch-text {
   color: rgb(59, 130, 246);
   font-size: 28rpx;
   text-decoration: underline;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.switch-text:hover {
+  opacity: 0.7;
 }
 
 .register-entry {
   text-align: center;
   margin-top: 32rpx;
+  animation: fadeIn 0.6s ease-out 1s backwards;
 }
 
 .register-text {
   color: rgb(59, 130, 246);
   font-size: 28rpx;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.register-text:hover {
+  opacity: 0.7;
 }
 
 .other-login {
@@ -904,6 +997,16 @@ page {
   max-width: 600rpx;
   margin-left: auto;
   margin-right: auto;
+  animation: fadeIn 0.8s ease-out 1.1s backwards;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .other-title {
@@ -927,7 +1030,45 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  animation: socialBtnPop 0.5s ease-out backwards;
+}
+
+.social-btn:nth-child(1) {
+  animation-delay: 1.2s;
+}
+
+.social-btn:nth-child(2) {
+  animation-delay: 1.3s;
+}
+
+.social-btn:nth-child(3) {
+  animation-delay: 1.4s;
+}
+
+@keyframes socialBtnPop {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  70% {
+    transform: scale(1.1) rotate(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.social-btn:hover {
+  transform: translateY(-8rpx) scale(1.1);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.15);
+}
+
+.social-btn:active {
+  transform: translateY(-4rpx) scale(1.05);
 }
 
 .social-btn .fa-weixin {
@@ -949,15 +1090,24 @@ page {
   margin-top: auto;
   text-align: center;
   padding: 32rpx 0;
+  animation: fadeIn 0.8s ease-out 1.5s backwards;
 }
 
 .agreement {
   color: #9CA3AF;
   font-size: 24rpx;
+  line-height: 1.6;
 }
 
 .link {
   color: rgb(59, 130, 246);
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.link:hover {
+  opacity: 0.7;
+  text-decoration: underline;
 }
 
 /* 移除输入框默认样式 */

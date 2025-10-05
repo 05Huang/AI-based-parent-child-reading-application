@@ -142,6 +142,96 @@ export const applyTheme = (theme) => {
     root.style.setProperty('--reading-text-color', theme.textColor)
     root.style.setProperty('--reading-header-bg', theme.headerBgColor)
     
+    // 根据主题设置标题颜色
+    const isDark = theme.id === 'dark'
+    const titleColor = isDark ? '#f3f4f6' : '#1f2937'
+    const metaColor = isDark ? '#9ca3af' : '#6b7280'
+    root.style.setProperty('--reading-title-color', titleColor)
+    root.style.setProperty('--reading-meta-color', metaColor)
+    
+    // 根据主题设置悬停和按钮背景色
+    if (isDark) {
+      // 深色主题
+      root.style.setProperty('--reading-hover-bg', 'rgba(255, 255, 255, 0.05)')
+      root.style.setProperty('--reading-btn-bg', 'rgba(255, 255, 255, 0.08)')
+      root.style.setProperty('--reading-btn-hover-bg', 'rgba(255, 255, 255, 0.12)')
+      root.style.setProperty('--reading-comment-bg', 'rgba(59, 130, 246, 0.15)')
+      root.style.setProperty('--reading-comment-btn-bg', 'rgba(59, 130, 246, 0.25)')
+      root.style.setProperty('--reading-card-bg', 'rgba(45, 45, 45, 0.95)') // 表情选择器等卡片背景
+      root.style.setProperty('--reading-border-color', '#404040') // 分隔线颜色
+      root.style.setProperty('--reading-active-icon', '#60a5fa') // 激活状态图标颜色
+      root.style.setProperty('--reading-back-to-top-bg', 'linear-gradient(135deg, #60a5fa, #3b82f6)') // 回到顶部按钮背景
+      root.style.setProperty('--reading-back-to-top-shadow', 'rgba(96, 165, 250, 0.3)') // 回到顶部按钮阴影
+      root.style.setProperty('--reading-back-to-top-shadow-hover', 'rgba(96, 165, 250, 0.4)') // 回到顶部按钮悬停阴影
+      root.style.setProperty('--reading-tip-bg', 'linear-gradient(135deg, #60a5fa, #3b82f6)') // 功能提示背景
+      root.style.setProperty('--reading-tip-shadow', 'rgba(96, 165, 250, 0.2)') // 功能提示阴影
+      // 底部工具栏
+      root.style.setProperty('--reading-toolbar-bg', '#2d2d2d')
+      root.style.setProperty('--reading-toolbar-border', '#404040')
+      root.style.setProperty('--reading-toolbar-text', '#d1d5db')
+      root.style.setProperty('--reading-toolbar-icon', '#9ca3af')
+    } else if (theme.id === 'sepia') {
+      // 护眼主题
+      root.style.setProperty('--reading-hover-bg', 'rgba(92, 75, 55, 0.05)')
+      root.style.setProperty('--reading-btn-bg', 'rgba(92, 75, 55, 0.08)')
+      root.style.setProperty('--reading-btn-hover-bg', 'rgba(92, 75, 55, 0.12)')
+      root.style.setProperty('--reading-comment-bg', 'rgba(212, 165, 116, 0.15)')
+      root.style.setProperty('--reading-comment-btn-bg', 'rgba(212, 165, 116, 0.25)')
+      root.style.setProperty('--reading-card-bg', 'rgba(245, 238, 217, 0.95)') // 表情选择器等卡片背景
+      root.style.setProperty('--reading-border-color', '#e8dcc0') // 分隔线颜色
+      root.style.setProperty('--reading-active-icon', '#d4a574') // 激活状态图标颜色
+      root.style.setProperty('--reading-back-to-top-bg', 'linear-gradient(135deg, #d4a574, #b8935f)') // 回到顶部按钮背景
+      root.style.setProperty('--reading-back-to-top-shadow', 'rgba(212, 165, 116, 0.3)') // 回到顶部按钮阴影
+      root.style.setProperty('--reading-back-to-top-shadow-hover', 'rgba(212, 165, 116, 0.4)') // 回到顶部按钮悬停阴影
+      root.style.setProperty('--reading-tip-bg', 'linear-gradient(135deg, #d4a574, #b8935f)') // 功能提示背景
+      root.style.setProperty('--reading-tip-shadow', 'rgba(212, 165, 116, 0.2)') // 功能提示阴影
+      // 底部工具栏
+      root.style.setProperty('--reading-toolbar-bg', '#f5eed9')
+      root.style.setProperty('--reading-toolbar-border', '#e8dcc0')
+      root.style.setProperty('--reading-toolbar-text', '#5c4b37')
+      root.style.setProperty('--reading-toolbar-icon', '#8b7355')
+    } else if (theme.id === 'green') {
+      // 绿色主题
+      root.style.setProperty('--reading-hover-bg', 'rgba(22, 101, 52, 0.05)')
+      root.style.setProperty('--reading-btn-bg', 'rgba(22, 101, 52, 0.08)')
+      root.style.setProperty('--reading-btn-hover-bg', 'rgba(22, 101, 52, 0.12)')
+      root.style.setProperty('--reading-comment-bg', 'rgba(16, 185, 129, 0.15)')
+      root.style.setProperty('--reading-comment-btn-bg', 'rgba(16, 185, 129, 0.25)')
+      root.style.setProperty('--reading-card-bg', 'rgba(236, 253, 245, 0.95)') // 表情选择器等卡片背景
+      root.style.setProperty('--reading-border-color', '#d1fae5') // 分隔线颜色
+      root.style.setProperty('--reading-active-icon', '#10b981') // 激活状态图标颜色
+      root.style.setProperty('--reading-back-to-top-bg', 'linear-gradient(135deg, #10b981, #059669)') // 回到顶部按钮背景
+      root.style.setProperty('--reading-back-to-top-shadow', 'rgba(16, 185, 129, 0.3)') // 回到顶部按钮阴影
+      root.style.setProperty('--reading-back-to-top-shadow-hover', 'rgba(16, 185, 129, 0.4)') // 回到顶部按钮悬停阴影
+      root.style.setProperty('--reading-tip-bg', 'linear-gradient(135deg, #10b981, #059669)') // 功能提示背景
+      root.style.setProperty('--reading-tip-shadow', 'rgba(16, 185, 129, 0.2)') // 功能提示阴影
+      // 底部工具栏
+      root.style.setProperty('--reading-toolbar-bg', '#ecfdf5')
+      root.style.setProperty('--reading-toolbar-border', '#d1fae5')
+      root.style.setProperty('--reading-toolbar-text', '#166534')
+      root.style.setProperty('--reading-toolbar-icon', '#059669')
+    } else {
+      // 默认主题
+      root.style.setProperty('--reading-hover-bg', 'rgba(0, 0, 0, 0.03)')
+      root.style.setProperty('--reading-btn-bg', 'rgba(0, 0, 0, 0.05)')
+      root.style.setProperty('--reading-btn-hover-bg', 'rgba(0, 0, 0, 0.08)')
+      root.style.setProperty('--reading-comment-bg', 'rgba(59, 130, 246, 0.05)')
+      root.style.setProperty('--reading-comment-btn-bg', 'rgba(59, 130, 246, 0.15)')
+      root.style.setProperty('--reading-card-bg', 'rgba(248, 249, 250, 0.95)') // 表情选择器等卡片背景
+      root.style.setProperty('--reading-border-color', '#e5e7eb') // 分隔线颜色
+      root.style.setProperty('--reading-active-icon', '#3b82f6') // 激活状态图标颜色
+      root.style.setProperty('--reading-back-to-top-bg', 'linear-gradient(135deg, #3b82f6, #2563eb)') // 回到顶部按钮背景
+      root.style.setProperty('--reading-back-to-top-shadow', 'rgba(59, 130, 246, 0.3)') // 回到顶部按钮阴影
+      root.style.setProperty('--reading-back-to-top-shadow-hover', 'rgba(59, 130, 246, 0.4)') // 回到顶部按钮悬停阴影
+      root.style.setProperty('--reading-tip-bg', 'linear-gradient(135deg, #3b82f6, #1d4ed8)') // 功能提示背景
+      root.style.setProperty('--reading-tip-shadow', 'rgba(59, 130, 246, 0.2)') // 功能提示阴影
+      // 底部工具栏
+      root.style.setProperty('--reading-toolbar-bg', '#ffffff')
+      root.style.setProperty('--reading-toolbar-border', '#e5e7eb')
+      root.style.setProperty('--reading-toolbar-text', '#6b7280')
+      root.style.setProperty('--reading-toolbar-icon', '#6b7280')
+    }
+    
     console.log('主题应用成功')
   } catch (error) {
     console.error('应用主题失败:', error)

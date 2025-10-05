@@ -170,8 +170,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { contentApi, commentApi, likeApi, userApi } from '@/utils/api.js'
+import readingModeManager from '@/utils/readingModeManager.js'
 
 // 文章信息
 const article = ref({
@@ -203,7 +204,27 @@ onLoad(async (option) => {
       icon: 'none'
     })
   }
+  
+  // 应用阅读模式设置
+  applyReadingModeSettings()
 })
+
+// 页面显示时重新应用阅读模式设置
+onShow(() => {
+  console.log('[文章评论页面] 页面显示，重新应用阅读模式设置')
+  applyReadingModeSettings()
+})
+
+// 应用阅读模式设置
+const applyReadingModeSettings = () => {
+  try {
+    const settings = readingModeManager.getSettings()
+    console.log('[文章评论页面] 应用阅读模式设置：', settings)
+    readingModeManager.applySettings(settings)
+  } catch (error) {
+    console.error('[文章评论页面] 应用阅读模式设置失败：', error)
+  }
+}
 
 // 加载当前用户信息
 const loadCurrentUser = async () => {
@@ -633,8 +654,9 @@ const insertEmoji = (emoji) => {
 
 .container {
   min-height: 100vh;
-  background-color: #f3f4f6;
+  background-color: var(--reading-bg-color, #f3f4f6);
   position: relative;
+  transition: background-color 0.3s ease;
 }
 
 /* 顶部导航栏样式 */
@@ -643,8 +665,9 @@ const insertEmoji = (emoji) => {
   top: 0;
   left: 0;
   right: 0;
-  background-color: #3b82f6;
+  background-color: var(--reading-header-bg, #3b82f6);
   z-index: 50;
+  transition: background-color 0.3s ease;
 }
 
 .header-content {
@@ -698,24 +721,27 @@ const insertEmoji = (emoji) => {
   margin-top: 56px;
   margin-bottom: 64px;
   height: calc(100vh - 120px);
-  background-color: #f3f4f6;
+  background-color: var(--reading-bg-color, #f3f4f6);
+  transition: background-color 0.3s ease;
 }
 
 /* 文章卡片样式 */
 .article-card {
   margin: 12px;
   padding: 12px;
-  background-color: #ffffff;
+  background-color: var(--reading-comment-bg, rgba(0, 0, 0, 0.03));
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease;
 }
 
 .article-title {
   font-size: 16px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--reading-title-color, #1f2937);
   margin-bottom: 8px;
   display: block;
+  transition: color 0.3s ease;
 }
 
 .article-meta {
@@ -725,7 +751,8 @@ const insertEmoji = (emoji) => {
 
 .article-author, .article-date {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 /* 评论列表样式 */
@@ -736,9 +763,10 @@ const insertEmoji = (emoji) => {
 .comment-item {
   margin-bottom: 12px;
   padding: 12px;
-  background-color: #ffffff;
+  background-color: var(--reading-card-bg, rgba(255, 255, 255, 0.8));
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease;
 }
 
 .comment-header {
@@ -774,12 +802,14 @@ const insertEmoji = (emoji) => {
 .username {
   font-size: 14px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--reading-title-color, #1f2937);
+  transition: color 0.3s ease;
 }
 
 .comment-time {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .comment-actions {
@@ -802,7 +832,8 @@ const insertEmoji = (emoji) => {
 
 .action-btn .fas {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-toolbar-icon, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .action-btn .fas.active {
@@ -811,14 +842,16 @@ const insertEmoji = (emoji) => {
 
 .action-count {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .comment-content {
   font-size: 14px;
-  color: #374151;
+  color: var(--reading-text-color, #374151);
   line-height: 1.6;
   margin-bottom: 8px;
+  transition: color 0.3s ease;
 }
 
 .comment-footer {
@@ -835,7 +868,8 @@ const insertEmoji = (emoji) => {
   margin-left: 36px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--reading-border-color, #e5e7eb);
+  transition: border-color 0.3s ease;
 }
 
 .reply-item {
@@ -851,16 +885,18 @@ const insertEmoji = (emoji) => {
 
 .reply-to {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .reply-content {
   font-size: 13px;
-  color: #374151;
+  color: var(--reading-text-color, #374151);
   margin-left: 32px;
   line-height: 1.5;
   margin-top: 4px;
   margin-bottom: 4px;
+  transition: color 0.3s ease;
 }
 
 .reply-footer {
@@ -873,7 +909,8 @@ const insertEmoji = (emoji) => {
 
 .reply-time {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .reply-actions {
@@ -915,11 +952,11 @@ const insertEmoji = (emoji) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ffffff;
+  background-color: var(--reading-toolbar-bg, #ffffff);
   padding: 12px 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--reading-toolbar-border, #e5e7eb);
   z-index: 40;
-  transition: bottom 0.3s ease;
+  transition: bottom 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .comment-input-container.with-emoji {
@@ -931,9 +968,10 @@ const insertEmoji = (emoji) => {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   border-radius: 6px;
   margin-bottom: 6px;
+  transition: background-color 0.3s ease;
 }
 
 .reply-hint-text {
@@ -968,18 +1006,19 @@ const insertEmoji = (emoji) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   border-radius: 50%;
   transition: all 0.2s ease;
 }
 
 .emoji-btn:active {
-  background-color: #e5e7eb;
+  background-color: var(--reading-btn-hover-bg, rgba(0, 0, 0, 0.08));
 }
 
 .emoji-btn .fas {
-  color: #6b7280;
+  color: var(--reading-toolbar-icon, #6b7280);
   font-size: 20px;
+  transition: color 0.3s ease;
 }
 
 .comment-input {
@@ -987,9 +1026,10 @@ const insertEmoji = (emoji) => {
   height: 40px;
   padding: 8px 16px;
   border-radius: 20px;
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   font-size: 14px;
-  color: #374151;
+  color: var(--reading-text-color, #374151);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .submit-btn {
@@ -999,7 +1039,7 @@ const insertEmoji = (emoji) => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background-color: #e5e7eb;
+  background-color: var(--reading-btn-hover-bg, rgba(0, 0, 0, 0.08));
   transition: all 0.2s ease;
 }
 
@@ -1009,7 +1049,8 @@ const insertEmoji = (emoji) => {
 
 .submit-btn .fas {
   font-size: 16px;
-  color: #6b7280;
+  color: var(--reading-toolbar-icon, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .submit-btn.active .fas {
@@ -1086,11 +1127,12 @@ const insertEmoji = (emoji) => {
   right: 0;
   width: 100%; /* 与父容器（输入框区域）同宽 */
   height: 300px;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e5e7eb;
+  background-color: var(--reading-card-bg, rgba(248, 249, 250, 0.95));
+  border-top: 1px solid var(--reading-border-color, #e5e7eb);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
   border-radius: 12px 12px 0 0; /* 顶部圆角 */
   animation: slideUp 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 @keyframes slideUp {
@@ -1109,15 +1151,17 @@ const insertEmoji = (emoji) => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--reading-toolbar-bg, #ffffff);
+  border-bottom: 1px solid var(--reading-border-color, #e5e7eb);
   border-radius: 12px 12px 0 0; /* 顶部圆角 */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .emoji-title {
   font-size: 15px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--reading-title-color, #1f2937);
+  transition: color 0.3s ease;
 }
 
 .close-emoji {
@@ -1126,23 +1170,25 @@ const insertEmoji = (emoji) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   border-radius: 50%;
   transition: background-color 0.2s ease;
 }
 
 .close-emoji:active {
-  background-color: #e5e7eb;
+  background-color: var(--reading-btn-hover-bg, rgba(0, 0, 0, 0.08));
 }
 
 .close-emoji .fas {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-toolbar-icon, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .emoji-list {
   height: calc(100% - 48px);
-  background-color: #ffffff;
+  background-color: var(--reading-card-bg, rgba(255, 255, 255, 0.95));
+  transition: background-color 0.3s ease;
 }
 
 .emoji-grid {
@@ -1163,7 +1209,7 @@ const insertEmoji = (emoji) => {
 }
 
 .emoji-item:active {
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   transform: scale(1.3);
 }
 

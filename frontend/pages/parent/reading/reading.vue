@@ -142,7 +142,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onUnload, onShow } from '@dcloudio/uni-app'
 import { contentApi, commentApi, viewHistoryApi, userApi, likeApi, favoriteApi, userBehaviorApi } from '@/utils/api.js'
 import readingModeManager from '@/utils/readingModeManager.js'
 
@@ -211,6 +211,12 @@ onLoad(async (option) => {
     error.value = '文章ID不存在'
     console.error('缺少文章ID参数')
   }
+})
+
+// 页面显示时重新应用阅读模式设置
+onShow(() => {
+  console.log('[阅读页面] 页面显示，重新应用阅读模式设置')
+  applyReadingModeSettings()
 })
 
 // 页面卸载时清理并记录阅读时长
@@ -1116,6 +1122,18 @@ const generateSharePoster = () => {
   display: flex;
   flex-direction: column;
   transition: background-color 0.3s ease;
+  animation: pageSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 顶部导航栏样式 */
@@ -1188,7 +1206,7 @@ const generateSharePoster = () => {
 }
 
 .action-btn .fas.active {
-  color: #fbbf24;
+  color: var(--reading-active-icon, #fbbf24);
 }
 
 /* 阅读内容区域样式 */
@@ -1220,9 +1238,10 @@ const generateSharePoster = () => {
 .article-title {
   font-size: 28px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--reading-title-color, #1f2937);
   margin-bottom: 16px;
   line-height: 1.4;
+  transition: color 0.3s ease;
 }
 
 .article-meta {
@@ -1233,7 +1252,8 @@ const generateSharePoster = () => {
 
 .article-author, .article-date {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .article-stats {
@@ -1245,12 +1265,14 @@ const generateSharePoster = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #6b7280;
+  color: var(--reading-meta-color, #6b7280);
   font-size: 14px;
+  transition: color 0.3s ease;
 }
 
 .stat-item .fas {
-  color: #3b82f6;
+  color: var(--reading-active-icon, #3b82f6);
+  transition: color 0.3s ease;
 }
 
 .article-body {
@@ -1332,12 +1354,12 @@ const generateSharePoster = () => {
   bottom: 120rpx;
   width: 88rpx;
   height: 88rpx;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: var(--reading-back-to-top-bg, linear-gradient(135deg, #3b82f6, #2563eb));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 16rpx rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8rpx 16rpx var(--reading-back-to-top-shadow, rgba(59, 130, 246, 0.3));
   cursor: pointer;
   transition: all 0.3s ease;
   z-index: 40;
@@ -1357,7 +1379,7 @@ const generateSharePoster = () => {
 
 .back-to-top:hover {
   transform: scale(1.1);
-  box-shadow: 0 12rpx 24rpx rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12rpx 24rpx var(--reading-back-to-top-shadow-hover, rgba(59, 130, 246, 0.4));
 }
 
 .back-to-top:active {
@@ -1376,13 +1398,14 @@ const generateSharePoster = () => {
   left: 0;
   right: 0;
   height: 56px;
-  background-color: #ffffff;
-  border-top: 1px solid #e5e7eb;
+  background-color: var(--reading-toolbar-bg, #ffffff);
+  border-top: 1px solid var(--reading-toolbar-border, #e5e7eb);
   padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 40;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .toolbar-left {
@@ -1392,7 +1415,8 @@ const generateSharePoster = () => {
 
 .progress-text {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-toolbar-text, #6b7280);
+  transition: color 0.3s ease;
 }
 
 .toolbar-right {
@@ -1409,17 +1433,18 @@ const generateSharePoster = () => {
 
 .tool-btn .fas {
   font-size: 18px;
-  color: #6b7280;
+  color: var(--reading-toolbar-icon, #6b7280);
   transition: color 0.3s ease;
 }
 
 .tool-btn .fas.active {
-  color: #3b82f6;
+  color: var(--reading-active-icon, #3b82f6);
 }
 
 .tool-text {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--reading-toolbar-text, #6b7280);
+  transition: color 0.3s ease;
 }
 
 /* 响应式设计 */
@@ -1568,7 +1593,7 @@ const generateSharePoster = () => {
 }
 
 .paragraph-container:hover {
-  background-color: #f9fafb;
+  background-color: var(--reading-hover-bg, rgba(0, 0, 0, 0.03));
 }
 
 .paragraph-content {
@@ -1600,7 +1625,7 @@ const generateSharePoster = () => {
   align-items: center;
   gap: 4rpx;
   padding: 6rpx 12rpx;
-  background-color: #f3f4f6;
+  background-color: var(--reading-btn-bg, rgba(0, 0, 0, 0.05));
   border-radius: 16rpx;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1609,8 +1634,8 @@ const generateSharePoster = () => {
 }
 
 .comment-btn:hover {
-  background-color: #e5e7eb;
-  border-color: #3b82f6;
+  background-color: var(--reading-btn-hover-bg, rgba(0, 0, 0, 0.08));
+  border-color: var(--reading-active-icon, #3b82f6);
   transform: scale(1);
 }
 
@@ -1625,7 +1650,7 @@ const generateSharePoster = () => {
 }
 
 .comment-btn:hover .fas {
-  color: #3b82f6;
+  color: var(--reading-active-icon, #3b82f6);
 }
 
 .comment-count {
@@ -1644,24 +1669,25 @@ const generateSharePoster = () => {
 
 .comment-btn:hover .comment-count,
 .comment-btn:hover .comment-hint {
-  color: #3b82f6;
+  color: var(--reading-active-icon, #3b82f6);
 }
 
 /* 当段落有评论时的样式 */
 .paragraph-container.has-comments {
-  border-left: 3px solid #3b82f6;
-  background-color: #f8fafc;
+  border-left: 3px solid var(--reading-active-icon, #3b82f6);
+  background-color: var(--reading-comment-bg, rgba(59, 130, 246, 0.05));
+  transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .paragraph-container.has-comments .comment-btn {
-  background-color: #dbeafe;
-  border-color: #3b82f6;
+  background-color: var(--reading-comment-btn-bg, rgba(59, 130, 246, 0.15));
+  border-color: var(--reading-active-icon, #3b82f6);
   transform: scale(0.95);
 }
 
 .paragraph-container.has-comments .comment-btn .fas,
 .paragraph-container.has-comments .comment-btn .comment-count {
-  color: #3b82f6;
+  color: var(--reading-active-icon, #3b82f6);
 }
 
 /* 图片段落的特殊样式 */
@@ -1711,10 +1737,11 @@ const generateSharePoster = () => {
   align-items: center;
   gap: 16rpx;
   padding: 20rpx 24rpx;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: var(--reading-tip-bg, linear-gradient(135deg, #3b82f6, #1d4ed8));
   border-radius: 12rpx;
-  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4rpx 12rpx var(--reading-tip-shadow, rgba(59, 130, 246, 0.2));
   position: relative;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 .tip-content .fas {

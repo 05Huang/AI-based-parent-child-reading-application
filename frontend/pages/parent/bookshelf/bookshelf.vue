@@ -71,7 +71,7 @@
             </view>
             <view class="action-buttons">
               <button class="continue-btn" @click="continueReading">查看详情</button>
-              <button class="share-btn">
+              <button class="share-btn" @click="shareCurrentBook">
                 <text class="fas fa-share-alt"></text>
               </button>
             </view>
@@ -516,6 +516,249 @@ const toggleLike = async (book) => {
     })
   }
 }
+
+// 分享当前书籍
+const shareCurrentBook = () => {
+  if (browsingHistory.value.length === 0) {
+    uni.showToast({
+      title: '暂无内容可分享',
+      icon: 'none'
+    })
+    return
+  }
+  
+  const bookToShare = browsingHistory.value[0]
+  shareArticle(bookToShare)
+}
+
+// 分享文章
+const shareArticle = (book) => {
+  console.log('开始分享文章：', book.title)
+  
+  if (!book || !book.id) {
+    uni.showToast({
+      title: '文章数据未加载',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 构建分享内容
+  const shareTitle = book.title || '精彩文章'
+  const shareContent = `推荐阅读：《${shareTitle}》`
+  
+  // 检测平台
+  const systemInfo = uni.getSystemInfoSync()
+  console.log('当前平台：', systemInfo.platform)
+  
+  // H5环境下使用系统分享或显示分享选项
+  // #ifdef H5
+  if (navigator.share) {
+    console.log('使用Web Share API')
+    navigator.share({
+      title: shareTitle,
+      text: shareContent,
+      url: window.location.href
+    }).then(() => {
+      console.log('分享成功')
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    }).catch((error) => {
+      console.error('分享失败：', error)
+      // 如果用户取消分享，不显示错误提示
+      if (error.name !== 'AbortError') {
+        showShareActionSheet(book)
+      }
+    })
+  } else {
+    console.log('不支持Web Share API，显示分享选项')
+    showShareActionSheet(book)
+  }
+  // #endif
+  
+  // 小程序环境下使用小程序分享
+  // #ifdef MP-WEIXIN
+  console.log('微信小程序环境，使用小程序分享')
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    success: () => {
+      uni.showToast({
+        title: '请点击右上角分享',
+        icon: 'none'
+      })
+    },
+    fail: () => {
+      uni.showToast({
+        title: '分享失败',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+  
+  // App环境下优先使用系统分享
+  // #ifdef APP-PLUS
+  console.log('App环境，尝试使用系统分享')
+  
+  // 优先使用uni.share()原生分享
+  uni.share({
+    provider: 'system', // 使用系统分享
+    type: 1, // 图文分享
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${book.id}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败，降级使用操作菜单：', err)
+      // 如果系统分享不可用，降级使用操作菜单
+      showShareActionSheet(book)
+    }
+  })
+  // #endif
+}
+
+// 显示分享操作菜单
+const showShareActionSheet = (book) => {
+  console.log('显示分享操作菜单')
+  
+  // #ifdef APP-PLUS
+  // App环境下提供更多分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '使用系统分享', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          // 复制链接
+          copyArticleLink(book)
+          break
+        case 1:
+          // 使用系统分享
+          useSystemShare(book)
+          break
+        case 2:
+          // 生成分享海报
+          generateSharePoster(book)
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+  
+  // #ifndef APP-PLUS
+  // 非App环境下的分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          copyArticleLink(book)
+          break
+        case 1:
+          generateSharePoster(book)
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+}
+
+// 使用系统分享（App环境）
+const useSystemShare = (book) => {
+  console.log('使用系统分享')
+  
+  // #ifdef APP-PLUS
+  const shareTitle = book.title || '精彩文章'
+  
+  uni.share({
+    provider: 'system',
+    type: 1,
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${book.id}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败：', err)
+      uni.showToast({
+        title: '分享失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+}
+
+// 复制文章链接
+const copyArticleLink = (book) => {
+  console.log('复制文章链接')
+  
+  // 构建文章链接
+  let articleLink = ''
+  
+  // #ifdef H5
+  articleLink = `${window.location.origin}/pages/parent/reading/reading?id=${book.id}`
+  // #endif
+  
+  // #ifndef H5
+  // 在非H5环境下，构建一个模拟链接
+  articleLink = `https://parentreading.com/article/${book.id}`
+  // #endif
+  
+  const shareText = `${book.title}\n\n${articleLink}`
+  
+  uni.setClipboardData({
+    data: shareText,
+    success: () => {
+      console.log('链接复制成功')
+      uni.showToast({
+        title: '链接已复制',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败：', err)
+      uni.showToast({
+        title: '复制失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
+// 生成分享海报
+const generateSharePoster = (book) => {
+  console.log('生成分享海报')
+  uni.showToast({
+    title: '海报生成功能开发中',
+    icon: 'none'
+  })
+  // TODO: 实现海报生成功能
+  // 可以使用canvas生成包含文章标题、封面、二维码等信息的海报
+}
 </script>
 
 <style>
@@ -529,6 +772,18 @@ const toggleLike = async (book) => {
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  animation: pageSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .header {
