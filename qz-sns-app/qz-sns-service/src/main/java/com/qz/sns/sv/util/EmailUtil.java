@@ -17,7 +17,7 @@ import java.util.Map;
 
 @Component
 public class EmailUtil {
-    @Value("qzreadapp@163.com")
+    @Value("${spring.mail.username:qzreadapp@163.com}")
     private String from;
     @Autowired
     TemplateEngine templateEngine;
@@ -25,23 +25,38 @@ public class EmailUtil {
     private JavaMailSender sender;
  
     public boolean sendMail(String to,String subject, String body){
-        if (to.equals("")||to==null){
+        System.out.println("EmailUtil.sendMail 开始执行");
+        System.out.println("收件人：" + to);
+        System.out.println("主题：" + subject);
+        
+        if (to == null || to.equals("")){
+            System.out.println("收件人邮箱为空，发送失败");
             return false;
         }
-        //构建标准的简单邮件信息
-        //发送人和xml保持一致
-        SimpleMailMessage m=new SimpleMailMessage();
-        //发送人
-        m.setFrom(from);
-        //接收人
-        m.setTo(to);
-        //邮件标题
-        m.setSubject(subject);
-        //内容
-        m.setText(body);
-        sender.send(m);//发送邮件
-        System.out.println("发送成功！");
-        return true;
+        
+        try {
+            //构建标准的简单邮件信息
+            //发送人和xml保持一致
+            SimpleMailMessage m=new SimpleMailMessage();
+            //发送人
+            m.setFrom(from);
+            System.out.println("发件人：" + from);
+            //接收人
+            m.setTo(to);
+            //邮件标题
+            m.setSubject(subject);
+            //内容
+            m.setText(body);
+            
+            System.out.println("准备发送邮件...");
+            sender.send(m);//发送邮件
+            System.out.println("邮件发送成功！");
+            return true;
+        } catch (Exception e) {
+            System.out.println("邮件发送失败：" + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public boolean sendMail(String to, String subject, String body, List<File> attachments) {

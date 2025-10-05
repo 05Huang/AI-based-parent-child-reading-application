@@ -382,9 +382,12 @@ const handleRegister = async () => {
     
     console.log('注册响应：', res)
     
-    // 保存token和登录状态
-    uni.setStorageSync('token', res.data.token)
+    // 保存token和登录状态（后端返回的是accessToken而不是token）
+    uni.setStorageSync('token', res.data.accessToken)
+    uni.setStorageSync('refreshToken', res.data.refreshToken)
     uni.setStorageSync('isLoggedIn', true)
+    
+    console.log('Token保存成功，accessToken：', res.data.accessToken)
     
     // 显示注册成功提示
     uni.showToast({

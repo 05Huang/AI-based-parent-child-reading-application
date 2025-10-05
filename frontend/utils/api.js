@@ -335,7 +335,17 @@ export const userApi = {
     return request.post('/api/user/reset-password', resetData)
   },
   
-  // 发送邮箱验证码
+  // 发送邮箱验证码（带人机验证）
+  sendEmailCodeWithCaptcha(email, ticket, randstr) {
+    console.log('调用发送邮箱验证码接口（带人机验证），邮箱：', email, 'ticket：', ticket)
+    return request.post('/api/user/send-email-code', { 
+      email,
+      ticket,
+      randstr
+    })
+  },
+  
+  // 发送邮箱验证码（不带人机验证，用于兼容旧代码）
   sendEmailCode(email) {
     console.log('调用发送邮箱验证码接口，邮箱：', email)
     return request.post('/api/user/send-email-code', { email })

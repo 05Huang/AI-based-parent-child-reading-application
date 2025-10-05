@@ -71,6 +71,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { userApi } from '@/utils/api.js'
+import captcha from '@/utils/captcha.js'
 
 // 表单数据
 const formData = ref({
@@ -196,10 +197,46 @@ const sendVerifyCode = async () => {
 
   try {
     sendingCode.value = true
+    
+    // 1. 先进行人机验证
+    console.log('开始人机验证')
+    uni.showLoading({
+      title: '正在加载验证码...',
+      mask: true
+    })
+    
+    let captchaResult
+    try {
+      captchaResult = await captcha.show()
+      console.log('人机验证成功，ticket：', captchaResult.ticket)
+    } catch (captchaError) {
+      console.error('人机验证失败：', captchaError)
+      uni.hideLoading()
+      
+      // 如果是用户取消，不显示错误提示
+      if (captchaError.message && captchaError.message.includes('取消')) {
+        console.log('用户取消了人机验证')
+        return
+      }
+      
+      uni.showToast({
+        title: captchaError.message || '验证失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    uni.hideLoading()
+    
+    // 2. 人机验证成功后，调用后端接口发送验证码
     console.log('调用发送邮箱验证码接口')
     
-    // 使用登录页面相同的发送验证码接口
-    const response = await userApi.sendEmailCode(formData.value.newEmail)
+    const response = await userApi.sendEmailCodeWithCaptcha(
+      formData.value.newEmail, 
+      captchaResult.ticket, 
+      captchaResult.randstr
+    )
     console.log('发送验证码响应：', response)
     
     if (response.code === 200 || response === '验证码发送成功') {
@@ -219,19 +256,21 @@ const sendVerifyCode = async () => {
     }
   } catch (error) {
     console.error('发送验证码异常：', error)
-    // 检查是否是成功的响应但格式不同
-    if (error && typeof error === 'string' && error.includes('验证码发送成功')) {
-      uni.showToast({
-        title: '验证码已发送',
-        icon: 'success'
-      })
-      startCountdown()
-    } else {
-      uni.showToast({
-        title: '网络错误，请稍后重试',
-        icon: 'none'
-      })
+    
+    let errorMessage = '网络错误，请稍后重试'
+    
+    if (error.response && error.response.data) {
+      const responseData = error.response.data
+      if (responseData.message) {
+        errorMessage = responseData.message
+      }
     }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 2000
+    })
   } finally {
     sendingCode.value = false
   }
@@ -302,13 +341,14 @@ const handleSubmit = async () => {
       return
     }
     
-    // 构建更新数据
+    // 构建更新数据（包含验证码）
     const updateData = {
       id: userInfo.value.id,
-      email: formData.value.newEmail
+      email: formData.value.newEmail,
+      verificationCode: formData.value.verifyCode
     }
     
-    console.log('调用更新用户信息接口修改邮箱')
+    console.log('调用更新用户信息接口修改邮箱，数据：', updateData)
     const response = await userApi.updateUser(updateData)
     console.log('修改邮箱响应：', response)
     

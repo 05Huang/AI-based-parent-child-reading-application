@@ -114,53 +114,78 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public Result<String> sendEmailVerifyCode(String email, String ticket, String randstr, jakarta.servlet.http.HttpServletRequest request) {
-        System.out.println("开始发送邮箱验证码，邮箱：" + email + "，ticket：" + ticket + "，randstr：" + randstr);
+        System.out.println("=== 开始发送邮箱验证码 ===");
+        System.out.println("邮箱：" + email);
+        System.out.println("Ticket：" + ticket);
+        System.out.println("Randstr：" + randstr);
         
         // 1. 校验邮箱格式
         if (!RegexUtil.isEmail(email)) {
+            System.out.println("邮箱格式不正确：" + email);
             return ResultUtils.error(ResultCode.XSS_PARAM_ERROR, "邮箱格式不正确");
         }
+        System.out.println("邮箱格式校验通过");
         
         // 2. 校验腾讯云验证码票据
         if (ticket != null && !ticket.isEmpty() && randstr != null && !randstr.isEmpty()) {
-            System.out.println("开始校验腾讯云验证码票据");
+            System.out.println("开始校验腾讯云人机验证票据");
             String userIp = com.qz.sns.sv.util.TencentCaptchaUtil.getClientIp(request);
-            System.out.println("用户IP：" + userIp);
+            System.out.println("用户IP地址：" + userIp);
             
             boolean captchaValid = tencentCaptchaUtil.verifyCaptcha(ticket, randstr, userIp);
-            System.out.println("验证码校验结果：" + captchaValid);
+            System.out.println("人机验证校验结果：" + (captchaValid ? "成功" : "失败"));
             
             if (!captchaValid) {
-                System.out.println("腾讯云验证码校验失败");
+                System.out.println("腾讯云人机验证失败，拒绝发送验证码");
                 return ResultUtils.error(ResultCode.CAPTCHA_ERROR, "人机验证失败，请重试");
             }
-            System.out.println("腾讯云验证码校验成功");
+            System.out.println("人机验证通过");
         } else {
-            System.out.println("未提供验证码票据，跳过人机验证");
+            System.out.println("警告：未提供验证码票据，跳过人机验证");
         }
 
-        // 3. 生成6位验证码
+        // 3. 检查发送频率限制（60秒内只能发送一次）
+        String limitKey = "EMAIL_CODE_LIMIT:" + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(limitKey))) {
+            System.out.println("邮箱验证码发送过于频繁，邮箱：" + email);
+            return ResultUtils.error(ResultCode.PROGRAM_ERROR, "发送过于频繁，请稍后再试");
+        }
+        
+        // 4. 生成6位数字验证码
         int code = (int) ((Math.random() * 9 + 1) * 100000);
         String verifyCode = String.valueOf(code);
         System.out.println("生成的邮箱验证码：" + verifyCode);
 
-        // 4. 发送邮件
-        System.out.println("开始发送邮件");
-        boolean sendResult = emailUtil.sendMail(
-                email,
-                "亲子悦读 - 验证码",
-                "亲子阅读提醒您，您的验证码为: " + verifyCode + "，请在5分钟内使用。"
-        );
-        System.out.println("邮件发送结果：" + sendResult);
+        // 5. 发送邮件
+        System.out.println("开始调用邮件发送服务");
+        boolean sendResult;
+        try {
+            sendResult = emailUtil.sendMail(
+                    email,
+                    "亲子阅读 - 验证码",
+                    "您好！\n\n您正在使用亲子阅读平台，您的验证码为: " + verifyCode + "\n\n该验证码5分钟内有效，请勿泄露给他人。\n\n如非本人操作，请忽略此邮件。\n\n亲子悦读团队"
+            );
+            System.out.println("邮件发送结果：" + (sendResult ? "成功" : "失败"));
+        } catch (Exception e) {
+            System.out.println("邮件发送异常：" + e.getMessage());
+            e.printStackTrace();
+            return ResultUtils.error(ResultCode.PROGRAM_ERROR, "验证码发送失败，请稍后重试");
+        }
 
         if (sendResult) {
-            // 5. 存入Redis，有效期5分钟
+            // 6. 存入Redis，有效期5分钟
             redisTemplate.opsForValue().set(REDIS_EMAIL_CODE + email, verifyCode, 5, TimeUnit.MINUTES);
-            System.out.println("验证码已存入Redis");
-            return ResultUtils.success("验证码已发送");
+            System.out.println("验证码已存入Redis，有效期5分钟");
+            
+            // 7. 设置频率限制，60秒内不能重复发送
+            redisTemplate.opsForValue().set(limitKey, "1", 60, TimeUnit.SECONDS);
+            System.out.println("已设置发送频率限制，60秒后可重新发送");
+            
+            System.out.println("=== 邮箱验证码发送成功 ===");
+            return ResultUtils.success("验证码已发送，请查收邮件");
         } else {
-            System.out.println("邮件发送失败");
-            return ResultUtils.error(ResultCode.PROGRAM_ERROR, "验证码发送失败");
+            System.out.println("=== 邮箱验证码发送失败 ===");
+            return ResultUtils.error(ResultCode.PROGRAM_ERROR, "验证码发送失败，请稍后重试");
         }
     }
 
@@ -644,50 +669,170 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     @Transactional(rollbackFor = Exception.class)
     public User updateUser(UserUpdateDTO updateDTO) {
-        log.info("开始更新用户信息，用户ID：{}", updateDTO.getId());
+        log.info("=== 开始更新用户信息 ===");
+        log.info("用户ID：{}", updateDTO.getId());
+        log.info("更新的字段：用户名={}, 昵称={}, 手机号={}, 邮箱={}, 性别={}, 生日={}", 
+                updateDTO.getUsername(), updateDTO.getNickname(), updateDTO.getPhone(), 
+                updateDTO.getEmail(), updateDTO.getGender(), updateDTO.getBirthday());
+
+        // 验证用户ID不能为空
+        if (updateDTO.getId() == null) {
+            log.error("用户ID为空");
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
 
         // 验证用户是否存在且未被禁用
         User existingUser = getUserById(updateDTO.getId());
         if (existingUser == null) {
+            log.error("用户不存在或已被禁用，用户ID：{}", updateDTO.getId());
             throw new RuntimeException("用户不存在或已被禁用");
         }
+        log.info("用户验证通过，当前用户名：{}", existingUser.getUsername());
 
         // 验证用户名唯一性（如果要更新用户名）
         if (StringUtils.hasText(updateDTO.getUsername()) &&
-                !updateDTO.getUsername().equals(existingUser.getUsername()) &&
-                isUsernameExists(updateDTO.getUsername(), updateDTO.getId())) {
-            throw new RuntimeException("用户名已存在");
+                !updateDTO.getUsername().equals(existingUser.getUsername())) {
+            log.info("检查用户名是否已存在：{}", updateDTO.getUsername());
+            if (isUsernameExists(updateDTO.getUsername(), updateDTO.getId())) {
+                log.error("用户名已存在：{}", updateDTO.getUsername());
+                throw new RuntimeException("用户名已存在");
+            }
+            log.info("用户名可用");
         }
 
         // 验证手机号唯一性（如果要更新手机号）
         if (StringUtils.hasText(updateDTO.getPhone()) &&
-                !updateDTO.getPhone().equals(existingUser.getPhone()) &&
-                isPhoneExists(updateDTO.getPhone(), updateDTO.getId())) {
-            throw new RuntimeException("手机号已存在");
+                !updateDTO.getPhone().equals(existingUser.getPhone())) {
+            log.info("检查手机号是否已存在：{}", updateDTO.getPhone());
+            if (isPhoneExists(updateDTO.getPhone(), updateDTO.getId())) {
+                log.error("手机号已存在：{}", updateDTO.getPhone());
+                throw new RuntimeException("手机号已存在");
+            }
+            log.info("手机号可用");
         }
 
-        // 构建更新实体
-        User updateUser = new User();
-        BeanUtils.copyProperties(updateDTO, updateUser);
-
-        // 如果要更新密码，进行加密处理
-        if (StringUtils.hasText(updateDTO.getPassword())) {
-            updateUser.setPassword(passwordEncoder.encode(updateDTO.getPassword()));
+        // 验证邮箱唯一性（如果要更新邮箱）
+        if (StringUtils.hasText(updateDTO.getEmail()) &&
+                !updateDTO.getEmail().equals(existingUser.getEmail())) {
+            log.info("检查邮箱是否已存在：{}", updateDTO.getEmail());
+            if (isEmailExists(updateDTO.getEmail(), updateDTO.getId())) {
+                log.error("邮箱已存在：{}", updateDTO.getEmail());
+                throw new RuntimeException("邮箱已存在");
+            }
+            log.info("邮箱可用");
+            
+            // 验证邮箱验证码（修改邮箱时必须验证）
+            if (!StringUtils.hasText(updateDTO.getVerificationCode())) {
+                log.error("修改邮箱时必须提供验证码");
+                throw new RuntimeException("请先获取邮箱验证码");
+            }
+            
+            log.info("开始验证邮箱验证码");
+            String codeInRedis = redisTemplate.opsForValue().get(REDIS_EMAIL_CODE + updateDTO.getEmail());
+            log.info("Redis中的验证码：{}, 用户提供的验证码：{}", codeInRedis, updateDTO.getVerificationCode());
+            
+            if (codeInRedis == null) {
+                log.error("验证码不存在或已过期");
+                throw new RuntimeException("验证码不存在或已过期，请重新获取");
+            }
+            
+            if (!codeInRedis.equals(updateDTO.getVerificationCode())) {
+                log.error("验证码错误");
+                throw new RuntimeException("验证码错误");
+            }
+            
+            log.info("邮箱验证码验证通过");
+            // 验证通过后删除Redis中的验证码
+            redisTemplate.delete(REDIS_EMAIL_CODE + updateDTO.getEmail());
+            log.info("已删除Redis中的验证码");
         }
 
-
-
-        // 执行更新操作
+        // 使用UpdateWrapper直接设置要更新的字段，避免SQL语法错误
+        log.info("构建更新SQL");
         UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", updateDTO.getId())
                 .eq("status", 1); // 确保只更新正常状态的用户
 
-        int result = userMapper.update(updateUser, updateWrapper);
+        // 逐个字段检查并设置（只更新非null的字段）
+        boolean hasFieldToUpdate = false;
+        
+        if (StringUtils.hasText(updateDTO.getUsername())) {
+            updateWrapper.set("username", updateDTO.getUsername());
+            hasFieldToUpdate = true;
+            log.info("将更新用户名：{}", updateDTO.getUsername());
+        }
+        
+        if (StringUtils.hasText(updateDTO.getNickname())) {
+            updateWrapper.set("nickname", updateDTO.getNickname());
+            hasFieldToUpdate = true;
+            log.info("将更新昵称：{}", updateDTO.getNickname());
+        }
+        
+        if (StringUtils.hasText(updateDTO.getPhone())) {
+            updateWrapper.set("phone", updateDTO.getPhone());
+            hasFieldToUpdate = true;
+            log.info("将更新手机号：{}", updateDTO.getPhone());
+        }
+        
+        if (StringUtils.hasText(updateDTO.getEmail())) {
+            updateWrapper.set("email", updateDTO.getEmail());
+            hasFieldToUpdate = true;
+            log.info("将更新邮箱：{}", updateDTO.getEmail());
+        }
+        
+        if (updateDTO.getGender() != null) {
+            updateWrapper.set("gender", updateDTO.getGender());
+            hasFieldToUpdate = true;
+            log.info("将更新性别：{}", updateDTO.getGender());
+        }
+        
+        if (updateDTO.getBirthday() != null) {
+            updateWrapper.set("birthday", updateDTO.getBirthday());
+            hasFieldToUpdate = true;
+            log.info("将更新生日：{}", updateDTO.getBirthday());
+        }
+        
+        if (StringUtils.hasText(updateDTO.getAvatar())) {
+            updateWrapper.set("avatar", updateDTO.getAvatar());
+            hasFieldToUpdate = true;
+            log.info("将更新头像");
+        }
+        
+        if (StringUtils.hasText(updateDTO.getSignature())) {
+            updateWrapper.set("signature", updateDTO.getSignature());
+            hasFieldToUpdate = true;
+            log.info("将更新个性签名");
+        }
+        
+        // 如果要更新密码，进行加密处理
+        if (StringUtils.hasText(updateDTO.getPassword())) {
+            String encodedPassword = passwordEncoder.encode(updateDTO.getPassword());
+            updateWrapper.set("password", encodedPassword);
+            hasFieldToUpdate = true;
+            log.info("将更新密码（已加密）");
+        }
+
+        // 检查是否有字段需要更新
+        if (!hasFieldToUpdate) {
+            log.warn("没有需要更新的字段");
+            throw new IllegalArgumentException("没有需要更新的字段");
+        }
+
+        // 设置更新时间
+        updateWrapper.set("updated_time", LocalDateTime.now());
+        log.info("设置更新时间");
+
+        // 执行更新操作
+        log.info("执行数据库更新操作");
+        int result = userMapper.update(null, updateWrapper);
+        log.info("数据库更新结果：影响行数={}", result);
+        
         if (result <= 0) {
+            log.error("用户更新失败，影响行数为0");
             throw new RuntimeException("用户更新失败");
         }
 
-        log.info("用户更新成功，用户ID：{}", updateDTO.getId());
+        log.info("=== 用户更新成功，用户ID：{} ===", updateDTO.getId());
 
         // 返回更新后的用户信息
         return getUserById(updateDTO.getId());
