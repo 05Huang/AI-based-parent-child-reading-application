@@ -175,10 +175,9 @@ export const favoriteApi = {
   // 删除收藏
   deleteFavorite(userId, contentId) {
     console.log('调用删除收藏接口，用户ID：', userId, '内容ID：', contentId)
-    return request.delete('/api/user/favorite', {
-      userId,
-      contentId
-    })
+    // 将参数作为查询参数添加到URL中
+    const url = `/api/user/favorite?userId=${userId}&contentId=${contentId}`
+    return request.delete(url)
   },
 
   // 批量删除收藏
@@ -258,6 +257,17 @@ export const userBehaviorApi = {
     })
   },
   
+  // 记录分享行为
+  recordShareBehavior(userId, contentId) {
+    console.log('调用记录分享行为接口，用户ID：', userId, '内容ID：', contentId)
+    return request.post('/api/user/behavior/record', {
+      userId,
+      contentId,
+      behaviorType: 'share',
+      source: 'reading'
+    })
+  },
+  
   // 获取浏览统计
   getBrowsingStats(userId) {
     console.log('调用获取浏览统计接口，用户ID：', userId)
@@ -277,9 +287,13 @@ export const userBehaviorApi = {
   },
   
   // 获取周报
-  getWeeklyReport(userId) {
-    console.log('调用获取周报接口，用户ID：', userId)
-    return request.get(`/api/user/behavior/weekly-report/${userId}`)
+  getWeeklyReport(userId, year = null, month = null) {
+    console.log('调用获取周报接口，用户ID：', userId, '年份：', year, '月份：', month)
+    let url = `/api/user/behavior/weekly-report/${userId}`
+    if (year && month) {
+      url += `?year=${year}&month=${month}`
+    }
+    return request.get(url)
   },
   
   // 刷新用户统计缓存

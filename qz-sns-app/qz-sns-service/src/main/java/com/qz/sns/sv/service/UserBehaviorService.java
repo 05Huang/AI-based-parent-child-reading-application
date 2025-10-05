@@ -29,6 +29,7 @@ public interface UserBehaviorService {
 
     WeeklyReportVO getWeeklyReport(Long userId);
 
+    WeeklyReportVO getWeeklyReport(Long userId, String year, String month);
 
     void clearUserStatsCache(Long userId);
 }

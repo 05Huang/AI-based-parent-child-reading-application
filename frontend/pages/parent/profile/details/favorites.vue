@@ -42,20 +42,20 @@
       </view>
 
       <!-- 收藏列表 -->
-      <view class="favorites-list">
+      <view v-if="articles.length > 0" class="favorites-list">
         <view v-for="(article, index) in articles" :key="index" class="book-card">
-          <view class="book-cover-container">
+          <view class="book-cover-container" @click="toggleCardActions(index)">
             <image :src="article.coverUrl" class="book-cover"></image>
-            <view class="book-actions">
-              <view class="action-btn play" @click="viewArticle(article)">
+            <view class="book-actions" :class="{ 'show': activeCardIndex === index }">
+              <view class="action-btn play" @click.stop="viewArticle(article)">
                 <text class="fas fa-eye btn-icon"></text>
                 <text class="btn-text">查看</text>
               </view>
-              <view class="action-btn share" @click="shareArticle(article)">
+              <view class="action-btn share" @click.stop="shareArticle(article)">
                 <text class="fas fa-share-alt btn-icon"></text>
                 <text class="btn-text">分享</text>
               </view>
-              <view class="action-btn delete" @click="deleteArticle(article)">
+              <view class="action-btn delete" @click.stop="deleteArticle(article)">
                 <text class="fas fa-trash-alt btn-icon"></text>
                 <text class="btn-text">删除</text>
               </view>
@@ -64,6 +64,18 @@
           <view class="book-info">
             <text class="book-title">{{ article.title }}</text>
           </view>
+        </view>
+      </view>
+      
+      <!-- 无收藏内容时显示 -->
+      <view v-else class="empty-state">
+        <view class="empty-icon">
+          <text class="fas fa-heart"></text>
+        </view>
+        <text class="empty-title">暂无收藏内容</text>
+        <text class="empty-desc">去发现一些精彩内容吧</text>
+        <view class="empty-action" @click="goToDiscovery">
+          <text class="action-text">去发现</text>
         </view>
       </view>
     </scroll-view>
@@ -86,6 +98,7 @@ const collectionStats = ref({
 const articles = ref([])
 const loading = ref(false)
 const refreshing = ref(false)
+const activeCardIndex = ref(-1) // 当前激活的卡片索引
 
 // 计算统计数据显示
 const statsDisplay = computed(() => {
@@ -170,15 +183,32 @@ const loadFavorites = async () => {
     if (response && response.data && response.data.records) {
       console.log('获取收藏列表成功，共', response.data.records.length, '条')
       
-      // 转换数据格式并获取点赞状态
+      // 转换数据格式并过滤无效数据
+      const validArticles = response.data.records.filter(item => {
+        // 过滤条件：必须有内容ID和标题
+        const isValid = item.contentId && 
+                       item.contentTitle && 
+                       item.contentTitle.trim() !== '' &&
+                       item.contentTitle !== '无标题'
+        
+        if (!isValid) {
+          console.log('过滤掉无效收藏项：', item)
+        }
+        
+        return isValid
+      })
+      
+      console.log('有效收藏项数量：', validArticles.length, '，原始数量：', response.data.records.length)
+      
       articles.value = await Promise.all(
-        response.data.records.map(async (item) => {
+        validArticles.map(async (item) => {
+          console.log('处理有效收藏项：', item)
           return {
             id: item.id,
-            title: item.contentTitle || '无标题',
+            title: item.contentTitle,
             coverUrl: item.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
             contentId: item.contentId,
-            contentType: item.contentType,
+            contentType: item.contentType || 1, // 默认为图文内容
             favoriteId: item.id, // 收藏记录ID，用于删除
             addTime: formatTime(item.createdTime)
           }
@@ -208,7 +238,17 @@ const formatTime = (timeStr) => {
   return `${year}-${month}-${day}`
 }
 
-// 删除分类选择相关代码
+// 切换卡片按钮显示状态
+const toggleCardActions = (index) => {
+  console.log('切换卡片按钮显示状态，索引：', index)
+  if (activeCardIndex.value === index) {
+    // 如果点击的是当前激活的卡片，则隐藏按钮
+    activeCardIndex.value = -1
+  } else {
+    // 否则显示新卡片的按钮
+    activeCardIndex.value = index
+  }
+}
 
 // 返回上一页
 const goBack = () => {
@@ -217,14 +257,49 @@ const goBack = () => {
   })
 }
 
+// 去发现页面
+const goToDiscovery = () => {
+  console.log('跳转到发现页面')
+  uni.switchTab({
+    url: '/pages/parent/home/home',
+    success: () => {
+      console.log('跳转到发现页面成功')
+    },
+    fail: (err) => {
+      console.error('跳转到发现页面失败:', err)
+      uni.showToast({
+        title: '跳转失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
 // 查看文章
 const viewArticle = (article) => {
-  console.log('查看内容：', article.title)
+  console.log('查看内容：', article.title, '内容ID：', article.contentId, '内容类型：', article.contentType)
   
-  if (article.contentType === 1) {
+  if (!article.contentId) {
+    console.error('内容ID不存在')
+    uni.showToast({
+      title: '内容ID不存在',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 如果内容类型为null或undefined，默认为图文内容
+  const contentType = article.contentType || 1
+  console.log('处理后的内容类型：', contentType)
+  
+  if (contentType === 1) {
     // 图文内容
+    console.log('跳转到图文阅读页面')
     uni.navigateTo({
       url: `/pages/parent/reading/reading?id=${article.contentId}`,
+      success: () => {
+        console.log('跳转到阅读页面成功')
+      },
       fail: (err) => {
         console.error('跳转失败:', err)
         uni.showToast({
@@ -233,10 +308,30 @@ const viewArticle = (article) => {
         })
       }
     })
-  } else if (article.contentType === 2) {
+  } else if (contentType === 2) {
     // 视频内容
+    console.log('跳转到视频播放页面')
     uni.navigateTo({
       url: `/pages/parent/video/video-player?id=${article.contentId}`,
+      success: () => {
+        console.log('跳转到视频页面成功')
+      },
+      fail: (err) => {
+        console.error('跳转失败:', err)
+        uni.showToast({
+          title: '暂时无法查看',
+          icon: 'none'
+        })
+      }
+    })
+  } else {
+    console.warn('未知的内容类型：', contentType, '，默认按图文内容处理')
+    // 对于未知类型，默认按图文内容处理
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${article.contentId}`,
+      success: () => {
+        console.log('跳转到阅读页面成功（默认处理）')
+      },
       fail: (err) => {
         console.error('跳转失败:', err)
         uni.showToast({
@@ -250,64 +345,260 @@ const viewArticle = (article) => {
 
 // 分享文章
 const shareArticle = (article) => {
-  console.log('分享内容：', article.title)
+  console.log('开始分享文章：', article.title)
   
-  // H5环境下使用系统分享
-  if (uni.getSystemInfoSync().platform === 'web') {
-    if (navigator.share) {
-      navigator.share({
-        title: article.title,
-        text: `分享一篇好文：《${article.title}》`,
-        url: window.location.href
-      }).catch((error) => {
-        console.error('分享失败：', error)
-        uni.showToast({
-          title: '分享失败',
-          icon: 'none'
-        })
-      })
-    } else {
+  if (!article.contentId) {
+    uni.showToast({
+      title: '文章数据未加载',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 构建分享内容
+  const shareTitle = article.title || '精彩文章'
+  const shareContent = `推荐阅读：《${shareTitle}》`
+  
+  // 检测平台
+  const systemInfo = uni.getSystemInfoSync()
+  console.log('当前平台：', systemInfo.platform)
+  
+  // H5环境下使用系统分享或显示分享选项
+  // #ifdef H5
+  if (navigator.share) {
+    console.log('使用Web Share API')
+    navigator.share({
+      title: shareTitle,
+      text: shareContent,
+      url: window.location.href
+    }).then(() => {
+      console.log('分享成功')
       uni.showToast({
-        title: '当前环境不支持分享',
+        title: '分享成功',
+        icon: 'success'
+      })
+    }).catch((error) => {
+      console.error('分享失败：', error)
+      // 如果用户取消分享，不显示错误提示
+      if (error.name !== 'AbortError') {
+        showShareActionSheet(article)
+      }
+    })
+  } else {
+    console.log('不支持Web Share API，显示分享选项')
+    showShareActionSheet(article)
+  }
+  // #endif
+  
+  // 小程序环境下使用小程序分享
+  // #ifdef MP-WEIXIN
+  console.log('微信小程序环境，使用小程序分享')
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    success: () => {
+      uni.showToast({
+        title: '请点击右上角分享',
+        icon: 'none'
+      })
+    },
+    fail: () => {
+      uni.showToast({
+        title: '分享失败',
         icon: 'none'
       })
     }
-  } else {
-    // 非H5环境下使用原生分享
-    uni.showShareMenu({
-      withShareTicket: true,
-      menus: ['shareAppMessage', 'shareTimeline'],
-      success: () => {
-        uni.showToast({
-          title: '请点击右上角分享',
-          icon: 'none'
-        })
-      },
-      fail: () => {
-        uni.showToast({
-          title: '分享失败',
-          icon: 'none'
-        })
+  })
+  // #endif
+  
+  // App环境下优先使用系统分享
+  // #ifdef APP-PLUS
+  console.log('App环境，尝试使用系统分享')
+  
+  // 优先使用uni.share()原生分享
+  uni.share({
+    provider: 'system', // 使用系统分享
+    type: 1, // 图文分享
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${article.contentId}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败，降级使用操作菜单：', err)
+      // 如果系统分享不可用，降级使用操作菜单
+      showShareActionSheet(article)
+    }
+  })
+  // #endif
+}
+
+// 显示分享操作菜单
+const showShareActionSheet = (article) => {
+  console.log('显示分享操作菜单')
+  
+  // #ifdef APP-PLUS
+  // App环境下提供更多分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '使用系统分享', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          // 复制链接
+          copyArticleLink(article)
+          break
+        case 1:
+          // 使用系统分享
+          useSystemShare(article)
+          break
+        case 2:
+          // 生成分享海报
+          generateSharePoster(article)
+          break
       }
-    })
-  }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+  
+  // #ifndef APP-PLUS
+  // 非App环境下的分享选项
+  uni.showActionSheet({
+    itemList: ['复制链接', '生成分享海报'],
+    success: (res) => {
+      console.log('选择了分享方式，索引：', res.tapIndex)
+      
+      switch (res.tapIndex) {
+        case 0:
+          copyArticleLink(article)
+          break
+        case 1:
+          generateSharePoster(article)
+          break
+      }
+    },
+    fail: (err) => {
+      console.error('显示分享菜单失败：', err)
+    }
+  })
+  // #endif
+}
+
+// 使用系统分享（App环境）
+const useSystemShare = (article) => {
+  console.log('使用系统分享')
+  
+  // #ifdef APP-PLUS
+  const shareTitle = article.title || '精彩文章'
+  
+  uni.share({
+    provider: 'system',
+    type: 1,
+    title: shareTitle,
+    summary: `来自亲子阅读：${shareTitle}`,
+    href: `https://parentreading.com/article/${article.contentId}`,
+    success: (res) => {
+      console.log('系统分享成功：', res)
+      uni.showToast({
+        title: '分享成功',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('系统分享失败：', err)
+      uni.showToast({
+        title: '分享失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
+  // #endif
+}
+
+// 复制文章链接
+const copyArticleLink = (article) => {
+  console.log('复制文章链接')
+  
+  // 构建文章链接
+  let articleLink = ''
+  
+  // #ifdef H5
+  articleLink = window.location.href
+  // #endif
+  
+  // #ifndef H5
+  // 在非H5环境下，构建一个模拟链接
+  articleLink = `https://parentreading.com/article/${article.contentId}`
+  // #endif
+  
+  const shareText = `${article.title}\n\n${articleLink}`
+  
+  uni.setClipboardData({
+    data: shareText,
+    success: () => {
+      console.log('链接复制成功')
+      uni.showToast({
+        title: '链接已复制',
+        icon: 'success'
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败：', err)
+      uni.showToast({
+        title: '复制失败',
+        icon: 'none'
+      })
+    }
+  })
+}
+
+// 生成分享海报
+const generateSharePoster = (article) => {
+  console.log('生成分享海报')
+  uni.showToast({
+    title: '海报生成功能开发中',
+    icon: 'none'
+  })
+  // TODO: 实现海报生成功能
+  // 可以使用canvas生成包含文章标题、封面、二维码等信息的海报
 }
 
 // 取消收藏
 const deleteArticle = async (article) => {
+  if (!currentUser.value?.id) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
   uni.showModal({
     title: '确认删除',
     content: `确定要取消收藏《${article.title}》吗？`,
     success: async (res) => {
       if (res.confirm) {
         try {
-          console.log('删除收藏：', article.title)
+          console.log('删除收藏：', article.title, '用户ID：', currentUser.value.id, '内容ID：', article.contentId)
           
           const response = await favoriteApi.deleteFavorite(currentUser.value.id, article.contentId)
+          
+          console.log('删除收藏API响应：', response)
           
           if (response && response.code === 200) {
             // 从本地列表中移除
             articles.value = articles.value.filter(item => item.id !== article.id)
+            
+            console.log('收藏删除成功，从本地列表移除')
             
             uni.showToast({
               title: '已取消收藏',
@@ -317,15 +608,16 @@ const deleteArticle = async (article) => {
             // 重新加载统计数据
             await loadCollectionStats()
           } else {
+            console.error('删除收藏失败，响应：', response)
             uni.showToast({
-              title: '取消收藏失败',
+              title: response?.message || '取消收藏失败',
               icon: 'none'
             })
           }
         } catch (error) {
           console.error('删除收藏失败：', error)
           uni.showToast({
-            title: '取消收藏失败',
+            title: '取消收藏失败，请重试',
             icon: 'none'
           })
         }
@@ -576,10 +868,12 @@ onShow(async () => {
   gap: 20rpx;
   opacity: 0;
   transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
-.book-cover-container:hover .book-actions {
+.book-actions.show {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .action-btn {
@@ -597,7 +891,7 @@ onShow(async () => {
   -webkit-backdrop-filter: blur(4px);
 }
 
-.action-btn:hover {
+.action-btn:active {
   background-color: rgba(255, 255, 255, 0.95);
   transform: translateY(-2rpx);
   box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.4);
@@ -650,6 +944,64 @@ onShow(async () => {
 }
 
 /* 删除不再需要的元数据样式 */
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 60rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40rpx;
+}
+
+.empty-icon .fas {
+  font-size: 48rpx;
+  color: #9ca3af;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 28rpx;
+  color: #6b7280;
+  margin-bottom: 40rpx;
+  line-height: 1.5;
+}
+
+.empty-action {
+  padding: 20rpx 40rpx;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 24rpx;
+  transition: all 0.3s ease;
+}
+
+.empty-action:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.action-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 500;
+}
 
 /* 修复滚动问题 */
 ::-webkit-scrollbar {

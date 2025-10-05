@@ -121,9 +121,11 @@ public class UserBehaviorController {
 
     @Operation(summary = "获取周报")
     @GetMapping("/weekly-report/{userId}")
-    public Result<WeeklyReportVO> getWeeklyReport(@PathVariable Long userId) {
+    public Result<WeeklyReportVO> getWeeklyReport(@PathVariable Long userId,
+                                                  @RequestParam(required = false) String year,
+                                                  @RequestParam(required = false) String month) {
         try {
-            WeeklyReportVO report = userStatsService.getWeeklyReport(userId);
+            WeeklyReportVO report = userStatsService.getWeeklyReport(userId, year, month);
             return ResultUtils.success(report);
         } catch (Exception e) {
             return ResultUtils.error(500, "获取周报数据失败：" + e.getMessage());

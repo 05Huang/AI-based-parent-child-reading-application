@@ -163,6 +163,17 @@ public class UserBehaviorServiceImpl implements UserBehaviorService {
         return generateWeeklyReport(userId);
     }
 
+    @Override
+    public WeeklyReportVO getWeeklyReport(Long userId, String year, String month) {
+        // 如果指定了年月，不使用缓存，直接查询指定时间的数据
+        if (year != null && month != null) {
+            return generateWeeklyReportByTime(userId, year, month);
+        }
+        
+        // 如果没有指定时间，使用原有逻辑
+        return getWeeklyReport(userId);
+    }
+
     private WeeklyReportVO generateWeeklyReport(Long userId) {
         LocalDateTime weekStart = LocalDateTime.now().minusDays(7);
         LocalDateTime now = LocalDateTime.now();
@@ -198,6 +209,70 @@ public class UserBehaviorServiceImpl implements UserBehaviorService {
         String favoriteCategory = categoryInfo != null ? (String) categoryInfo.get("name") : "暂无数据";
         report.setFavoriteCategory(favoriteCategory);
 
+        return report;
+    }
+
+    private WeeklyReportVO generateWeeklyReportByTime(Long userId, String year, String month) {
+        try {
+            // 解析年月参数
+            int yearInt = Integer.parseInt(year);
+            int monthInt = Integer.parseInt(month);
+            
+            // 计算指定月份的开始和结束时间
+            LocalDateTime monthStart = LocalDateTime.of(yearInt, monthInt, 1, 0, 0, 0);
+            LocalDateTime monthEnd = monthStart.plusMonths(1).minusSeconds(1);
+            
+            // 如果查询的是未来月份，返回空数据
+            if (monthStart.isAfter(LocalDateTime.now())) {
+                return createEmptyReport();
+            }
+            
+            WeeklyReportVO report = new WeeklyReportVO();
+
+            // 浏览总时长
+            Long totalDuration = userBehaviorMapper.getMonthlyReadDuration(userId, monthStart, monthEnd);
+            report.setTotalReadDuration(totalDuration);
+
+            // 浏览文章数
+            Long articleCount = userBehaviorMapper.getWeeklyViewCount(userId, monthStart, monthEnd);
+            report.setTotalArticleCount(articleCount);
+
+            // 互动次数（按月份查询）
+            Long interactionCount = userBehaviorMapper.getInteractionCountByTime(userId, monthStart, monthEnd);
+            report.setInteractionCount(interactionCount);
+
+            // 活跃度计算：基于阅读时长、文章数、互动次数的综合评分
+            BigDecimal activityScore = calculateActivityScore(totalDuration, articleCount, interactionCount);
+            report.setActivityScore(activityScore);
+
+            // 每日平均阅读时间
+            BigDecimal dailyAvg = BigDecimal.ZERO;
+            if (totalDuration > 0) {
+                int daysInMonth = monthStart.toLocalDate().lengthOfMonth();
+                dailyAvg = new BigDecimal(totalDuration).divide(new BigDecimal(daysInMonth), 2, RoundingMode.HALF_UP);
+            }
+            report.setDailyAvgReadTime(dailyAvg);
+
+            // 最感兴趣的阅读分类
+            Map<String, Object> categoryInfo = userBehaviorMapper.getFavoriteCategory(userId, monthStart, monthEnd);
+            String favoriteCategory = categoryInfo != null ? (String) categoryInfo.get("name") : "暂无数据";
+            report.setFavoriteCategory(favoriteCategory);
+
+            return report;
+        } catch (Exception e) {
+            log.error("生成指定时间的周报失败：{}", e.getMessage(), e);
+            return createEmptyReport();
+        }
+    }
+
+    private WeeklyReportVO createEmptyReport() {
+        WeeklyReportVO report = new WeeklyReportVO();
+        report.setTotalReadDuration(0L);
+        report.setTotalArticleCount(0L);
+        report.setInteractionCount(0L);
+        report.setActivityScore(BigDecimal.ZERO);
+        report.setDailyAvgReadTime(BigDecimal.ZERO);
+        report.setFavoriteCategory("暂无数据");
         return report;
     }
 

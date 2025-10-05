@@ -52,41 +52,56 @@
         </view>
         
         <view class="book-records">
-          <view v-for="(record, index) in historyRecords" :key="index" class="book-record-item">
-            <image :src="record.coverUrl" class="book-cover"></image>
-            <view class="book-info">
-              <view class="book-main-info">
-                <text class="book-title">{{record.title}}</text>
-                <text class="book-author">{{record.author}}</text>
-                <view class="reading-time">
-                  <text class="fas fa-clock time-icon"></text>
-                  <text class="time-text">浏览{{record.duration}}分钟</text>
+          <!-- 有历史记录时显示 -->
+          <view v-if="historyRecords.length > 0">
+            <view v-for="(record, index) in historyRecords" :key="index" class="book-record-item">
+              <image :src="record.coverUrl" class="book-cover"></image>
+              <view class="book-info">
+                <view class="book-main-info">
+                  <text class="book-title">{{record.title}}</text>
+                  <text class="book-author">{{record.author}}</text>
+                  <view class="reading-time">
+                    <text class="fas fa-clock time-icon"></text>
+                    <text class="time-text">浏览{{record.duration}}分钟</text>
+                  </view>
+                </view>
+                <view class="book-meta">
+                  <view class="meta-item">
+                    <text class="fas fa-tag meta-icon"></text>
+                    <text class="meta-text">{{record.category}}</text>
+                  </view>
+                  <view class="meta-item">
+                    <text class="fas fa-thumbs-up meta-icon"></text>
+                    <text class="meta-text">{{record.likes}}赞</text>
+                  </view>
+                  <view class="meta-item">
+                    <text class="fas fa-share-alt meta-icon"></text>
+                    <text class="meta-text">{{record.shares}}分享</text>
+                  </view>
+                </view>
+                <view class="action-buttons">
+                  <view class="action-btn continue" @click="viewContent(record)">
+                    <text class="fas fa-eye"></text>
+                    <text>查看详情</text>
+                  </view>
+                  <view class="action-btn delete" @click="deleteHistoryRecord(record)">
+                    <text class="fas fa-trash"></text>
+                    <text>删除记录</text>
+                  </view>
                 </view>
               </view>
-              <view class="book-meta">
-                <view class="meta-item">
-                  <text class="fas fa-tag meta-icon"></text>
-                  <text class="meta-text">{{record.category}}</text>
-                </view>
-                <view class="meta-item">
-                  <text class="fas fa-thumbs-up meta-icon"></text>
-                  <text class="meta-text">{{record.likes}}赞</text>
-                </view>
-                <view class="meta-item">
-                  <text class="fas fa-share-alt meta-icon"></text>
-                  <text class="meta-text">{{record.shares}}分享</text>
-                </view>
-              </view>
-              <view class="action-buttons">
-                <view class="action-btn continue" @click="viewContent(record)">
-                  <text class="fas fa-eye"></text>
-                  <text>查看详情</text>
-                </view>
-                <view class="action-btn delete" @click="deleteHistoryRecord(record)">
-                  <text class="fas fa-trash"></text>
-                  <text>删除记录</text>
-                </view>
-              </view>
+            </view>
+          </view>
+          
+          <!-- 无历史记录时显示 -->
+          <view v-else class="empty-state">
+            <view class="empty-icon">
+              <text class="fas fa-history"></text>
+            </view>
+            <text class="empty-title">暂无浏览历史</text>
+            <text class="empty-desc">去阅读一些精彩内容吧</text>
+            <view class="empty-action" @click="goToDiscovery">
+              <text class="action-text">去发现</text>
             </view>
           </view>
         </view>
@@ -188,20 +203,41 @@ const loadHistoryRecords = async () => {
     if (response && response.data && response.data.records) {
       console.log('获取浏览历史成功，共', response.data.records.length, '条')
       
-      // 转换数据格式
-      historyRecords.value = response.data.records.map(record => ({
-        id: record.id,
-        title: record.contentTitle || '无标题',
-        author: record.creatorName || '佚名',
-        coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-        duration: Math.floor(Math.random() * 60) + 10, // 模拟阅读时长
-        lastRead: formatViewTime(record.viewTime),
-        category: record.categoryName || '未分类',
-        likes: record.likeCount || 0,
-        shares: Math.floor(Math.random() * 100), // 模拟分享数
-        contentId: record.contentId,
-        contentType: record.contentType
-      }))
+      // 转换数据格式并过滤无效数据
+      const validRecords = response.data.records.filter(record => {
+        // 过滤条件：必须有内容ID和标题
+        const isValid = record.contentId && 
+                       record.contentTitle && 
+                       record.contentTitle.trim() !== '' &&
+                       record.contentTitle !== '无标题'
+        
+        if (!isValid) {
+          console.log('过滤掉无效历史记录：', record)
+        }
+        
+        return isValid
+      })
+      
+      console.log('有效历史记录数量：', validRecords.length, '，原始数量：', response.data.records.length)
+      
+      historyRecords.value = validRecords.map(record => {
+        console.log('处理有效历史记录：', record)
+        return {
+          id: record.id,
+          title: record.contentTitle,
+          author: record.creatorName || '佚名',
+          coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+          duration: record.duration || 0, // 使用真实的阅读时长
+          lastRead: formatViewTime(record.viewTime),
+          category: record.categoryName || '未分类',
+          likes: record.likeCount || 0,
+          shares: record.shareCount || 0, // 使用真实的分享数
+          contentId: record.contentId,
+          contentType: record.contentType
+        }
+      })
+      
+      console.log('转换后的历史记录：', historyRecords.value)
     }
   } catch (error) {
     console.error('获取浏览历史失败：', error)
@@ -317,6 +353,24 @@ const refreshCache = async () => {
 const goBack = () => {
   uni.switchTab({
     url: '/pages/parent/profile/profile'
+  })
+}
+
+// 去发现页面
+const goToDiscovery = () => {
+  console.log('跳转到发现页面')
+  uni.switchTab({
+    url: '/pages/parent/home/home',
+    success: () => {
+      console.log('跳转到发现页面成功')
+    },
+    fail: (err) => {
+      console.error('跳转到发现页面失败:', err)
+      uni.showToast({
+        title: '跳转失败',
+        icon: 'none'
+      })
+    }
   })
 }
 
@@ -614,6 +668,64 @@ onShow(async () => {
 .action-btn.delete {
   background-color: #ef4444;
   color: #ffffff;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 60rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40rpx;
+}
+
+.empty-icon .fas {
+  font-size: 48rpx;
+  color: #9ca3af;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 28rpx;
+  color: #6b7280;
+  margin-bottom: 40rpx;
+  line-height: 1.5;
+}
+
+.empty-action {
+  padding: 20rpx 40rpx;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 24rpx;
+  transition: all 0.3s ease;
+}
+
+.empty-action:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.action-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 500;
 }
 
 /* 修复滚动问题 */

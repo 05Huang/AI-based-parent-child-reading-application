@@ -16,9 +16,10 @@
       <view class="overview-card">
         <view class="overview-header">
           <text class="overview-title">本月浏览概览</text>
-          <view class="date-picker">
+          <view class="date-picker" @click="showDatePicker">
             <text class="fas fa-calendar"></text>
-            <text class="date-text">2024年2月</text>
+            <text class="date-text">{{selectedDateText}}</text>
+            <text class="fas fa-chevron-down"></text>
           </view>
         </view>
         <view class="overview-grid">
@@ -71,10 +72,15 @@
       <view class="books-card">
         <view class="card-header">
           <text class="card-title">本月热门文章</text>
-          <text class="more-link">查看全部</text>
+          <text class="more-link" @click="goToAllArticles">查看全部</text>
         </view>
         <scroll-view scroll-x="true" class="books-scroll">
-          <view class="book-item" v-for="(article, index) in completedArticles" :key="index">
+          <view 
+            class="book-item" 
+            v-for="(article, index) in completedArticles" 
+            :key="index"
+            @click="viewArticle(article)"
+          >
             <image :src="article.coverUrl" class="book-cover"></image>
             <view class="book-info">
               <text class="book-title">{{article.title}}</text>
@@ -112,6 +118,57 @@
         </view>
       </view>
     </scroll-view>
+    
+    <!-- 时间选择器弹窗 -->
+    <view v-if="showDatePickerModal" class="date-picker-modal" @click="hideDatePicker">
+      <view class="date-picker-content" @click.stop>
+        <view class="date-picker-header">
+          <text class="date-picker-title">选择时间</text>
+          <view class="close-btn" @click="hideDatePicker">
+            <text class="fas fa-times"></text>
+          </view>
+        </view>
+        
+        <view class="date-picker-body">
+          <!-- 年份选择 -->
+          <view class="picker-section">
+            <text class="picker-label">年份</text>
+            <scroll-view scroll-y="true" class="picker-scroll">
+              <view 
+                v-for="year in yearOptions" 
+                :key="year"
+                class="picker-item"
+                :class="{ 'active': selectedYear === year }"
+                @click="selectYear(year)"
+              >
+                {{year}}年
+              </view>
+            </scroll-view>
+          </view>
+          
+          <!-- 月份选择 -->
+          <view class="picker-section">
+            <text class="picker-label">月份</text>
+            <scroll-view scroll-y="true" class="picker-scroll">
+              <view 
+                v-for="month in monthOptions" 
+                :key="month"
+                class="picker-item"
+                :class="{ 'active': selectedMonth === month }"
+                @click="selectMonth(month)"
+              >
+                {{month}}月
+              </view>
+            </scroll-view>
+          </view>
+        </view>
+        
+        <view class="date-picker-footer">
+          <view class="picker-btn cancel" @click="hideDatePicker">取消</view>
+          <view class="picker-btn confirm" @click="confirmDateSelection">确定</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -132,6 +189,41 @@ const weeklyReport = ref({
 })
 const completedArticles = ref([])
 const loading = ref(false)
+
+// 时间选择相关状态
+const selectedYear = ref(new Date().getFullYear())
+const selectedMonth = ref(new Date().getMonth() + 1)
+const showDatePickerModal = ref(false)
+
+// 计算选中的时间显示文本
+const selectedDateText = computed(() => {
+  return `${selectedYear.value}年${selectedMonth.value}月`
+})
+
+// 年份选项（最近3年到当前年）
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear()
+  return [currentYear - 2, currentYear - 1, currentYear]
+})
+
+// 月份选项（根据选择的年份限制）
+const monthOptions = computed(() => {
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const currentMonth = currentDate.getMonth() + 1
+  
+  // 如果选择的是当前年，只能选择到当前月
+  if (selectedYear.value === currentYear) {
+    const months = []
+    for (let i = 1; i <= currentMonth; i++) {
+      months.push(i)
+    }
+    return months
+  }
+  
+  // 其他年份可以选择全年
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+})
 
 // 计算月报统计数据显示
 const reportDisplay = computed(() => {
@@ -178,13 +270,14 @@ const loadWeeklyReport = async () => {
       return
     }
     
-    console.log('开始获取周报数据，用户ID：', currentUser.value.id)
-    const response = await userBehaviorApi.getWeeklyReport(currentUser.value.id)
+    console.log('开始获取周报数据，用户ID：', currentUser.value.id, '选择时间：', selectedYear.value, '年', selectedMonth.value, '月')
+    const response = await userBehaviorApi.getWeeklyReport(currentUser.value.id, selectedYear.value.toString(), selectedMonth.value.toString())
     
     console.log('周报API完整响应：', JSON.stringify(response, null, 2))
     
     if (response && response.code === 200 && response.data) {
       console.log('获取周报数据成功：', response.data)
+      
       // 确保所有字段都有默认值
       weeklyReport.value = {
         totalReadDuration: response.data.totalReadDuration || 0,
@@ -204,6 +297,7 @@ const loadWeeklyReport = async () => {
   }
 }
 
+
 // 获取热门文章（从浏览历史中提取）
 const loadHotArticles = async () => {
   try {
@@ -212,24 +306,40 @@ const loadHotArticles = async () => {
     loading.value = true
     console.log('开始获取热门文章，用户ID：', currentUser.value.id)
     
+    // 计算选择的时间范围
+    const startTime = `${selectedYear.value}-${selectedMonth.value.toString().padStart(2, '0')}-01 00:00:00`
+    const endTime = new Date(selectedYear.value, selectedMonth.value, 0).toISOString().slice(0, 19).replace('T', ' ')
+    
+    console.log('查询时间范围：', startTime, '到', endTime)
+    
     const response = await viewHistoryApi.getUserViewHistory(currentUser.value.id, {
       current: 1,
-      size: 10
+      size: 10,
+      startTime: startTime,
+      endTime: endTime
     })
     
     if (response && response.data && response.data.records) {
       console.log('获取浏览历史成功，筛选热门文章')
       
+      // 过滤有效数据并转换
+      const validRecords = response.data.records.filter(record => {
+        return record.contentId && 
+               record.contentTitle && 
+               record.contentTitle.trim() !== '' &&
+               record.contentTitle !== '无标题'
+      })
+      
       // 转换并筛选热门文章（取前3个）
-      const articles = response.data.records.slice(0, 3).map(record => ({
-        id: record.id,
-        title: record.contentTitle || '无标题',
+      const articles = validRecords.slice(0, 3).map(record => ({
+        id: record.contentId, // 使用contentId作为文章ID
+        title: record.contentTitle,
         coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-        duration: Math.floor(Math.random() * 120) + 60, // 模拟阅读时长（秒）
-        likes: record.likeCount || Math.floor(Math.random() * 500) + 100,
-        comments: record.commentCount || Math.floor(Math.random() * 100) + 10,
+        duration: record.duration || 0, // 使用真实的阅读时长
+        likes: record.likeCount || 0, // 使用真实的点赞数
+        comments: record.commentCount || 0, // 使用真实的评论数
         contentId: record.contentId,
-        contentType: record.contentType
+        contentType: record.contentType || 1
       }))
       
       completedArticles.value = articles
@@ -266,10 +376,136 @@ const loadHotArticles = async () => {
   }
 }
 
+// 显示时间选择器
+const showDatePicker = () => {
+  console.log('显示时间选择器')
+  showDatePickerModal.value = true
+}
+
+// 隐藏时间选择器
+const hideDatePicker = () => {
+  showDatePickerModal.value = false
+}
+
+// 选择年份
+const selectYear = (year) => {
+  selectedYear.value = year
+  console.log('选择年份：', year)
+}
+
+// 选择月份
+const selectMonth = (month) => {
+  selectedMonth.value = month
+  console.log('选择月份：', month)
+}
+
+// 确认时间选择
+const confirmDateSelection = async () => {
+  console.log('确认时间选择：', selectedYear.value, '年', selectedMonth.value, '月')
+  showDatePickerModal.value = false
+  
+  // 显示加载提示
+  uni.showLoading({
+    title: '加载数据中...'
+  })
+  
+  try {
+    // 重新加载数据
+    await loadWeeklyReport()
+    await loadHotArticles()
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '数据已更新',
+      icon: 'success',
+      duration: 1500
+    })
+  } catch (error) {
+    console.error('加载数据失败：', error)
+    uni.hideLoading()
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
+  }
+}
+
 // 返回上一页
 const goBack = () => {
   uni.switchTab({
     url: '/pages/parent/profile/profile'
+  })
+}
+
+// 查看文章详情
+const viewArticle = (article) => {
+  console.log('查看文章：', article.title, '文章ID：', article.id)
+  
+  if (!article || !article.id) {
+    console.error('文章信息不完整，无法跳转')
+    uni.showToast({
+      title: '文章信息错误',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 根据内容类型跳转到不同页面
+  const contentType = article.contentType || 1
+  
+  if (contentType === 1) {
+    // 图文内容
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${article.id}`,
+      success: () => {
+        console.log('跳转到阅读页面成功')
+      },
+      fail: (err) => {
+        console.error('跳转到阅读页面失败:', err)
+        uni.showToast({
+          title: '跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+  } else if (contentType === 2) {
+    // 视频内容
+    uni.navigateTo({
+      url: `/pages/parent/video/video-player?id=${article.id}`,
+      success: () => {
+        console.log('跳转到视频播放页面成功')
+      },
+      fail: (err) => {
+        console.error('跳转到视频播放页面失败:', err)
+        uni.showToast({
+          title: '跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+  } else {
+    console.warn('未知的内容类型：', contentType, '，默认按图文内容处理')
+    uni.navigateTo({
+      url: `/pages/parent/reading/reading?id=${article.id}`
+    })
+  }
+}
+
+// 跳转到全部文章页面
+const goToAllArticles = () => {
+  console.log('跳转到全部文章页面')
+  uni.navigateTo({
+    url: '/pages/parent/bookshelf/all-articles',
+    success: () => {
+      console.log('跳转到全部文章页面成功')
+    },
+    fail: (err) => {
+      console.error('跳转到全部文章页面失败:', err)
+      uni.showToast({
+        title: '跳转失败',
+        icon: 'none'
+      })
+    }
   })
 }
 
@@ -373,6 +609,15 @@ onShow(async () => {
   gap: 10rpx;
   font-size: 28rpx;
   opacity: 0.9;
+  padding: 12rpx 20rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
+}
+
+.date-picker:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.95);
 }
 
 .overview-grid {
@@ -565,6 +810,14 @@ onShow(async () => {
 .more-link {
   font-size: 28rpx;
   color: #6b7280;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+}
+
+.more-link:active {
+  background-color: #f3f4f6;
+  color: #3b82f6;
 }
 
 /* 修复滚动问题 */
@@ -591,5 +844,146 @@ onShow(async () => {
 
 .stat-item .fas {
   color: #60a5fa;
+}
+
+/* 时间选择器弹窗样式 */
+.date-picker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.date-picker-content {
+  background: #ffffff;
+  border-radius: 24rpx;
+  width: 80%;
+  max-width: 600rpx;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.date-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.date-picker-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-btn {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-btn:active {
+  background: #e5e7eb;
+  transform: scale(0.9);
+}
+
+.close-btn .fas {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.date-picker-body {
+  display: flex;
+  padding: 30rpx;
+  gap: 40rpx;
+}
+
+.picker-section {
+  flex: 1;
+}
+
+.picker-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.picker-scroll {
+  height: 400rpx;
+  border: 1px solid #e5e7eb;
+  border-radius: 12rpx;
+  background: #f9fafb;
+}
+
+.picker-item {
+  padding: 24rpx 20rpx;
+  font-size: 28rpx;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.picker-item:last-child {
+  border-bottom: none;
+}
+
+.picker-item:active {
+  background: #f3f4f6;
+}
+
+.picker-item.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.date-picker-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 30rpx;
+  border-top: 1px solid #e5e7eb;
+}
+
+.picker-btn {
+  flex: 1;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.picker-btn.cancel {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.picker-btn.cancel:active {
+  background: #e5e7eb;
+  transform: scale(0.95);
+}
+
+.picker-btn.confirm {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.picker-btn.confirm:active {
+  background: #2563eb;
+  transform: scale(0.95);
 }
 </style>

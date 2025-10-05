@@ -1267,7 +1267,7 @@ const onRichTextClick = (event) => {
 }
 
 // 分享文章
-const shareArticle = () => {
+const shareArticle = async () => {
   console.log('开始分享文章：', article.value.title)
   
   if (!article.value.id) {
@@ -1276,6 +1276,17 @@ const shareArticle = () => {
       icon: 'none'
     })
     return
+  }
+  
+  // 记录分享行为到数据库
+  if (currentUser.value?.id) {
+    try {
+      await userBehaviorApi.recordShareBehavior(currentUser.value.id, article.value.id)
+      console.log('分享行为记录成功')
+    } catch (error) {
+      console.error('记录分享行为失败：', error)
+      // 不影响分享功能，只是统计可能不准确
+    }
   }
   
   // 构建分享内容
@@ -1417,8 +1428,19 @@ const showShareActionSheet = () => {
 }
 
 // 使用系统分享（App环境）
-const useSystemShare = () => {
+const useSystemShare = async () => {
   console.log('使用系统分享')
+  
+  // 记录分享行为到数据库
+  if (currentUser.value?.id) {
+    try {
+      await userBehaviorApi.recordShareBehavior(currentUser.value.id, article.value.id)
+      console.log('分享行为记录成功')
+    } catch (error) {
+      console.error('记录分享行为失败：', error)
+      // 不影响分享功能，只是统计可能不准确
+    }
+  }
   
   // #ifdef APP-PLUS
   const shareTitle = article.value.title || '精彩文章'
@@ -1448,8 +1470,19 @@ const useSystemShare = () => {
 }
 
 // 复制文章链接
-const copyArticleLink = () => {
+const copyArticleLink = async () => {
   console.log('复制文章链接')
+  
+  // 记录分享行为到数据库
+  if (currentUser.value?.id) {
+    try {
+      await userBehaviorApi.recordShareBehavior(currentUser.value.id, article.value.id)
+      console.log('分享行为记录成功')
+    } catch (error) {
+      console.error('记录分享行为失败：', error)
+      // 不影响分享功能，只是统计可能不准确
+    }
+  }
   
   // 构建文章链接
   let articleLink = ''

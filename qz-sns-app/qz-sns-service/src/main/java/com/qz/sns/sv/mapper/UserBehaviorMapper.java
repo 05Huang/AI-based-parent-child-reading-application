@@ -35,6 +35,13 @@ public interface UserBehaviorMapper extends BaseMapper<UserBehavior> {
             "WHERE user_id = #{userId} AND behavior_type IN ('like', 'comment', 'share')")
     Long getInteractionCount(@Param("userId") Long userId);
 
+    @Select("SELECT COUNT(*) FROM user_behavior " +
+            "WHERE user_id = #{userId} AND behavior_type IN ('like', 'comment', 'share') " +
+            "AND created_time >= #{startTime} AND created_time < #{endTime}")
+    Long getInteractionCountByTime(@Param("userId") Long userId,
+                                   @Param("startTime") LocalDateTime startTime,
+                                   @Param("endTime") LocalDateTime endTime);
+
     @Select("SELECT COUNT(DISTINCT content_id) FROM user_behavior " +
             "WHERE user_id = #{userId} AND behavior_type = 'view'")
     Long getViewCount(@Param("userId") Long userId);
