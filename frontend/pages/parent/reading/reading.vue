@@ -143,7 +143,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { contentApi, commentApi, viewHistoryApi, userApi, likeApi, favoriteApi } from '@/utils/api.js'
+import { contentApi, commentApi, viewHistoryApi, userApi, likeApi, favoriteApi, userBehaviorApi } from '@/utils/api.js'
 import readingModeManager from '@/utils/readingModeManager.js'
 
 // 文章信息
@@ -185,6 +185,9 @@ const isBookmarked = ref(false)
 const isLiked = ref(false)
 const readingProgress = ref(0)
 
+// 阅读时长追踪
+const readingStartTime = ref(null)
+
 // 页面加载时获取文章ID并加载数据
 onLoad(async (option) => {
   console.log('阅读页面参数：', option)
@@ -200,17 +203,45 @@ onLoad(async (option) => {
     article.value.id = parseInt(option.id)
     await loadCurrentUser() // 先加载用户信息
     await loadArticleData()
+    
+    // 记录阅读开始时间
+    readingStartTime.value = Date.now()
+    console.log('开始阅读，记录时间戳：', readingStartTime.value)
   } else {
     error.value = '文章ID不存在'
     console.error('缺少文章ID参数')
   }
 })
 
-// 页面卸载时清理
-onUnload(() => {
+// 页面卸载时清理并记录阅读时长
+onUnload(async () => {
   console.log('阅读页面卸载')
-  // 可以在这里清理一些设置，比如屏幕常亮
-  // uni.setKeepScreenOn({ keepScreenOn: false })
+  
+  // 记录阅读时长
+  if (readingStartTime.value && currentUser.value?.id && article.value?.id) {
+    const readingEndTime = Date.now()
+    const duration = Math.floor((readingEndTime - readingStartTime.value) / 1000) // 转换为秒
+    
+    console.log('结束阅读，时长：', duration, '秒，进度：', readingProgress.value, '%')
+    
+    // 只有阅读时长超过3秒才记录
+    if (duration >= 3) {
+      try {
+        await userBehaviorApi.recordReadingBehavior(
+          currentUser.value.id, 
+          article.value.id, 
+          duration, 
+          readingProgress.value
+        )
+        console.log('阅读行为记录成功')
+      } catch (error) {
+        console.error('记录阅读行为失败：', error)
+        // 不影响页面卸载
+      }
+    } else {
+      console.log('阅读时长过短，不记录')
+    }
+  }
 })
 
 // 应用阅读模式设置

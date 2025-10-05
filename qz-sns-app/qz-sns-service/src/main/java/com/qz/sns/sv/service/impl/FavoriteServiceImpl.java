@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qz.sns.model.dto.FavoriteQueryDTO;
 import com.qz.sns.model.dto.PageDTO;
+import com.qz.sns.model.dto.UserBehaviorDTO;
 import com.qz.sns.model.dto.UserFavoriteResponseDTO;
 import com.qz.sns.model.entity.Favorite;
 import com.qz.sns.sv.mapper.FavoriteMapper;
 import com.qz.sns.sv.service.IFavoriteService;
+import com.qz.sns.sv.service.UserBehaviorService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,9 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
 
     @Resource
     private FavoriteMapper userFavoriteMapper;
+    
+    @Autowired
+    private UserBehaviorService userBehaviorService;
     /**
      * 添加收藏记录
      */
@@ -200,6 +206,19 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
             
             if (success) {
                 log.info("添加收藏成功，用户ID：{}，内容ID：{}", userId, contentId);
+                
+                // 记录用户收藏行为到user_behavior表
+                try {
+                    UserBehaviorDTO behaviorDTO = new UserBehaviorDTO();
+                    behaviorDTO.setUserId(userId);
+                    behaviorDTO.setContentId(contentId);
+                    behaviorDTO.setBehaviorType("collect");
+                    userBehaviorService.recordUserBehavior(behaviorDTO);
+                    log.info("记录用户收藏行为成功，用户ID：{}，内容ID：{}", userId, contentId);
+                } catch (Exception e) {
+                    log.error("记录用户收藏行为失败", e);
+                    // 不影响主流程
+                }
             } else {
                 log.error("添加收藏失败，用户ID：{}，内容ID：{}", userId, contentId);
                 throw new RuntimeException("添加收藏失败");

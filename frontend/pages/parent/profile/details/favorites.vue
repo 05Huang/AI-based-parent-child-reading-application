@@ -14,6 +14,13 @@
     <scroll-view scroll-y="true" class="main-content">
       <!-- 收藏统计 -->
       <view class="stats-card">
+        <view class="stats-header">
+          <text class="stats-title">收藏统计</text>
+          <view class="refresh-btn" @click="refreshCache">
+            <text class="fas fa-sync-alt" :class="{ 'rotating': refreshing }"></text>
+            <text class="refresh-text">刷新</text>
+          </view>
+        </view>
         <view class="stats-grid">
           <view class="stat-item">
             <text class="stat-value">{{statsDisplay.totalCollections}}</text>
@@ -77,6 +84,7 @@ const collectionStats = ref({
 })
 const articles = ref([])
 const loading = ref(false)
+const refreshing = ref(false)
 
 // 计算统计数据显示
 const statsDisplay = computed(() => {
@@ -111,14 +119,28 @@ const loadCurrentUser = async () => {
 // 获取收藏统计数据
 const loadCollectionStats = async () => {
   try {
-    if (!currentUser.value?.id) return
+    if (!currentUser.value?.id) {
+      console.log('用户ID不存在，跳过加载收藏统计')
+      return
+    }
     
     console.log('开始获取收藏统计数据，用户ID：', currentUser.value.id)
     const response = await userBehaviorApi.getCollectionStats(currentUser.value.id)
     
-    if (response && response.data) {
+    console.log('收藏统计API完整响应：', JSON.stringify(response, null, 2))
+    
+    if (response && response.code === 200 && response.data) {
       console.log('获取收藏统计成功：', response.data)
-      collectionStats.value = response.data
+      // 确保所有字段都有默认值
+      collectionStats.value = {
+        totalCollections: response.data.totalCollections || 0,
+        monthlyCollections: response.data.monthlyCollections || 0,
+        collectionShares: response.data.collectionShares || 0,
+        interactionCount: response.data.interactionCount || 0
+      }
+      console.log('更新后的collectionStats：', collectionStats.value)
+    } else {
+      console.warn('收藏统计响应格式异常或无数据，使用默认值')
     }
   } catch (error) {
     console.error('获取收藏统计失败：', error)
@@ -311,7 +333,37 @@ const deleteArticle = async (article) => {
   })
 }
 
-// 删除点赞功能相关代码
+// 刷新缓存
+const refreshCache = async () => {
+  if (!currentUser.value?.id || refreshing.value) return
+  
+  refreshing.value = true
+  console.log('开始刷新统计缓存')
+  
+  try {
+    const response = await userBehaviorApi.refreshStatsCache(currentUser.value.id)
+    
+    if (response && response.code === 200) {
+      console.log('缓存刷新成功，重新加载统计数据')
+      
+      // 重新加载统计数据
+      await loadCollectionStats()
+      
+      uni.showToast({
+        title: '数据已刷新',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('刷新缓存失败：', error)
+    uni.showToast({
+      title: '刷新失败',
+      icon: 'none'
+    })
+  } finally {
+    refreshing.value = false
+  }
+}
 
 // 页面加载时获取数据
 onMounted(async () => {
@@ -385,6 +437,57 @@ onMounted(async () => {
   box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.15);
   width: 100%;
   box-sizing: border-box;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.stats-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.95);
+}
+
+.refresh-btn .fas {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.refresh-btn .rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-text {
+  font-size: 24rpx;
+  color: #ffffff;
 }
 
 .stats-grid {

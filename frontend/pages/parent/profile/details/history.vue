@@ -14,6 +14,13 @@
     <scroll-view scroll-y="true" class="main-content">
       <!-- 统计卡片 -->
       <view class="stats-card">
+        <view class="stats-header">
+          <text class="stats-title">浏览统计</text>
+          <view class="refresh-btn" @click="refreshCache">
+            <text class="fas fa-sync-alt" :class="{ 'rotating': refreshing }"></text>
+            <text class="refresh-text">刷新</text>
+          </view>
+        </view>
         <view class="stats-grid">
           <view class="stat-item">
             <text class="stat-value">{{statsDisplay.monthlyDuration}}</text>
@@ -102,6 +109,7 @@ const historyStats = ref({
 })
 const historyRecords = ref([])
 const loading = ref(false)
+const refreshing = ref(false)
 
 // 计算统计数据显示
 const statsDisplay = computed(() => {
@@ -134,14 +142,28 @@ const loadCurrentUser = async () => {
 // 获取历史统计数据
 const loadHistoryStats = async () => {
   try {
-    if (!currentUser.value?.id) return
+    if (!currentUser.value?.id) {
+      console.log('用户ID不存在，跳过加载历史统计')
+      return
+    }
     
     console.log('开始获取历史统计数据，用户ID：', currentUser.value.id)
     const response = await userBehaviorApi.getHistoryStats(currentUser.value.id)
     
-    if (response && response.data) {
+    console.log('历史统计API完整响应：', JSON.stringify(response, null, 2))
+    
+    if (response && response.code === 200 && response.data) {
       console.log('获取历史统计成功：', response.data)
-      historyStats.value = response.data
+      // 确保所有字段都有默认值
+      historyStats.value = {
+        monthlyReadDuration: response.data.monthlyReadDuration || 0,
+        totalArticleCount: response.data.totalArticleCount || 0,
+        interactedArticleCount: response.data.interactedArticleCount || 0,
+        shareCount: response.data.shareCount || 0
+      }
+      console.log('更新后的historyStats：', historyStats.value)
+    } else {
+      console.warn('历史统计响应格式异常或无数据，使用默认值')
     }
   } catch (error) {
     console.error('获取历史统计失败：', error)
@@ -258,6 +280,38 @@ const viewContent = (record) => {
   }
 }
 
+// 刷新缓存
+const refreshCache = async () => {
+  if (!currentUser.value?.id || refreshing.value) return
+  
+  refreshing.value = true
+  console.log('开始刷新统计缓存')
+  
+  try {
+    const response = await userBehaviorApi.refreshStatsCache(currentUser.value.id)
+    
+    if (response && response.code === 200) {
+      console.log('缓存刷新成功，重新加载统计数据')
+      
+      // 重新加载统计数据
+      await loadHistoryStats()
+      
+      uni.showToast({
+        title: '数据已刷新',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('刷新缓存失败：', error)
+    uni.showToast({
+      title: '刷新失败',
+      icon: 'none'
+    })
+  } finally {
+    refreshing.value = false
+  }
+}
+
 // 返回上一页
 const goBack = () => {
   uni.switchTab({
@@ -335,6 +389,57 @@ onMounted(async () => {
   box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.15);
   width: 100%;
   box-sizing: border-box;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.stats-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.95);
+}
+
+.refresh-btn .fas {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.refresh-btn .rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-text {
+  font-size: 24rpx;
+  color: #ffffff;
 }
 
 .stats-grid {

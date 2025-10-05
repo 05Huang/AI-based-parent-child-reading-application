@@ -12,6 +12,7 @@ import com.qz.sns.sv.mapper.ContentMapper;
 import com.qz.sns.sv.mapper.ParagraphCommentCountMapper;
 import com.qz.sns.sv.mapper.UserMapper;
 import com.qz.sns.sv.service.ICommentService;
+import com.qz.sns.sv.service.UserBehaviorService;
 import com.qz.sns.sv.session.SessionContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Autowired
     private ContentMapper contentMapper;
+    
+    @Autowired
+    private UserBehaviorService userBehaviorService;
 
     @Autowired
     private ParagraphCommentCountMapper paragraphCommentCountMapper;
@@ -188,7 +192,20 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             }
         }
 
-        // 6. 获取用户信息
+        // 6. 记录用户评论行为到user_behavior表
+        try {
+            UserBehaviorDTO behaviorDTO = new UserBehaviorDTO();
+            behaviorDTO.setUserId(comment.getUserId());
+            behaviorDTO.setContentId(comment.getContentId());
+            behaviorDTO.setBehaviorType("comment");
+            userBehaviorService.recordUserBehavior(behaviorDTO);
+            log.info("记录用户评论行为成功，用户ID：{}，内容ID：{}", comment.getUserId(), comment.getContentId());
+        } catch (Exception e) {
+            log.error("记录用户评论行为失败", e);
+            // 不影响主流程
+        }
+        
+        // 7. 获取用户信息
         log.info("获取用户信息，用户ID：{}", comment.getUserId());
         User user = userMapper.selectById(comment.getUserId());
         if (user == null) {
@@ -196,7 +213,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             throw new RuntimeException("用户不存在");
         }
 
-        // 7. 构建返回对象
+        // 8. 构建返回对象
         log.info("构建返回对象");
         CommentDTO resultDTO = new CommentDTO();
         BeanUtils.copyProperties(comment, resultDTO);

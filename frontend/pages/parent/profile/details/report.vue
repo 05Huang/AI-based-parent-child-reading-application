@@ -134,11 +134,18 @@ const loading = ref(false)
 
 // 计算月报统计数据显示
 const reportDisplay = computed(() => {
+  // 后端返回的activityScore是0-26分的绝对分数（满分26 = 20*0.3 + 20*0.4 + 40*0.3）
+  // 需要转换为百分比：(分数 / 26) * 100
+  const rawScore = weeklyReport.value.activityScore || 0
+  const activityPercent = Math.min(Math.round((rawScore / 26) * 100), 100) // 转为百分比，最高100%
+  
+  console.log('活跃度计算 - 原始分数:', rawScore, '转换后百分比:', activityPercent)
+  
   return {
     totalDuration: Math.floor((weeklyReport.value.totalReadDuration || 0) / 60), // 转为分钟
     totalArticles: weeklyReport.value.totalArticleCount || 0,
     interactionCount: weeklyReport.value.interactionCount || 0,
-    activityScore: Math.round((weeklyReport.value.activityScore || 0) * 100), // 转为百分比
+    activityScore: activityPercent, // 显示为百分比
     avgReadTime: Math.floor((weeklyReport.value.dailyAvgReadTime || 0) / 60), // 转为分钟
     favoriteCategory: weeklyReport.value.favoriteCategory || '育儿经验'
   }
@@ -165,14 +172,30 @@ const loadCurrentUser = async () => {
 // 获取周报数据
 const loadWeeklyReport = async () => {
   try {
-    if (!currentUser.value?.id) return
+    if (!currentUser.value?.id) {
+      console.log('用户ID不存在，跳过加载周报数据')
+      return
+    }
     
     console.log('开始获取周报数据，用户ID：', currentUser.value.id)
     const response = await userBehaviorApi.getWeeklyReport(currentUser.value.id)
     
-    if (response && response.data) {
+    console.log('周报API完整响应：', JSON.stringify(response, null, 2))
+    
+    if (response && response.code === 200 && response.data) {
       console.log('获取周报数据成功：', response.data)
-      weeklyReport.value = response.data
+      // 确保所有字段都有默认值
+      weeklyReport.value = {
+        totalReadDuration: response.data.totalReadDuration || 0,
+        totalArticleCount: response.data.totalArticleCount || 0,
+        interactionCount: response.data.interactionCount || 0,
+        activityScore: response.data.activityScore || 0,
+        dailyAvgReadTime: response.data.dailyAvgReadTime || 0,
+        favoriteCategory: response.data.favoriteCategory || '育儿经验'
+      }
+      console.log('更新后的weeklyReport：', weeklyReport.value)
+    } else {
+      console.warn('周报响应格式异常或无数据，使用默认值')
     }
   } catch (error) {
     console.error('获取周报数据失败：', error)

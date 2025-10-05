@@ -1,6 +1,7 @@
 package com.qz.sns.sv.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qz.sns.model.dto.LikeDTO;
+import com.qz.sns.model.dto.UserBehaviorDTO;
 import com.qz.sns.model.entity.Comment;
 import com.qz.sns.model.entity.Content;
 import com.qz.sns.model.entity.LikeRecord;
@@ -8,6 +9,8 @@ import com.qz.sns.sv.mapper.CommentMapper;
 import com.qz.sns.sv.mapper.ContentMapper;
 import com.qz.sns.sv.mapper.LikeRecordMapper;
 import com.qz.sns.sv.service.ILikeRecordService;
+import com.qz.sns.sv.service.UserBehaviorService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,7 @@ import java.util.Map;
  * @author 李彬
  * @since 2025-02-18
  */
+@Slf4j
 @Service
 public class LikeRecordServiceImpl extends ServiceImpl<LikeRecordMapper, LikeRecord> implements ILikeRecordService {
     @Autowired
@@ -33,6 +37,9 @@ public class LikeRecordServiceImpl extends ServiceImpl<LikeRecordMapper, LikeRec
 
     @Autowired
     private CommentMapper commentMapper;
+    
+    @Autowired
+    private UserBehaviorService userBehaviorService;
 
     @Override
     @Transactional
@@ -59,6 +66,19 @@ public class LikeRecordServiceImpl extends ServiceImpl<LikeRecordMapper, LikeRec
                 contentMapper.incrementLikeCount(targetId);
                 Content content = contentMapper.selectById(targetId);
                 result.put("likeCount", content.getLikeCount());
+                
+                // 记录用户点赞行为到user_behavior表
+                try {
+                    UserBehaviorDTO behaviorDTO = new UserBehaviorDTO();
+                    behaviorDTO.setUserId(userId);
+                    behaviorDTO.setContentId(targetId);
+                    behaviorDTO.setBehaviorType("like");
+                    userBehaviorService.recordUserBehavior(behaviorDTO);
+                    log.info("记录用户点赞行为成功，用户ID：{}，内容ID：{}", userId, targetId);
+                } catch (Exception e) {
+                    log.error("记录用户点赞行为失败", e);
+                    // 不影响主流程
+                }
             } else if (type == 2) {
                 // 评论点赞
                 commentMapper.incrementLikeCount(targetId);

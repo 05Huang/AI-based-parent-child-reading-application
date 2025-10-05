@@ -246,6 +246,18 @@ export const userBehaviorApi = {
     return request.post('/api/user/behavior/record', behaviorData)
   },
   
+  // 记录阅读行为（带时长）
+  recordReadingBehavior(userId, contentId, duration, progress) {
+    console.log('调用记录阅读行为接口，用户ID：', userId, '内容ID：', contentId, '时长（秒）：', duration, '进度：', progress)
+    return request.post('/api/user/behavior/record', {
+      userId,
+      contentId,
+      behaviorType: 'view',
+      duration,
+      progress
+    })
+  },
+  
   // 获取浏览统计
   getBrowsingStats(userId) {
     console.log('调用获取浏览统计接口，用户ID：', userId)
@@ -268,6 +280,12 @@ export const userBehaviorApi = {
   getWeeklyReport(userId) {
     console.log('调用获取周报接口，用户ID：', userId)
     return request.get(`/api/user/behavior/weekly-report/${userId}`)
+  },
+  
+  // 刷新用户统计缓存
+  refreshStatsCache(userId) {
+    console.log('调用刷新统计缓存接口，用户ID：', userId)
+    return request.post(`/api/user/behavior/refresh-cache/${userId}`)
   }
 }
 

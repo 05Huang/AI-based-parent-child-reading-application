@@ -14,6 +14,13 @@
     <scroll-view scroll-y="true" class="main-content">
       <!-- 统计卡片 -->
       <view class="stats-card">
+        <view class="stats-header">
+          <text class="stats-title">浏览统计</text>
+          <view class="refresh-btn" @click="refreshCache">
+            <text class="fas fa-sync-alt" :class="{ 'rotating': refreshing }"></text>
+            <text class="refresh-text">刷新</text>
+          </view>
+        </view>
         <view class="stats-grid">
           <view class="stat-item">
             <text class="stat-value">{{statsDisplay.totalDuration}}</text>
@@ -94,6 +101,7 @@ const browsingStats = ref({
 })
 const readingRecords = ref([])
 const loading = ref(false)
+const refreshing = ref(false)
 
 // 时间范围选择器数据
 const timeRanges = ['近7天', '近30天', '近3个月']
@@ -130,14 +138,28 @@ const loadCurrentUser = async () => {
 // 获取浏览统计数据
 const loadBrowsingStats = async () => {
   try {
-    if (!currentUser.value?.id) return
+    if (!currentUser.value?.id) {
+      console.log('用户ID不存在，跳过加载浏览统计')
+      return
+    }
     
     console.log('开始获取浏览统计数据，用户ID：', currentUser.value.id)
     const response = await userBehaviorApi.getBrowsingStats(currentUser.value.id)
     
-    if (response && response.data) {
+    console.log('浏览统计API完整响应：', JSON.stringify(response, null, 2))
+    
+    if (response && response.code === 200 && response.data) {
       console.log('获取浏览统计成功：', response.data)
-      browsingStats.value = response.data
+      // 确保所有字段都有默认值
+      browsingStats.value = {
+        totalReadDuration: response.data.totalReadDuration || 0,
+        totalReadCount: response.data.totalReadCount || 0,
+        weeklyViewCount: response.data.weeklyViewCount || 0,
+        interactionRate: response.data.interactionRate || 0
+      }
+      console.log('更新后的browsingStats：', browsingStats.value)
+    } else {
+      console.warn('浏览统计响应格式异常或无数据，使用默认值')
     }
   } catch (error) {
     console.error('获取浏览统计失败：', error)
@@ -194,6 +216,38 @@ const getTimeDiffInMinutes = (viewTime) => {
   const diffMs = now - view
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
   return diffMinutes < 1 ? 1 : diffMinutes
+}
+
+// 刷新缓存
+const refreshCache = async () => {
+  if (!currentUser.value?.id || refreshing.value) return
+  
+  refreshing.value = true
+  console.log('开始刷新统计缓存')
+  
+  try {
+    const response = await userBehaviorApi.refreshStatsCache(currentUser.value.id)
+    
+    if (response && response.code === 200) {
+      console.log('缓存刷新成功，重新加载统计数据')
+      
+      // 重新加载统计数据
+      await loadBrowsingStats()
+      
+      uni.showToast({
+        title: '数据已刷新',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('刷新缓存失败：', error)
+    uni.showToast({
+      title: '刷新失败',
+      icon: 'none'
+    })
+  } finally {
+    refreshing.value = false
+  }
 }
 
 // 返回上一页
@@ -281,6 +335,57 @@ onMounted(async () => {
   box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.15);
   width: 100%;
   box-sizing: border-box;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.stats-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.95);
+}
+
+.refresh-btn .fas {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.refresh-btn .rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-text {
+  font-size: 24rpx;
+  color: #ffffff;
 }
 
 .stats-grid {
