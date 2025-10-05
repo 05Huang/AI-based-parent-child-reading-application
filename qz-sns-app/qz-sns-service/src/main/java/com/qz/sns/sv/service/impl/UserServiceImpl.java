@@ -66,6 +66,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private UserMapper userMapper;
     @Autowired
     private EmailUtil emailUtil;
+    @Autowired
+    private com.qz.sns.sv.util.TencentCaptchaUtil tencentCaptchaUtil;
 
     @Override
     public Result<String> resetPassword(ResetPasswordRequest request) {
@@ -111,28 +113,53 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
 
     @Override
-    public Result<String> sendEmailVerifyCode(String email) {
+    public Result<String> sendEmailVerifyCode(String email, String ticket, String randstr, jakarta.servlet.http.HttpServletRequest request) {
+        System.out.println("开始发送邮箱验证码，邮箱：" + email + "，ticket：" + ticket + "，randstr：" + randstr);
+        
         // 1. 校验邮箱格式
         if (!RegexUtil.isEmail(email)) {
             return ResultUtils.error(ResultCode.XSS_PARAM_ERROR, "邮箱格式不正确");
         }
+        
+        // 2. 校验腾讯云验证码票据
+        if (ticket != null && !ticket.isEmpty() && randstr != null && !randstr.isEmpty()) {
+            System.out.println("开始校验腾讯云验证码票据");
+            String userIp = com.qz.sns.sv.util.TencentCaptchaUtil.getClientIp(request);
+            System.out.println("用户IP：" + userIp);
+            
+            boolean captchaValid = tencentCaptchaUtil.verifyCaptcha(ticket, randstr, userIp);
+            System.out.println("验证码校验结果：" + captchaValid);
+            
+            if (!captchaValid) {
+                System.out.println("腾讯云验证码校验失败");
+                return ResultUtils.error(ResultCode.CAPTCHA_ERROR, "人机验证失败，请重试");
+            }
+            System.out.println("腾讯云验证码校验成功");
+        } else {
+            System.out.println("未提供验证码票据，跳过人机验证");
+        }
 
-        // 2. 生成6位验证码
+        // 3. 生成6位验证码
         int code = (int) ((Math.random() * 9 + 1) * 100000);
         String verifyCode = String.valueOf(code);
+        System.out.println("生成的邮箱验证码：" + verifyCode);
 
-        // 3. 发送邮件
+        // 4. 发送邮件
+        System.out.println("开始发送邮件");
         boolean sendResult = emailUtil.sendMail(
                 email,
                 "亲子悦读 - 验证码",
                 "亲子阅读提醒您，您的验证码为: " + verifyCode + "，请在5分钟内使用。"
         );
+        System.out.println("邮件发送结果：" + sendResult);
 
         if (sendResult) {
-            // 4. 存入Redis，有效期5分钟
+            // 5. 存入Redis，有效期5分钟
             redisTemplate.opsForValue().set(REDIS_EMAIL_CODE + email, verifyCode, 5, TimeUnit.MINUTES);
+            System.out.println("验证码已存入Redis");
             return ResultUtils.success("验证码已发送");
         } else {
+            System.out.println("邮件发送失败");
             return ResultUtils.error(ResultCode.PROGRAM_ERROR, "验证码发送失败");
         }
     }
@@ -415,29 +442,60 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
     @Override
     @Transactional
-    public String sendVerificationCode(String phone) throws Exception {
-
+    public String sendVerificationCode(String phone, String ticket, String randstr, jakarta.servlet.http.HttpServletRequest request) throws Exception {
+        System.out.println("开始发送短信验证码，手机号：" + phone + "，ticket：" + ticket + "，randstr：" + randstr);
+        
+        // 1. 校验手机号格式
         if (!RegexUtil.isPhone(phone)) {
-            // 2. 不符合，返回错误信息
-           throw new GlobalException("手机号格式不正确");
+            System.out.println("手机号格式不正确：" + phone);
+            throw new GlobalException("手机号格式不正确");
         }
-        // 2. 检查是否在限制时间内
+        
+        // 2. 校验腾讯云验证码票据
+        if (ticket != null && !ticket.isEmpty() && randstr != null && !randstr.isEmpty()) {
+            System.out.println("开始校验腾讯云验证码票据");
+            String userIp = com.qz.sns.sv.util.TencentCaptchaUtil.getClientIp(request);
+            System.out.println("用户IP：" + userIp);
+            
+            boolean captchaValid = tencentCaptchaUtil.verifyCaptcha(ticket, randstr, userIp);
+            System.out.println("验证码校验结果：" + captchaValid);
+            
+            if (!captchaValid) {
+                System.out.println("腾讯云验证码校验失败");
+                throw new GlobalException("人机验证失败，请重试");
+            }
+            System.out.println("腾讯云验证码校验成功");
+        } else {
+            System.out.println("未提供验证码票据，跳过人机验证");
+        }
+        
+        // 3. 检查是否在限制时间内
         if (Boolean.TRUE.equals(redisTemplate.hasKey(REDIS_SMS_LIMIT+phone))) {
+            System.out.println("发送过于频繁，手机号：" + phone);
             throw new GlobalException("发送过于频繁，请稍后再试");
         }
-        // 3. 符合，生成验证码
+        
+        // 4. 生成验证码
         String verificationCode = VerificationCodeGenerator.generateNumericVerificationCode();
-        // 4. 存入redis
-        redisTemplate.opsForValue().set(REDIS_SMS_CODE+phone,verificationCode,SMS_CODE_EXPIRE_TIME, TimeUnit.SECONDS);//用常量代替
+        System.out.println("生成的短信验证码：" + verificationCode);
+        
+        // 5. 存入redis
+        redisTemplate.opsForValue().set(REDIS_SMS_CODE+phone,verificationCode,SMS_CODE_EXPIRE_TIME, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set(REDIS_SMS_LIMIT+phone, "1", SMS_CODE_RESEND_LIMIT, TimeUnit.SECONDS);
+        System.out.println("验证码已存入Redis");
+        
+        // 6. 发送短信
         Map<String, Object> param = new HashMap<>();
-        param.put("code",verificationCode);//阿里云短信模板中的参数，code是模板中的参数名
-        param.put("time",5);//阿里云短信模板中的参数，time是模板中的参数名
-        //发送短信
+        param.put("code",verificationCode);
+        param.put("time",5);
+        
+        System.out.println("开始发送短信");
         if(smsUtils.sendMessage(phone,param)){
+            System.out.println("短信发送成功");
             return "发送成功";
         }
-      return "发送失败";
+        System.out.println("短信发送失败");
+        return "发送失败";
     }
     @Transactional
     @Override

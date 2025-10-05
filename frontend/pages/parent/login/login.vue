@@ -150,6 +150,7 @@
 <script setup>
 import { ref } from 'vue'
 import request from '@/utils/request'
+import captcha from '@/utils/captcha'
 
 console.log('登录页面加载')
 
@@ -200,13 +201,52 @@ const getVerifyCode = async () => {
     })
     return
   }
+  
+  // 如果正在倒计时，不允许重复获取
+  if (countdown.value > 0) {
+    console.log('验证码倒计时中，无法重复获取')
+    return
+  }
 
   try {
-    console.log('发送获取验证码请求，手机号：', phoneNumber.value)
+    // 1. 先进行人机验证
+    console.log('开始人机验证')
+    uni.showLoading({
+      title: '正在加载验证码...',
+      mask: true
+    })
     
-    // 调用后端接口获取验证码
+    let captchaResult
+    try {
+      captchaResult = await captcha.show()
+      console.log('人机验证成功，ticket：', captchaResult.ticket)
+    } catch (captchaError) {
+      console.error('人机验证失败：', captchaError)
+      uni.hideLoading()
+      
+      // 如果是用户取消，不显示错误提示
+      if (captchaError.message && captchaError.message.includes('取消')) {
+        console.log('用户取消了人机验证')
+        return
+      }
+      
+      uni.showToast({
+        title: captchaError.message || '验证失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    uni.hideLoading()
+    
+    // 2. 人机验证成功后，调用后端接口获取验证码
+    console.log('发送获取验证码请求，手机号：', phoneNumber.value, '票据：', captchaResult.ticket)
+    
     const res = await request.get('/api/user/smscode', {
-      phone: phoneNumber.value
+      phone: phoneNumber.value,
+      ticket: captchaResult.ticket,
+      randstr: captchaResult.randstr
     })
     
     console.log('获取验证码响应：', res)
@@ -238,6 +278,8 @@ const getVerifyCode = async () => {
       if (responseData.code === 400) {
         if (responseData.message.includes('手机号')) {
           errorMessage = responseData.message || '手机号格式不正确'
+        } else if (responseData.message.includes('验证')) {
+          errorMessage = responseData.message || '人机验证失败'
         }
       } else if (responseData.code === 429) {
         errorMessage = '发送过于频繁，请稍后再试'
@@ -499,13 +541,52 @@ const getEmailVerifyCode = async () => {
     })
     return
   }
+  
+  // 如果正在倒计时，不允许重复获取
+  if (emailCountdown.value > 0) {
+    console.log('验证码倒计时中，无法重复获取')
+    return
+  }
 
   try {
-    console.log('发送获取邮箱验证码请求，邮箱：', email.value)
+    // 1. 先进行人机验证
+    console.log('开始人机验证')
+    uni.showLoading({
+      title: '正在加载验证码...',
+      mask: true
+    })
     
-    // 调用后端接口获取验证码
+    let captchaResult
+    try {
+      captchaResult = await captcha.show()
+      console.log('人机验证成功，ticket：', captchaResult.ticket)
+    } catch (captchaError) {
+      console.error('人机验证失败：', captchaError)
+      uni.hideLoading()
+      
+      // 如果是用户取消，不显示错误提示
+      if (captchaError.message && captchaError.message.includes('取消')) {
+        console.log('用户取消了人机验证')
+        return
+      }
+      
+      uni.showToast({
+        title: captchaError.message || '验证失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    uni.hideLoading()
+    
+    // 2. 人机验证成功后，调用后端接口获取验证码
+    console.log('发送获取邮箱验证码请求，邮箱：', email.value, '票据：', captchaResult.ticket)
+    
     const res = await request.post('/api/user/send-email-code', {
-      email: email.value
+      email: email.value,
+      ticket: captchaResult.ticket,
+      randstr: captchaResult.randstr
     })
     
     console.log('获取邮箱验证码响应：', res)

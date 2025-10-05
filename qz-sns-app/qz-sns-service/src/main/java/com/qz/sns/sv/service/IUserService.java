@@ -38,7 +38,7 @@ public interface IUserService extends IService<User> {
 
     User findUserByUserName(String username);
     //手机号发送验证码
-    String sendVerificationCode(String phone) throws Exception;
+    String sendVerificationCode(String phone, String ticket, String randstr, jakarta.servlet.http.HttpServletRequest request) throws Exception;
     //用户通过手机号注册
     LoginVO registerByPhone(RgisterByPhoneDTO dto);
 
@@ -154,7 +154,7 @@ public interface IUserService extends IService<User> {
 
     String updateAvatar(Long userId, MultipartFile updateAvatarDTO) throws Exception;
 
-    Result<String> sendEmailVerifyCode(String email);
+    Result<String> sendEmailVerifyCode(String email, String ticket, String randstr, jakarta.servlet.http.HttpServletRequest request);
     LoginVO registerByEmail(RegisterByEmailDTO dto);
     LoginVO loginByEmail(EmailLoginDTO dto);
 

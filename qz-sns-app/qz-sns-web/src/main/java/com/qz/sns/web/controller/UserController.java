@@ -65,12 +65,22 @@ public class UserController {
      * 发送邮箱验证码
      */
     @PostMapping("/send-email-code")
-    public Result<String> sendEmailCode(@RequestBody EmailVerifyRequest request) {
-        if (request.getEmail() == null || request.getEmail().isEmpty()) {
+    public Result<String> sendEmailCode(
+            @RequestBody EmailVerifyRequest emailRequest,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        
+        if (emailRequest.getEmail() == null || emailRequest.getEmail().isEmpty()) {
             return ResultUtils.error(400, "邮箱不能为空");
         }
+        
+        log.info("接收到发送邮箱验证码请求，邮箱：{}，ticket：{}，randstr：{}", 
+                emailRequest.getEmail(), emailRequest.getTicket(), emailRequest.getRandstr());
 
-        return userService.sendEmailVerifyCode(request.getEmail());
+        return userService.sendEmailVerifyCode(
+                emailRequest.getEmail(), 
+                emailRequest.getTicket(), 
+                emailRequest.getRandstr(), 
+                httpRequest);
     }
 
     /**
@@ -223,8 +233,15 @@ public class UserController {
     }
     //手机号发送验证码接口
     @GetMapping("/smscode")
-    public Result<String> sendVerificationCode(@NotNull @RequestParam String phone) throws Exception {
-        return ResultUtils.success(userService.sendVerificationCode(phone));
+    public Result<String> sendVerificationCode(
+            @NotNull @RequestParam String phone,
+            @RequestParam(required = false) String ticket,
+            @RequestParam(required = false) String randstr,
+            jakarta.servlet.http.HttpServletRequest request) throws Exception {
+        
+        log.info("接收到发送短信验证码请求，手机号：{}，ticket：{}，randstr：{}", phone, ticket, randstr);
+        
+        return ResultUtils.success(userService.sendVerificationCode(phone, ticket, randstr, request));
     }
     /**
      * 获取当前登录用户信息
