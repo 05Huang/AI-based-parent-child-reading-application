@@ -108,6 +108,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import request from '@/utils/request.js'
+import eventBus, { EVENTS } from '@/utils/eventBus.js'
 
 // 响应式数据
 const searchUsername = ref('')
@@ -319,6 +320,14 @@ const bindChild = async () => {
         searchUsername.value = ''
         relationTypeIndex.value = -1
         selectedRelationType.value = null
+        
+        // 触发孩子绑定事件，通知其他页面刷新
+        console.log('[绑定家人] 触发孩子绑定事件')
+        eventBus.emit(EVENTS.CHILD_BOUND, {
+          username: username,
+          relationType: selectedRelationType.value?.value
+        })
+        
         // 重新获取列表
         await getFamilyMembers()
       }
@@ -463,6 +472,14 @@ const bindByQRCode = async (username, relationType) => {
         title: '绑定成功',
         icon: 'success'
       })
+      
+      // 触发孩子绑定事件，通知其他页面刷新
+      console.log('[扫码绑定] 触发孩子绑定事件')
+      eventBus.emit(EVENTS.CHILD_BOUND, {
+        userId: scannedUserId,
+        relationType: relationType
+      })
+      
       // 重新获取列表
       await getFamilyMembers()
     }
@@ -513,6 +530,14 @@ const confirmUnbind = async (member) => {
         title: '解绑成功',
         icon: 'success'
       })
+      
+      // 触发孩子解绑事件，通知其他页面刷新
+      console.log('[解绑家人] 触发孩子解绑事件')
+      eventBus.emit(EVENTS.CHILD_UNBOUND, {
+        memberId: member.id,
+        memberName: member.nickname
+      })
+      
       // 重新获取列表
       await getFamilyMembers()
     }

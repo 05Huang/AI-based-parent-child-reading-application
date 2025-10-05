@@ -169,8 +169,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { userApi, intimacyApi, userBehaviorApi } from '@/utils/api.js'
+import eventBus, { EVENTS } from '@/utils/eventBus.js'
 
 // 响应式状态
 const currentUser = ref({
@@ -549,12 +551,90 @@ const loadIntimacyRankingPreview = async () => {
   }
 }
 
-// 页面加载时获取数据
-onMounted(async () => {
-  console.log('个人中心页面已挂载，开始加载数据')
+// 标记是否已注册事件监听器（避免重复注册）
+const isEventListenerRegistered = ref(false)
+
+// 刷新所有数据的统一方法
+const refreshAllData = async () => {
+  console.log('[个人中心] 刷新所有数据')
   await loadCurrentUser()
   await loadUserStats()
   await loadIntimacyRankingPreview()
+}
+
+// 注册事件监听器（只注册一次）
+const registerEventListeners = () => {
+  if (isEventListenerRegistered.value) {
+    console.log('[个人中心] 事件监听器已注册，跳过')
+    return
+  }
+  
+  console.log('[个人中心] 注册事件监听器')
+  
+  // 监听用户信息更新事件
+  eventBus.on(EVENTS.USER_INFO_UPDATED, async () => {
+    console.log('[个人中心] 收到用户信息更新事件，刷新数据')
+    await loadCurrentUser()
+  }, { pageName: '个人中心' })
+  
+  // 监听头像更新事件
+  eventBus.on(EVENTS.USER_AVATAR_UPDATED, async () => {
+    console.log('[个人中心] 收到头像更新事件，刷新数据')
+    await loadCurrentUser()
+  }, { pageName: '个人中心' })
+  
+  // 监听用户统计数据更新事件
+  eventBus.on(EVENTS.USER_STATS_UPDATED, async () => {
+    console.log('[个人中心] 收到统计数据更新事件，刷新数据')
+    await loadUserStats()
+  }, { pageName: '个人中心' })
+  
+  // 监听亲密度更新事件
+  eventBus.on(EVENTS.INTIMACY_UPDATED, async () => {
+    console.log('[个人中心] 收到亲密度更新事件，刷新排行榜')
+    await loadIntimacyRankingPreview()
+  }, { pageName: '个人中心' })
+  
+  // 监听孩子绑定/解绑事件
+  eventBus.on(EVENTS.CHILD_BOUND, async () => {
+    console.log('[个人中心] 收到孩子绑定事件，刷新数据')
+    await refreshAllData()
+  }, { pageName: '个人中心' })
+  
+  eventBus.on(EVENTS.CHILD_UNBOUND, async () => {
+    console.log('[个人中心] 收到孩子解绑事件，刷新数据')
+    await refreshAllData()
+  }, { pageName: '个人中心' })
+  
+  isEventListenerRegistered.value = true
+}
+
+// 页面首次加载时获取数据并注册事件
+onMounted(async () => {
+  console.log('[个人中心] 页面已挂载，开始加载数据')
+  await refreshAllData()
+  registerEventListeners()
+})
+
+// 页面显示时刷新数据（从其他页面返回时会触发）
+onShow(async () => {
+  console.log('[个人中心] 页面显示，刷新数据')
+  await refreshAllData()
+  
+  // 确保事件监听器已注册
+  registerEventListeners()
+})
+
+// 页面卸载时移除事件监听
+onUnmounted(() => {
+  console.log('[个人中心] 页面卸载，移除事件监听')
+  eventBus.off(EVENTS.USER_INFO_UPDATED)
+  eventBus.off(EVENTS.USER_AVATAR_UPDATED)
+  eventBus.off(EVENTS.USER_STATS_UPDATED)
+  eventBus.off(EVENTS.INTIMACY_UPDATED)
+  eventBus.off(EVENTS.CHILD_BOUND)
+  eventBus.off(EVENTS.CHILD_UNBOUND)
+  isEventListenerRegistered.value = false
 })
 </script>
 

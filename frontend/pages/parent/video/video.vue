@@ -55,7 +55,13 @@
     </view>
 
     <!-- 主要内容区域 -->
-    <scroll-view scroll-y="true" class="main-content">
+    <scroll-view 
+      scroll-y="true" 
+      class="main-content"
+      refresher-enabled
+      :refresher-triggered="isRefreshing"
+      @refresherrefresh="onRefresh"
+    >
       <!-- 推荐视频 -->
       <view class="section">
         <view class="section-header">
@@ -197,9 +203,18 @@
 import { ref, onMounted, nextTick } from 'vue';
 import { videoApi, categoryApi, userApi } from '../../../utils/api.js';
 
-// 页面加载时检查登录状态
-onMounted(async () => {
-  console.log('视频页面初始化');
+// 加载所有视频数据
+const loadAllVideoData = () => {
+  console.log('[视频页面] 加载所有视频数据');
+  loadCategories();
+  loadFeaturedVideo();
+  loadHotVideos();
+  loadRecommendedVideos();
+};
+
+// 初始化页面数据
+const initPageData = async () => {
+  console.log('[视频页面] 初始化页面数据');
   const token = uni.getStorageSync('token');
   if (!token) {
     uni.redirectTo({
@@ -220,11 +235,35 @@ onMounted(async () => {
   }
   
   // 加载页面数据
-  loadCategories();
-  loadFeaturedVideo();
-  loadHotVideos();
-  loadRecommendedVideos();
+  loadAllVideoData();
+};
+
+// 页面加载时检查登录状态
+onMounted(async () => {
+  console.log('[视频页面] 页面已挂载');
+  await initPageData();
 });
+
+// 下拉刷新
+const onRefresh = async () => {
+  console.log('[视频页面] 下拉刷新');
+  isRefreshing.value = true;
+  try {
+    loadAllVideoData();
+    uni.showToast({
+      title: '刷新成功',
+      icon: 'success',
+      duration: 1000
+    });
+  } catch (error) {
+    console.error('刷新失败：', error);
+  } finally {
+    // 延迟关闭刷新状态，确保动画完整
+    setTimeout(() => {
+      isRefreshing.value = false;
+    }, 500);
+  }
+};
 
 // 跳转到个人中心页面
 const navigateToProfile = () => {
@@ -269,6 +308,7 @@ const featuredVideo = ref({});
 const hotVideos = ref([]);
 const recommendedVideos = ref([]);
 const loading = ref(false);
+const isRefreshing = ref(false); // 下拉刷新状态
 
 // 当前用户信息
 const currentUser = ref(null);
@@ -703,6 +743,7 @@ const handleScroll = (e) => {
 /* 主要内容区域样式 */
 .main-content {
   margin-top: 96px; /* 56px + 40px */
+  height: calc(100vh - 96px);
   padding: 12px;
   box-sizing: border-box;
   width: 100%;

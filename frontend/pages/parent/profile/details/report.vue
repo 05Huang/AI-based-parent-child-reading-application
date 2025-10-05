@@ -117,6 +117,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
 
 // 响应式状态
@@ -272,12 +273,24 @@ const goBack = () => {
   })
 }
 
-// 页面加载时获取数据
-onMounted(async () => {
-  console.log('浏览报告页面已挂载，开始加载数据')
+// 加载所有数据的统一方法
+const loadAllData = async () => {
+  console.log('[浏览报告] 加载所有数据')
   await loadCurrentUser()
   await loadWeeklyReport()
   await loadHotArticles()
+}
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('[浏览报告] 页面已挂载，开始加载数据')
+  await loadAllData()
+})
+
+// 页面显示时刷新数据（从其他页面返回时会触发）
+onShow(async () => {
+  console.log('[浏览报告] 页面显示，刷新数据')
+  await loadAllData()
 })
 </script>
 

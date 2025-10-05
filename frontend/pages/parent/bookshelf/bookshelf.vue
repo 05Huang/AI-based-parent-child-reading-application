@@ -165,11 +165,10 @@ const filteredBooks = computed(() => {
   }
 })
 
-// 页面加载
-onMounted(async () => {
-  console.log('书架页面加载开始')
+// 初始化页面数据
+const initPageData = async () => {
+  console.log('[书架] 初始化页面数据')
   
-  // 检查登录状态（与home.vue保持一致）
   const token = uni.getStorageSync('token')
   const isLoggedIn = uni.getStorageSync('isLoggedIn')
   
@@ -183,9 +182,8 @@ onMounted(async () => {
     return
   }
   
-  console.log('已登录，停留在书架页面，开始获取用户信息')
+  console.log('已登录，开始获取用户信息')
   
-  // 获取当前用户信息
   try {
     const userResponse = await userApi.getCurrentUser()
     if (userResponse && userResponse.data) {
@@ -210,11 +208,16 @@ onMounted(async () => {
       title: '获取用户信息失败，请重新登录',
       icon: 'none'
     })
-    // 如果获取用户信息失败，可能是token过期，跳转到登录页
     uni.redirectTo({
       url: '/pages/parent/login/login'
     })
   }
+}
+
+// 页面加载
+onMounted(async () => {
+  console.log('[书架] 页面已挂载')
+  await initPageData()
 })
 
 // 加载分类列表

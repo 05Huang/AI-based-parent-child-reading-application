@@ -89,6 +89,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { userBehaviorApi, userApi, viewHistoryApi } from '@/utils/api.js'
 
 // 响应式状态
@@ -265,12 +266,24 @@ const onTimeRangeChange = (e) => {
   loadReadingRecords()
 }
 
-// 页面加载时获取数据
-onMounted(async () => {
-  console.log('浏览记录页面已挂载，开始加载数据')
+// 加载所有数据的统一方法
+const loadAllData = async () => {
+  console.log('[浏览记录] 加载所有数据')
   await loadCurrentUser()
   await loadBrowsingStats()
   await loadReadingRecords()
+}
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('[浏览记录] 页面已挂载，开始加载数据')
+  await loadAllData()
+})
+
+// 页面显示时刷新数据
+onShow(async () => {
+  console.log('[浏览记录] 页面显示，刷新数据')
+  await loadAllData()
 })
 </script>
 

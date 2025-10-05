@@ -31,7 +31,13 @@
     </view>
 
     <!-- 主要内容区域 -->
-    <view class="main-content">
+    <scroll-view 
+      scroll-y="true" 
+      class="main-content"
+      refresher-enabled
+      :refresher-triggered="isRefreshing"
+      @refresherrefresh="onRefresh"
+    >
       <!-- 轮播图 -->
       <swiper class="banner-swiper" 
               :indicator-dots="true" 
@@ -151,7 +157,7 @@
           </view>
         </view>
       </view>
-    </view>
+    </scroll-view>
 
     <!-- 底部导航栏 -->
   </view>
@@ -165,11 +171,12 @@ import { contentApi, recommendationApi, userApi, likeApi } from '@/utils/api.js'
 const recommendedContents = ref([]) // 精选推荐内容
 const hotContents = ref([]) // 热门文章内容
 const loading = ref(false) // 加载状态
+const isRefreshing = ref(false) // 下拉刷新状态
 const currentUser = ref(null) // 当前用户信息
 
-// 页面加载时检查登录状态并获取数据
-onMounted(async () => {
-  console.log('首页加载，检查登录状态')
+// 初始化页面数据
+const initPageData = async () => {
+  console.log('[首页] 初始化页面数据')
   const token = uni.getStorageSync('token')
   const isLoggedIn = uni.getStorageSync('isLoggedIn')
   
@@ -180,36 +187,60 @@ onMounted(async () => {
     uni.redirectTo({
       url: '/pages/parent/login/login'
     })
-  } else {
-    console.log('已登录，停留在首页，开始获取用户信息')
-    
-    // 获取当前用户信息
-    try {
-      const userResponse = await userApi.getCurrentUser()
-      if (userResponse && userResponse.data) {
-        console.log('获取到当前用户信息：', userResponse.data)
-        currentUser.value = userResponse.data // 保存用户信息
-        await loadHomeData()
-      } else {
-        console.error('获取用户信息失败，响应格式异常：', userResponse)
-        uni.showToast({
-          title: '获取用户信息失败',
-          icon: 'none'
-        })
-      }
-    } catch (error) {
-      console.error('获取用户信息失败：', error)
+    return
+  }
+  
+  console.log('已登录，开始获取用户信息')
+  
+  // 获取当前用户信息
+  try {
+    const userResponse = await userApi.getCurrentUser()
+    if (userResponse && userResponse.data) {
+      console.log('获取到当前用户信息：', userResponse.data)
+      currentUser.value = userResponse.data
+      await loadHomeData()
+    } else {
+      console.error('获取用户信息失败，响应格式异常：', userResponse)
       uni.showToast({
-        title: '获取用户信息失败，请重新登录',
+        title: '获取用户信息失败',
         icon: 'none'
       })
-      // 如果获取用户信息失败，可能是token过期，跳转到登录页
-      uni.redirectTo({
-        url: '/pages/parent/login/login'
-      })
     }
+  } catch (error) {
+    console.error('获取用户信息失败：', error)
+    uni.showToast({
+      title: '获取用户信息失败，请重新登录',
+      icon: 'none'
+    })
+    uni.redirectTo({
+      url: '/pages/parent/login/login'
+    })
   }
+}
+
+// 页面加载时检查登录状态并获取数据
+onMounted(async () => {
+  console.log('[首页] 页面已挂载')
+  await initPageData()
 })
+
+// 下拉刷新
+const onRefresh = async () => {
+  console.log('[首页] 下拉刷新')
+  isRefreshing.value = true
+  try {
+    await loadHomeData()
+    uni.showToast({
+      title: '刷新成功',
+      icon: 'success',
+      duration: 1000
+    })
+  } catch (error) {
+    console.error('刷新失败：', error)
+  } finally {
+    isRefreshing.value = false
+  }
+}
 
 // 加载首页数据
 const loadHomeData = async () => {
@@ -650,6 +681,7 @@ const toggleLike = async (item, listType) => {
 /* 主要内容区域 */
 .main-content {
   margin-top: 120rpx;
+  height: calc(100vh - 120rpx);
 }
 
 /* 轮播图 */

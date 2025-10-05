@@ -72,6 +72,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { favoriteApi, userBehaviorApi, userApi, categoryApi } from '@/utils/api.js'
 
 // 响应式状态
@@ -365,12 +366,24 @@ const refreshCache = async () => {
   }
 }
 
-// 页面加载时获取数据
-onMounted(async () => {
-  console.log('收藏页面已挂载，开始加载数据')
+// 加载所有数据的统一方法
+const loadAllData = async () => {
+  console.log('[收藏页面] 加载所有数据')
   await loadCurrentUser()
   await loadCollectionStats()
   await loadFavorites()
+}
+
+// 页面加载时获取数据
+onMounted(async () => {
+  console.log('[收藏页面] 页面已挂载，开始加载数据')
+  await loadAllData()
+})
+
+// 页面显示时刷新数据
+onShow(async () => {
+  console.log('[收藏页面] 页面显示，刷新数据')
+  await loadAllData()
 })
 </script>
 
