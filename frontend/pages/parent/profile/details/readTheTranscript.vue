@@ -52,34 +52,44 @@
         </view>
         
         <view class="book-records">
-          <view v-for="(record, index) in readingRecords" :key="index" class="book-record-item">
-            <image :src="record.coverUrl" class="book-cover"></image>
-            <view class="book-info">
-              <view class="book-main-info">
-                <text class="book-title">{{record.title}}</text>
-                <text class="book-author">{{record.author}}</text>
-                <view class="reading-progress">
-                  <view class="stat">
-                    <text class="fas fa-thumbs-up stat-icon"></text>
-                    <text class="stat-text">{{record.likes}}赞</text>
-                  </view>
-                  <view class="stat">
-                    <text class="fas fa-comment stat-icon"></text>
-                    <text class="stat-text">{{record.comments}}评论</text>
+          <!-- 有记录时显示列表 -->
+          <view v-if="readingRecords.length > 0">
+            <view v-for="(record, index) in readingRecords" :key="index" class="book-record-item">
+              <image :src="record.coverUrl" class="book-cover"></image>
+              <view class="book-info">
+                <view class="book-main-info">
+                  <text class="book-title">{{record.title}}</text>
+                  <text class="book-author">{{record.author}}</text>
+                  <view class="reading-progress">
+                    <view class="stat">
+                      <text class="fas fa-thumbs-up stat-icon"></text>
+                      <text class="stat-text">{{record.likes}}赞</text>
+                    </view>
+                    <view class="stat">
+                      <text class="fas fa-comment stat-icon"></text>
+                      <text class="stat-text">{{record.comments}}评论</text>
+                    </view>
                   </view>
                 </view>
-              </view>
-              <view class="reading-stats">
-                <view class="stat">
-                  <text class="fas fa-clock stat-icon"></text>
-                  <text class="stat-text">{{record.duration}}分钟前</text>
-                </view>
-                <view class="stat">
-                  <text class="fas fa-tag stat-icon"></text>
-                  <text class="stat-text">{{record.category}}</text>
+                <view class="reading-stats">
+                  <view class="stat">
+                    <text class="fas fa-clock stat-icon"></text>
+                    <text class="stat-text">{{record.duration}}前</text>
+                  </view>
+                  <view class="stat">
+                    <text class="fas fa-tag stat-icon"></text>
+                    <text class="stat-text">{{record.category}}</text>
+                  </view>
                 </view>
               </view>
             </view>
+          </view>
+          
+          <!-- 无记录时显示空状态 -->
+          <view v-else class="empty-state">
+            <text class="fas fa-book-open empty-icon"></text>
+            <text class="empty-text">暂无浏览记录</text>
+            <text class="empty-hint">去首页看看精彩文章吧</text>
           </view>
         </view>
       </view>
@@ -184,19 +194,38 @@ const loadReadingRecords = async () => {
     if (response && response.data && response.data.records) {
       console.log('获取浏览记录成功，共', response.data.records.length, '条')
       
-      // 转换数据格式
-      readingRecords.value = response.data.records.map(record => ({
-        id: record.id,
-        title: record.contentTitle || '无标题',
-        author: record.creatorName || '佚名',
-        coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
-        likes: record.likeCount || 0,
-        comments: record.commentCount || 0,
-        duration: getTimeDiffInMinutes(record.viewTime),
-        category: record.categoryName || '未分类',
-        contentId: record.contentId,
-        contentType: record.contentType
-      }))
+      // 转换数据格式并过滤无效数据
+      readingRecords.value = response.data.records
+        .filter(record => {
+          // 过滤条件：必须有contentId和有效的标题
+          const hasValidContentId = record.contentId && record.contentId > 0
+          const hasValidTitle = record.contentTitle && record.contentTitle.trim() !== ''
+          
+          if (!hasValidContentId || !hasValidTitle) {
+            console.log('过滤无效记录：', {
+              contentId: record.contentId,
+              title: record.contentTitle,
+              reason: !hasValidContentId ? '无效contentId' : '无效标题'
+            })
+            return false
+          }
+          
+          return true
+        })
+        .map(record => ({
+          id: record.id,
+          title: record.contentTitle,
+          author: record.creatorName || '佚名',
+          coverUrl: record.coverUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&auto=format&fit=crop',
+          likes: record.likeCount || 0,
+          comments: record.commentCount || 0,
+          duration: getTimeDiffInMinutes(record.viewTime),
+          category: record.categoryName || '未分类',
+          contentId: record.contentId,
+          contentType: record.contentType
+        }))
+      
+      console.log('过滤后有效记录：', readingRecords.value.length, '条')
     }
   } catch (error) {
     console.error('获取浏览记录失败：', error)
@@ -209,14 +238,36 @@ const loadReadingRecords = async () => {
   }
 }
 
-// 计算时间差（分钟）
+// 计算时间差（人性化显示）
 const getTimeDiffInMinutes = (viewTime) => {
-  if (!viewTime) return 0
+  if (!viewTime) return '未知'
+  
   const now = new Date()
   const view = new Date(viewTime)
   const diffMs = now - view
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
-  return diffMinutes < 1 ? 1 : diffMinutes
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  
+  // 根据时间差返回不同的显示格式
+  if (diffMinutes < 1) {
+    return '刚刚'
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes}分钟`
+  } else if (diffHours < 24) {
+    return `${diffHours}小时`
+  } else if (diffDays < 7) {
+    return `${diffDays}天`
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return `${weeks}周`
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30)
+    return `${months}个月`
+  } else {
+    const years = Math.floor(diffDays / 365)
+    return `${years}年`
+  }
 }
 
 // 刷新缓存
@@ -566,6 +617,34 @@ onShow(async () => {
 .stat-text {
   font-size: 24rpx;
   color: #6b7280;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 40rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  color: #d1d5db;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #6b7280;
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.empty-hint {
+  font-size: 26rpx;
+  color: #9ca3af;
 }
 
 /* 修复滚动问题 */
