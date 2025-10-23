@@ -1,0 +1,26 @@
+{
+  "minio": {
+    "endpoint": "http://127.0.0.1:9000",
+    "domain": "http://127.0.0.1:9000",
+    "access_key": "root",
+    "secret_key": "12345678",
+    "bucket_name": "qz-sns"
+  },
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "123456",
+    "database": "qz_sns"
+  },
+  "api_keys": {
+    "unsplash": "uO1ml8fnFpVQ6q5x5lQ0cAJkVWc9kqlxgk6puE5fbEA",
+    "pexels": "rnd9g5c3rY6lRCspP7rKi1kfxUjP9nwmNL1icQtEHlQFA6ysqqNV7iX1"
+  },
+  "generation": {
+    "article_count": 10,
+    "images_per_article": 2,
+    "video_count": 3
+  }
+}
+

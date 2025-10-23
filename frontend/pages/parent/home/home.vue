@@ -83,8 +83,7 @@
             ></image>
             <view class="book-info">
               <text class="book-title">{{ item.title }}</text>
-              <text class="book-age">{{ item.tags || '推荐阅读' }}</text>
-                          <!-- 移除浏览量显示 -->
+              <text class="book-age">{{ formatTags(item.tags) }}</text>
             </view>
           </view>
           
@@ -133,7 +132,7 @@
               </view>
               <view class="hot-book-footer">
                 <view class="hot-book-tags-wrapper">
-                  <text class="hot-book-tag">{{ item.tags || '热门推荐' }}</text>
+                  <text class="hot-book-tag">{{ formatTags(item.tags) }}</text>
                 </view>
                 <view class="hot-book-stats">
                   <view class="stat-item" @click.stop="toggleLike(item, 'hot')">
@@ -173,6 +172,36 @@ const hotContents = ref([]) // 热门文章内容
 const loading = ref(false) // 加载状态
 const isRefreshing = ref(false) // 下拉刷新状态
 const currentUser = ref(null) // 当前用户信息
+const recommendedSize = ref(6) // 精选推荐显示数量（根据屏幕尺寸动态调整）
+
+// 根据屏幕宽度计算推荐内容数量
+const calculateRecommendedSize = () => {
+  try {
+    const systemInfo = uni.getSystemInfoSync()
+    const screenWidth = systemInfo.screenWidth || 375
+    
+    console.log('屏幕宽度：', screenWidth, 'px')
+    
+    // 根据屏幕宽度计算显示数量
+    // 每个卡片宽度约 240rpx（120px），加上间距 20rpx（10px）
+    // 手机端（< 768px）: 6条
+    // 平板端（768-1024px）: 12条
+    // 大屏（> 1024px）: 18条
+    if (screenWidth < 768) {
+      recommendedSize.value = 6
+      console.log('检测到手机端，推荐内容数量：6')
+    } else if (screenWidth < 1024) {
+      recommendedSize.value = 12
+      console.log('检测到平板端，推荐内容数量：12')
+    } else {
+      recommendedSize.value = 18
+      console.log('检测到大屏设备，推荐内容数量：18')
+    }
+  } catch (error) {
+    console.error('获取屏幕信息失败：', error)
+    recommendedSize.value = 6 // 默认6条
+  }
+}
 
 // 初始化页面数据
 const initPageData = async () => {
@@ -221,6 +250,9 @@ const initPageData = async () => {
 // 页面加载时检查登录状态并获取数据
 onMounted(async () => {
   console.log('[首页] 页面已挂载')
+  // 先计算推荐内容数量
+  calculateRecommendedSize()
+  // 再加载数据
   await initPageData()
 })
 
@@ -277,12 +309,12 @@ const loadHomeData = async () => {
 // 加载精选推荐内容
 const loadRecommendedContents = async () => {
   try {
-    console.log('开始加载精选推荐内容（随机排序）...')
+    console.log(`开始加载精选推荐内容（随机排序），数量：${recommendedSize.value}...`)
     
     // 先获取总页数
     const firstResponse = await contentApi.getContentPage({
       current: 1,
-      size: 6,
+      size: recommendedSize.value,
       sortField: 'created_time',
       sortOrder: 'desc',
       status: 1,
@@ -303,7 +335,7 @@ const loadRecommendedContents = async () => {
     
     const response = randomPage === 1 ? firstResponse : await contentApi.getContentPage({
       current: randomPage,
-      size: 6,
+      size: recommendedSize.value,
       sortField: 'created_time',
       sortOrder: 'desc',
       status: 1,
@@ -359,7 +391,7 @@ const loadContentsFallback = async (type) => {
     // 先获取第一页确定总页数
     const firstParams = {
       current: 1,
-      size: type === 'recommended' ? 6 : 8,
+      size: type === 'recommended' ? recommendedSize.value : 8,
       status: 1,
       type: 1,
       sortField: type === 'recommended' ? 'created_time' : 'view_count',
@@ -495,6 +527,27 @@ const formatViewCount = (count) => {
   if (count < 1000) return count.toString()
   if (count < 10000) return (count / 1000).toFixed(1) + 'k'
   return (count / 10000).toFixed(1) + '万'
+}
+
+// 格式化标签，只显示前两个
+const formatTags = (tags) => {
+  if (!tags) return '推荐阅读'
+  
+  // 如果是字符串，按逗号分隔
+  const tagArray = typeof tags === 'string' ? tags.split(',') : tags
+  
+  // 过滤空标签并去除空格
+  const cleanTags = tagArray
+    .map(tag => tag.trim())
+    .filter(tag => tag.length > 0)
+  
+  if (cleanTags.length === 0) return '推荐阅读'
+  
+  // 只取前两个标签
+  const displayTags = cleanTags.slice(0, 2)
+  
+  // 用空格分隔显示
+  return displayTags.join(' · ')
 }
 
 // 跳转到阅读页面
@@ -857,6 +910,9 @@ const toggleLike = async (item, listType) => {
 .book-scroll {
   padding: 0 30rpx;
   white-space: nowrap;
+  /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 .book-card {
@@ -866,7 +922,88 @@ const toggleLike = async (item, listType) => {
   background-color: #fff;
   border-radius: 20rpx;
   overflow: hidden;
-  height: 460rpx;
+  height: 480rpx;
+  /* 添加动画效果 */
+  animation: slideInFromRight 0.4s ease-out;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.book-card:hover {
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.12);
+  transform: translateY(-4rpx);
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(30rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 平板端优化 */
+@media screen and (min-width: 768px) {
+  .book-scroll {
+    padding: 0 40rpx;
+  }
+  
+  .book-card {
+    width: 280rpx;
+    height: 540rpx;
+    margin-right: 30rpx;
+  }
+  
+  .book-cover {
+    height: 340rpx;
+  }
+  
+  .book-info {
+    padding: 24rpx;
+    height: 160rpx;
+  }
+  
+  .book-title {
+    font-size: 30rpx;
+    line-height: 1.5;
+    height: 90rpx;
+  }
+  
+  .book-age {
+    font-size: 24rpx;
+    padding: 8rpx 18rpx;
+  }
+}
+
+/* 大屏优化 */
+@media screen and (min-width: 1024px) {
+  .book-card {
+    width: 300rpx;
+    height: 580rpx;
+    margin-right: 40rpx;
+  }
+  
+  .book-cover {
+    height: 380rpx;
+  }
+  
+  .book-info {
+    height: 160rpx;
+  }
+  
+  .book-title {
+    font-size: 32rpx;
+    line-height: 1.5;
+    height: 96rpx;
+  }
+  
+  .book-age {
+    font-size: 26rpx;
+    padding: 10rpx 20rpx;
+  }
 }
 
 .book-cover {
@@ -877,28 +1014,44 @@ const toggleLike = async (item, listType) => {
 
 .book-info {
   padding: 20rpx;
-  height: 120rpx;
+  height: 140rpx;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .book-title {
   font-size: 28rpx;
   font-weight: 500;
-  margin-bottom: 10rpx;
+  line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   white-space: normal;
-  line-height: 1.4;
-  height: 3.9em;
+  /* 固定2行高度：28rpx * 1.5 * 2 = 84rpx */
+  height: 84rpx;
+  margin-bottom: 8rpx;
 }
 
 .book-age {
-  font-size: 24rpx;
-  color: #6b7280;
+  font-size: 22rpx;
+  color: #3b82f6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 确保标签有足够空间 */
+  flex-shrink: 0;
+  margin-top: auto;
+  /* 标签样式 */
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  display: inline-block;
+  max-width: 100%;
+  font-weight: 500;
+  letter-spacing: 0.5rpx;
 }
 
 .book-stats {

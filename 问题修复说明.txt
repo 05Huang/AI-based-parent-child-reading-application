@@ -1,0 +1,100 @@
+===============================================================================
+                    测试数据不显示问题 - 修复说明
+===============================================================================
+
+问题描述
+--------
+使用测试数据生成工具添加了文章和视频（ID: 73-82），数据已成功插入到数据库和MinIO，
+但在前端页面（all-articles.vue 和 all-videos.vue）中无法显示。
+
+
+问题原因
+--------
+1. 测试数据生成脚本默认使用 creator_id=1
+2. 但数据库中不存在 ID=1 的用户
+3. 数据库用户ID范围：
+   - 系统用户: -999, -1
+   - 普通用户: 从 32 开始
+
+4. 后端SQL查询条件：
+   ```sql
+   SELECT ...
+   FROM content c
+   LEFT JOIN user u ON c.creator_id = u.id
+   WHERE u.status = 1  -- ← 这里是关键！
+   ```
+
+5. 当 creator_id=1 时：
+   - LEFT JOIN 后 u.* 字段全部为 NULL
+   - WHERE u.status = 1 条件不满足（NULL != 1）
+   - 这些记录被过滤掉，前端无法获取
+
+
+解决方案
+--------
+
+简单修复：更新已有数据的creator_id
+----------------------------------
+执行这一条SQL即可：
+
+```sql
+UPDATE content SET creator_id = -999 WHERE creator_id = 1;
+```
+
+
+脚本已修复
+----------
+generate_test_content.py 已更新：
+- ✅ 默认 creator_id 改为 **-999**（测试管理员）
+- ✅ 以后生成的数据将直接可用，无需修复
+
+
+验证修复
+--------
+1. 执行fix_creator_id.sql更新数据
+2. 重启后端服务（如果需要）
+3. 刷新前端页面
+4. 应该能看到ID 73-82的文章和视频了
+
+
+预防措施
+--------
+今后生成测试数据前，建议：
+1. 先检查数据库中存在哪些用户ID
+   ```sql
+   SELECT id, username, real_name, status FROM user WHERE status = 1;
+   ```
+
+2. 在config.json中配置creator_id（未来功能）
+   或在脚本中修改默认值
+
+
+快速修复命令（一行搞定）
+------------------------
+```bash
+mysql -u root -p -e "use qz_sns; UPDATE content SET creator_id = -999 WHERE creator_id = 1;"
+```
+
+或者分步执行：
+```bash
+# 连接数据库
+mysql -u root -p
+
+# 选择数据库
+use qz_sns;
+
+# 查看问题数据
+SELECT id, title, creator_id FROM content WHERE creator_id = 1;
+
+# 修复数据
+UPDATE content SET creator_id = -999 WHERE creator_id = 1;
+
+# 验证
+SELECT id, title, creator_id FROM content WHERE id >= 73 ORDER BY id;
+```
+
+
+===============================================================================
+更新时间: 2025-10-21
+===============================================================================
+

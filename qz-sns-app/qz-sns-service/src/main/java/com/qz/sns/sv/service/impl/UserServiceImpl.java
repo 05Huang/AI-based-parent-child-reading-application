@@ -942,8 +942,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         result.setTotal(userPage.getTotal());
         result.setCurrent((int) userPage.getCurrent());
         result.setSize((int) userPage.getSize());
+        result.setPages(userPage.getPages());
 
-        log.info("用户列表查询完成，共查询到{}条记录", result.getTotal());
+        log.info("用户列表查询完成，共查询到{}条记录，总页数：{}", result.getTotal(), result.getPages());
         return result;
     }
 

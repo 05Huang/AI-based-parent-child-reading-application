@@ -22,6 +22,7 @@
       scroll-y="true" 
       class="articles-container"
       @scrolltolower="loadMoreArticles"
+      lower-threshold="100"
       refresher-enabled
       :refresher-triggered="isRefreshing"
       @refresherrefresh="onRefresh"
@@ -102,14 +103,18 @@ onMounted(async () => {
 
 // 加载文章列表
 const loadArticles = async (refresh = false) => {
-  if (loading.value && !refresh) return
+  if (loading.value && !refresh) {
+    console.log('已有请求在进行中，跳过')
+    return
+  }
   
   try {
     loading.value = true
-    console.log('开始加载文章列表，页码：', refresh ? 1 : currentPage.value)
+    const requestPage = refresh ? 1 : currentPage.value
+    console.log('开始加载文章列表，请求页码：', requestPage, '刷新模式：', refresh)
     
     const response = await contentApi.getContentPage({
-      current: refresh ? 1 : currentPage.value,
+      current: requestPage,
       size: pageSize.value,
       status: 1, // 只查询正常状态的内容
       type: 1, // 只查询文章内容，不包含视频（type=2）
@@ -117,20 +122,37 @@ const loadArticles = async (refresh = false) => {
       sortOrder: 'desc'
     })
     
+    console.log('API响应：', response)
+    
     if (response && response.data) {
       const { records, current, total, pages } = response.data
       
+      console.log('收到数据：', {
+        recordsCount: records?.length || 0,
+        current: current,
+        total: total,
+        pages: pages,
+        hasMore: current < pages
+      })
+      
       if (refresh) {
+        // 刷新模式：替换所有数据
         articles.value = records || []
         currentPage.value = 1
+        console.log('刷新完成，重置为第1页，共', articles.value.length, '条数据')
       } else {
+        // 加载更多模式：追加数据
+        const oldCount = articles.value.length
         articles.value.push(...(records || []))
+        console.log('追加数据，从', oldCount, '条增加到', articles.value.length, '条')
+        // 不要覆盖 currentPage，因为已经在 loadMoreArticles 中递增了
       }
       
-      currentPage.value = current
       hasMore.value = current < pages
       
-      console.log('文章列表加载成功：', records?.length || 0, '条，当前页：', current, '总页数：', pages)
+      console.log('文章列表加载成功，总数据：', articles.value.length, '条，当前页：', currentPage.value, '总页数：', pages, '还有更多：', hasMore.value)
+    } else {
+      console.error('响应数据格式错误：', response)
     }
   } catch (error) {
     console.error('加载文章列表失败：', error)
@@ -153,7 +175,24 @@ const onRefresh = () => {
 
 // 加载更多文章
 const loadMoreArticles = () => {
-  if (loading.value || !hasMore.value) return
+  console.log('触发加载更多，当前状态：', {
+    loading: loading.value,
+    hasMore: hasMore.value,
+    currentPage: currentPage.value,
+    articlesCount: articles.value.length
+  })
+  
+  if (loading.value) {
+    console.log('正在加载中，跳过本次请求')
+    return
+  }
+  
+  if (!hasMore.value) {
+    console.log('没有更多数据了')
+    return
+  }
+  
+  console.log('开始加载下一页：', currentPage.value + 1)
   currentPage.value += 1
   loadArticles(false)
 }

@@ -1,0 +1,16 @@
+1️⃣ 图片资源
+资源	类型	描述	可用方式
+Unsplash	照片	高质量照片，完全免费，无需署名	API: https://unsplash.com/developers
+
+Pexels	照片/短视频	免费图片，可商用	API: https://www.pexels.com/api/
+
+Pixabay	图片/插画/矢量图	免费商用	API: https://pixabay.com/api/docs/
+
+OpenClipart	矢量图	完全开源、免版权	可直接下载 SVG 文件
+2️⃣ 视频资源
+资源	类型	描述	可用方式
+Pexels Videos	短视频	免费，可商用	API: https://www.pexels.com/api/
+
+Pixabay Videos	短视频	免费高清视频，可商用	API: https://pixabay.com/api/docs/
+
+Coverr	短视频	免费，可商用	直接下载： https://coverr.co/

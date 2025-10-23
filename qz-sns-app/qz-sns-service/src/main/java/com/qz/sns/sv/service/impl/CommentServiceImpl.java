@@ -361,8 +361,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         result.setTotal(commentPage.getTotal());
         result.setCurrent((int) commentPage.getCurrent());
         result.setSize((int) commentPage.getSize());
+        result.setPages(commentPage.getPages());
 
-        log.info("评论列表查询完成，共查询到{}条记录", result.getTotal());
+        log.info("评论列表查询完成，共查询到{}条记录，总页数：{}", result.getTotal(), result.getPages());
         return result;
     }
 

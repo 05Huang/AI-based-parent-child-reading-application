@@ -1,5 +1,5 @@
 图文内容的存储方案：
-在数据库中存储：
+在数据库content表中存储：
 标题（title字段）
 文章的文字内容（content字段，使用longtext类型支持富文本）
 封面图URL（cover_url字段）

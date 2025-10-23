@@ -419,10 +419,11 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
+        result.setPages(contentPage.getPages());  // 设置总页数
 
         String statusText = queryDTO.getStatus() != null ?
                 (queryDTO.getStatus() == 1 ? "正常" : "下架") : "默认(正常)";
-        log.info("内容列表查询完成，状态：{}，共查询到{}条记录", statusText, result.getTotal());
+        log.info("内容列表查询完成，状态：{}，共查询到{}条记录，总页数：{}", statusText, result.getTotal(), result.getPages());
 
         return result;
     }
@@ -538,8 +539,9 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
+        result.setPages(contentPage.getPages());
 
-        log.info("内容搜索完成，关键词：{}，共找到{}条记录", keyword, result.getTotal());
+        log.info("内容搜索完成，关键词：{}，共找到{}条记录，总页数：{}", keyword, result.getTotal(), result.getPages());
         return result;
     }
 
@@ -612,8 +614,9 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
+        result.setPages(contentPage.getPages());
 
-        log.info("根据创建者获取内容完成，创建者ID：{}，共找到{}条记录", creatorId, result.getTotal());
+        log.info("根据创建者获取内容完成，创建者ID：{}，共找到{}条记录，总页数：{}", creatorId, result.getTotal(), result.getPages());
         return result;
     }
 
@@ -640,8 +643,9 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
+        result.setPages(contentPage.getPages());
 
-        log.info("根据标签获取内容完成，标签：{}，共找到{}条记录", tag, result.getTotal());
+        log.info("根据标签获取内容完成，标签：{}，共找到{}条记录，总页数：{}", tag, result.getTotal(), result.getPages());
         return result;
     }
 
