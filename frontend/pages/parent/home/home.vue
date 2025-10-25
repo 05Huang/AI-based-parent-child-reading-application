@@ -306,80 +306,201 @@ const loadHomeData = async () => {
   }
 }
 
-// 加载精选推荐内容
+// 加载精选推荐内容 - 使用Python推荐系统
 const loadRecommendedContents = async () => {
   try {
-    console.log(`开始加载精选推荐内容（随机排序），数量：${recommendedSize.value}...`)
+    console.log('======================================')
+    console.log('🎯 [首页] 开始加载精选推荐内容（使用Python推荐系统）')
+    console.log('======================================')
+    console.log('📊 推荐参数：')
+    console.log('  - 用户ID:', currentUser.value?.id)
+    console.log('  - 推荐数量:', recommendedSize.value)
+    console.log('  - 内容类型: 文章(type=1)')
     
-    // 先获取总页数
-    const firstResponse = await contentApi.getContentPage({
-      current: 1,
-      size: recommendedSize.value,
-      sortField: 'created_time',
-      sortOrder: 'desc',
-      status: 1,
-      type: 1
-    })
-    
-    if (!firstResponse || !firstResponse.data || !firstResponse.data.records) {
-      console.warn('精选推荐内容响应格式异常：', firstResponse)
+    if (!currentUser.value?.id) {
+      console.warn('⚠️ 用户未登录，无法获取个性化推荐')
+      await loadContentsFallback('recommended')
       return
     }
     
-    const totalPages = firstResponse.data.pages || 1
-    console.log('总页数：', totalPages)
+    // 调用Python推荐系统API
+    console.log('📡 正在调用Python推荐系统API...')
+    const startTime = Date.now()
     
-    // 随机选择页码，但不超过总页数
-    const randomPage = totalPages > 1 ? Math.floor(Math.random() * Math.min(totalPages, 3)) + 1 : 1
-    console.log('随机选择第', randomPage, '页')
+    const response = await recommendationApi.getArticleRecommendations(
+      currentUser.value.id,
+      recommendedSize.value
+    )
     
-    const response = randomPage === 1 ? firstResponse : await contentApi.getContentPage({
-      current: randomPage,
-      size: recommendedSize.value,
-      sortField: 'created_time',
-      sortOrder: 'desc',
-      status: 1,
-      type: 1
+    const endTime = Date.now()
+    console.log(`⏱️ API调用耗时: ${endTime - startTime}ms`)
+    
+    if (!response || !response.data) {
+      console.warn('⚠️ 推荐系统返回数据为空，使用降级方案')
+      await loadContentsFallback('recommended')
+      return
+    }
+    
+    console.log('✅ 推荐系统返回成功')
+    console.log('📦 返回数据结构:', {
+      总数量: response.data.length,
+      数据类型: typeof response.data,
+      是否为数组: Array.isArray(response.data)
     })
     
-    if (response && response.data && response.data.records && response.data.records.length > 0) {
-      // 随机打乱数组
-      const shuffled = response.data.records.sort(() => Math.random() - 0.5)
-      
-      recommendedContents.value = await Promise.all(
-        shuffled.map(async (item) => {
-          const contentWithLikeStatus = { ...item, isLiked: false }
-          
-          if (currentUser.value?.id) {
-            try {
-              const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
-              contentWithLikeStatus.isLiked = likeStatusResponse.data || false
-            } catch (error) {
-              console.warn('获取点赞状态失败：', error)
-            }
-          }
-          
-          return contentWithLikeStatus
-        })
-      )
-      console.log('精选推荐内容加载成功（随机）：', recommendedContents.value.length, '条')
-    } else {
-      console.warn('精选推荐内容为空')
+    if (response.data.length === 0) {
+      console.warn('⚠️ 推荐列表为空，使用降级方案')
+      await loadContentsFallback('recommended')
+      return
     }
+    
+    // 处理推荐内容并获取点赞状态
+    console.log('🔄 开始处理推荐内容和点赞状态...')
+    recommendedContents.value = await Promise.all(
+      response.data.map(async (item, index) => {
+        console.log(`  处理第 ${index + 1} 条推荐:`, {
+          id: item.id,
+          标题: item.title,
+          浏览量: item.viewCount,
+          点赞数: item.likeCount
+        })
+        
+        const contentWithLikeStatus = { ...item, isLiked: false }
+        
+        if (currentUser.value?.id) {
+          try {
+            const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
+            contentWithLikeStatus.isLiked = likeStatusResponse.data || false
+            console.log(`    点赞状态: ${contentWithLikeStatus.isLiked ? '已点赞' : '未点赞'}`)
+          } catch (error) {
+            console.warn(`    获取点赞状态失败:`, error.message)
+          }
+        }
+        
+        return contentWithLikeStatus
+      })
+    )
+    
+    console.log('======================================')
+    console.log('✨ 精选推荐内容加载完成')
+    console.log('📊 最终结果：')
+    console.log('  - 推荐数量:', recommendedContents.value.length)
+    console.log('  - 推荐策略: Python推荐系统')
+    console.log('  - 推荐列表:', recommendedContents.value.map(c => ({
+      id: c.id,
+      标题: c.title,
+      标签: c.tags,
+      浏览量: c.viewCount
+    })))
+    console.log('======================================')
+    
   } catch (error) {
-    console.error('加载精选推荐内容失败：', error)
+    console.error('======================================')
+    console.error('❌ [首页] 加载精选推荐内容失败')
+    console.error('错误类型:', error.name)
+    console.error('错误信息:', error.message)
+    console.error('错误堆栈:', error.stack)
+    console.error('======================================')
+    
+    // 使用降级方案
+    console.log('🔄 启动降级方案...')
     await loadContentsFallback('recommended')
   }
 }
 
-// 加载热门文章内容
+// 加载热门文章内容 - 使用Python推荐系统
 const loadHotContents = async () => {
   try {
-    console.log('开始加载热门文章内容...')
-    // 直接使用降级方案，避免推荐服务连接问题
-    await loadContentsFallback('hot')
+    console.log('======================================')
+    console.log('🔥 [首页] 开始加载热门文章内容（使用Python推荐系统）')
+    console.log('======================================')
+    console.log('📊 请求参数：')
+    console.log('  - 用户ID:', currentUser.value?.id)
+    console.log('  - 请求数量: 4')
+    console.log('  - 内容类型: 文章(type=1)')
+    
+    // 调用Python推荐系统API获取热门文章
+    console.log('📡 正在调用Python热门文章API...')
+    const startTime = Date.now()
+    
+    const response = await recommendationApi.getHotArticles(
+      currentUser.value?.id,
+      4
+    )
+    
+    const endTime = Date.now()
+    console.log(`⏱️ API调用耗时: ${endTime - startTime}ms`)
+    
+    if (!response || !response.data) {
+      console.warn('⚠️ 热门文章API返回数据为空，使用降级方案')
+      await loadContentsFallback('hot')
+      return
+    }
+    
+    console.log('✅ 热门文章API返回成功')
+    console.log('📦 返回数据结构:', {
+      总数量: response.data.length,
+      数据类型: typeof response.data,
+      是否为数组: Array.isArray(response.data)
+    })
+    
+    if (response.data.length === 0) {
+      console.warn('⚠️ 热门文章列表为空，使用降级方案')
+      await loadContentsFallback('hot')
+      return
+    }
+    
+    // 处理热门内容并获取点赞状态
+    console.log('🔄 开始处理热门内容和点赞状态...')
+    hotContents.value = await Promise.all(
+      response.data.map(async (item, index) => {
+        console.log(`  处理第 ${index + 1} 篇热门文章:`, {
+          id: item.id,
+          标题: item.title,
+          浏览量: item.viewCount,
+          点赞数: item.likeCount
+        })
+        
+        const contentWithLikeStatus = { ...item, isLiked: false }
+        
+        if (currentUser.value?.id) {
+          try {
+            const likeStatusResponse = await likeApi.getLikeStatus(currentUser.value.id, item.id, 1)
+            contentWithLikeStatus.isLiked = likeStatusResponse.data || false
+            console.log(`    点赞状态: ${contentWithLikeStatus.isLiked ? '已点赞' : '未点赞'}`)
+          } catch (error) {
+            console.warn(`    获取点赞状态失败:`, error.message)
+          }
+        }
+        
+        return contentWithLikeStatus
+      })
+    )
+    
+    console.log('======================================')
+    console.log('✨ 热门文章内容加载完成')
+    console.log('📊 最终结果：')
+    console.log('  - 热门文章数量:', hotContents.value.length)
+    console.log('  - 数据来源: Python推荐系统')
+    console.log('  - 热门文章列表:', hotContents.value.map(c => ({
+      id: c.id,
+      标题: c.title,
+      浏览量: c.viewCount,
+      点赞数: c.likeCount
+    })))
+    console.log('======================================')
+    
   } catch (error) {
-    console.error('加载热门内容失败：', error)
+    console.error('======================================')
+    console.error('❌ [首页] 加载热门文章失败')
+    console.error('错误类型:', error.name)
+    console.error('错误信息:', error.message)
+    console.error('错误堆栈:', error.stack)
+    console.error('======================================')
+    
+    // 使用降级方案
+    console.log('🔄 启动降级方案...')
+    await loadContentsFallback('hot')
   }
 }
 
@@ -579,10 +700,30 @@ const navigateToReading = async (item) => {
   }
 }
 
-// 刷新热门内容
+// 刷新热门内容（换一换按钮）
 const refreshHotContents = async () => {
-  console.log('刷新热门内容...')
+  console.log('======================================')
+  console.log('🔄 [首页] 用户点击"换一换"按钮')
+  console.log('======================================')
+  
+  // 通知Python推荐系统更新用户行为（清除缓存，避免重复推荐）
+  if (currentUser.value?.id) {
+    try {
+      console.log('📡 通知Python推荐系统更新用户行为...')
+      await recommendationApi.updateUserBehavior(currentUser.value.id)
+      console.log('✅ 用户行为更新成功，缓存已清除')
+    } catch (error) {
+      console.warn('⚠️ 更新用户行为失败：', error.message)
+    }
+  }
+  
+  // 重新加载热门内容
+  console.log('🔄 重新加载热门内容...')
   await loadHotContents()
+  
+  console.log('======================================')
+  console.log('✨ 热门内容刷新完成')
+  console.log('======================================')
 }
 
 // 点赞/取消点赞功能

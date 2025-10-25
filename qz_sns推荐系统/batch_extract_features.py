@@ -85,7 +85,10 @@ class DatabaseManager:
             with conn.cursor() as cursor:
                 values = []
                 for position, (content_id, score, strategy) in enumerate(recommendations, 1):
-                    values.append((user_id, content_id, strategy, score, position))
+                    # 限制score在0-10范围内，避免数据库字段溢出
+                    # decimal(6,4) 范围是 -99.9999 到 99.9999
+                    normalized_score = max(0.0, min(10.0, float(score)))
+                    values.append((user_id, content_id, strategy, normalized_score, position))
 
                 sql = """
                        INSERT INTO recommendation_log 
@@ -97,6 +100,7 @@ class DatabaseManager:
                 logging.info(f"Saved {len(values)} recommendation logs for user {user_id}")
         except Exception as e:
             logging.error(f"Error saving recommendation log: {str(e)}")
+            logging.error(f"Failed values: {values}")
             conn.rollback()
         finally:
             conn.close()

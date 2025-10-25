@@ -32,10 +32,74 @@ export const recommendationApi = {
     })
   },
   
+  // 获取文章推荐（精选推荐）- 使用Python推荐系统
+  getArticleRecommendations(userId, size = 6) {
+    console.log('===== [前端API] 开始调用文章推荐接口 =====')
+    console.log('用户ID：', userId, '请求数量：', size)
+    console.log('API端点：/api/recommendation/articles')
+    return request.post('/api/recommendation/articles', {
+      userId: userId,
+      size: size
+    }).then(response => {
+      console.log('===== [前端API] 文章推荐接口响应 =====')
+      console.log('响应状态：', response ? '成功' : '失败')
+      console.log('响应数据：', response)
+      if (response && response.data) {
+        console.log('推荐文章数量：', response.data.length)
+        response.data.forEach((article, index) => {
+          console.log(`推荐文章 ${index + 1}:`, {
+            id: article.id,
+            title: article.title,
+            viewCount: article.viewCount
+          })
+        })
+      }
+      return response
+    }).catch(error => {
+      console.error('===== [前端API] 文章推荐接口失败 =====')
+      console.error('错误信息：', error)
+      throw error
+    })
+  },
+  
   // 获取热门内容
   getHotContents(size = 10) {
     console.log('获取热门内容，数量：', size)
     return request.get('/api/recommendation/hot', { size })
+  },
+  
+  // 获取热门文章 - 使用Python推荐系统
+  getHotArticles(userId, size = 4) {
+    console.log('===== [前端API] 开始调用热门文章接口 =====')
+    console.log('用户ID：', userId, '请求数量：', size)
+    console.log('API端点：/api/recommendation/hot/articles')
+    
+    const params = { size }
+    if (userId) {
+      params.userId = userId
+    }
+    
+    return request.get('/api/recommendation/hot/articles', params).then(response => {
+      console.log('===== [前端API] 热门文章接口响应 =====')
+      console.log('响应状态：', response ? '成功' : '失败')
+      console.log('响应数据：', response)
+      if (response && response.data) {
+        console.log('热门文章数量：', response.data.length)
+        response.data.forEach((article, index) => {
+          console.log(`热门文章 ${index + 1}:`, {
+            id: article.id,
+            title: article.title,
+            viewCount: article.viewCount,
+            likeCount: article.likeCount
+          })
+        })
+      }
+      return response
+    }).catch(error => {
+      console.error('===== [前端API] 热门文章接口失败 =====')
+      console.error('错误信息：', error)
+      throw error
+    })
   },
   
   // 更新用户行为

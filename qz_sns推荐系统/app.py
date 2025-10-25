@@ -84,7 +84,12 @@ class DatabaseManager:
             with conn.cursor() as cursor:
                 values = []
                 for position, (content_id, score, strategy) in enumerate(recommendations, 1):
-                    values.append((user_id, content_id, strategy, score, position))
+                    # 限制score在0-10范围内，避免数据库字段溢出
+                    # decimal(6,4) 范围是 -99.9999 到 99.9999
+                    normalized_score = max(0.0, min(10.0, float(score)))
+                    values.append((user_id, content_id, strategy, normalized_score, position))
+                    logging.debug(f"Saving log: user={user_id}, content={content_id}, strategy={strategy}, "
+                                f"original_score={score}, normalized_score={normalized_score}, position={position}")
 
                 sql = """
                        INSERT INTO recommendation_log 
@@ -96,6 +101,7 @@ class DatabaseManager:
                 logging.info(f"Saved {len(values)} recommendation logs for user {user_id}")
         except Exception as e:
             logging.error(f"Error saving recommendation log: {str(e)}")
+            logging.error(f"Failed values: {values}")
             conn.rollback()
         finally:
             conn.close()
@@ -351,9 +357,12 @@ class RecommendationEngine:
         """获取推荐内容ID列表，使用分层过滤策略
         content_type: 1=图文, 2=视频, None=全部
         """
+        logging.info(f"======== 开始生成推荐 ========")
+        logging.info(f"用户ID: {user_id}, 请求数量: {size}, 内容类型: {content_type}")
 
         # 获取用户已查看的内容
         viewed_ids = self.db_manager.get_user_viewed_contents(user_id, content_type)
+        logging.info(f"📊 用户已浏览内容数: {len(viewed_ids)}")
         print(f"User {user_id} has viewed {len(viewed_ids)} contents of type {content_type}.")
 
         # 使用分层的时间窗口获取已推荐内容
@@ -397,25 +406,40 @@ class RecommendationEngine:
                 return selected
 
         # 获取各种推荐策略的结果（不过滤）
+        logging.info(f"🔄 开始多策略推荐...")
         recommendations_with_strategy = []
 
         # 1. 基于用户历史的推荐（动态）
+        logging.info(f"策略1: 基于用户历史...")
         user_based = self.get_user_based_recommendations(user_id, size * 3, content_type)
+        logging.info(f"  ✓ 用户历史推荐数: {len(user_based)}")
+        if len(user_based) == 0:
+            logging.warning(f"  ⚠️ 用户历史推荐为空！")
         for content_id in user_based:
             recommendations_with_strategy.append((content_id, 0.3, 'user_based'))
             print(f"User {user_id} user_based recommendation: {content_id}")
 
         # 2. 基于内容的推荐（半动态）
+        logging.info(f"策略2: 基于内容相似度...")
         content_based = self.get_content_based_recommendations(user_id, size * 3, content_type)
+        logging.info(f"  ✓ 内容相似度推荐数: {len(content_based)}")
+        if len(content_based) == 0:
+            logging.warning(f"  ⚠️ 内容相似度推荐为空！")
         for content_id in content_based:
             recommendations_with_strategy.append((content_id, 0.5, 'content_based'))
             print(f"User {user_id} content_based recommendation: {content_id}")
 
         # 3. 协同过滤推荐（动态）
+        logging.info(f"策略3: 协同过滤...")
         cf_based = self.get_collaborative_filtering_recommendations(user_id, size * 3, content_type)
+        logging.info(f"  ✓ 协同过滤推荐数: {len(cf_based)}")
+        if len(cf_based) == 0:
+            logging.warning(f"  ⚠️ 协同过滤推荐为空！")
         for content_id in cf_based:
             recommendations_with_strategy.append((content_id, 0.2, 'cf'))
             print(f"User {user_id} cf_based recommendation: {content_id}")
+        
+        logging.info(f"📦 所有策略推荐总数: {len(recommendations_with_strategy)}")
 
         # 合并和计算综合得分
         content_scores = {}
@@ -432,12 +456,17 @@ class RecommendationEngine:
         sorted_contents = sorted(content_scores.items(), key=lambda x: x[1], reverse=True)
 
         # 分层过滤
+        logging.info(f"🎯 开始分层过滤...")
         priority_1 = []  # 从未推荐过的
         priority_2 = []  # 6-24小时前推荐的
         priority_3 = []  # 最近6小时推荐的（备选）
+        
+        filtered_viewed = 0
+        filtered_recent = 0
 
         for content_id, score in sorted_contents:
             if content_id in viewed_ids:
+                filtered_viewed += 1
                 continue
 
             if content_id not in recent_recommended:
@@ -446,6 +475,15 @@ class RecommendationEngine:
                 priority_2.append((content_id, score))
             else:
                 priority_3.append((content_id, score))
+                filtered_recent += 1
+        
+        logging.info(f"  过滤统计:")
+        logging.info(f"    - 已浏览过滤: {filtered_viewed} 条")
+        logging.info(f"    - 最近推荐过滤: {filtered_recent} 条")
+        logging.info(f"  优先级分布:")
+        logging.info(f"    - P1(从未推荐): {len(priority_1)} 条")
+        logging.info(f"    - P2(6-24h推荐): {len(priority_2)} 条")
+        logging.info(f"    - P3(6h内推荐): {len(priority_3)} 条")
 
         # 组装最终推荐
         final_recommendations = []
@@ -486,11 +524,24 @@ class RecommendationEngine:
         if all_candidates:
             self.redis_client.setex(cache_key, 300, json.dumps(all_candidates[:size * 3]))
 
+        logging.info(f"======== 推荐生成完成 ========")
+        logging.info(f"✅ 最终推荐数量: {len(final_recommendations)}")
         print(f"Generated {len(final_recommendations)} recommendations for user {user_id} of type {content_type}")
         print(
             f"Priority distribution: P1={len([r for r in final_recommendations if r in [c[0] for c in priority_1]])}, "
             f"P2={len([r for r in final_recommendations if r in [c[0] for c in priority_2]])}, "
             f"P3={len([r for r in final_recommendations if r in [c[0] for c in priority_3]])}")
+
+        # 如果推荐结果为空，使用热门内容作为降级方案
+        if len(final_recommendations) == 0:
+            logging.warning(f"⚠️ 所有推荐策略均未返回结果，使用热门内容降级方案")
+            try:
+                hot_contents = self.get_hot_contents_with_filter(size=size, content_type=content_type, user_id=user_id)
+                logging.info(f"  ✓ 热门降级返回 {len(hot_contents)} 条内容")
+                return hot_contents
+            except Exception as e:
+                logging.error(f"  ❌ 热门降级也失败了: {str(e)}")
+                return []
 
         return final_recommendations
 

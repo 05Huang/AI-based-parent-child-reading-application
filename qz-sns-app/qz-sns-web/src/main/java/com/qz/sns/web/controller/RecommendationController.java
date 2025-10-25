@@ -59,6 +59,41 @@ public class RecommendationController {
     }
 
     /**
+     * 获取文章推荐（精选推荐）
+     */
+    @PostMapping("/articles")
+    public Result<List<ContentRequest>> getArticleRecommendations(@RequestBody RecommendationRequestDTO request) {
+        try {
+            log.info("===== [Controller] 接收到文章推荐请求 =====");
+            log.info("用户ID: {}, 请求数量: {}", request.getUserId(), request.getSize());
+            
+            // 参数验证
+            if (request.getUserId() == null) {
+                log.error("用户ID为空");
+                return ResultUtils.error(ResultCode.PARAM_ERROR, "用户ID不能为空");
+            }
+
+            // 获取文章推荐
+            List<ContentRequest> recommendations = recommendationService.getArticleRecommendations(
+                    request.getUserId(),
+                    request.getSize()
+            );
+
+            log.info("===== [Controller] 文章推荐请求完成，返回 {} 篇文章 =====", recommendations.size());
+            
+            if (recommendations.isEmpty()) {
+                return ResultUtils.success(recommendations, "暂无推荐文章");
+            }
+
+            return ResultUtils.success(recommendations);
+
+        } catch (Exception e) {
+            log.error("===== [Controller] 获取文章推荐失败 =====", e);
+            return ResultUtils.error(ResultCode.SERVER_ERROR, "获取文章推荐失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取热门内容（用于冷启动）
      */
     @GetMapping("/hot")
@@ -73,6 +108,30 @@ public class RecommendationController {
         } catch (Exception e) {
             log.error("Error getting hot contents", e);
             return ResultUtils.error(ResultCode.SERVER_ERROR, "获取热门内容失败");
+        }
+    }
+
+    /**
+     * 获取热门文章（用于热门阅读）
+     */
+    @GetMapping("/hot/articles")
+    public Result<List<ContentRequest>> getHotArticles(
+            @RequestParam(value = "userId", required = false) Long userId,
+            @RequestParam(value = "size", defaultValue = "4") Integer size) {
+        try {
+            log.info("===== [Controller] 接收到热门文章请求 =====");
+            log.info("用户ID: {}, 请求数量: {}", userId, size);
+            
+            // 调用 Python 接口获取热门文章
+            List<ContentRequest> hotArticles = recommendationService.getHotArticles(userId, size);
+
+            log.info("===== [Controller] 热门文章请求完成，返回 {} 篇文章 =====", hotArticles.size());
+            
+            return ResultUtils.success(hotArticles);
+
+        } catch (Exception e) {
+            log.error("===== [Controller] 获取热门文章失败 =====", e);
+            return ResultUtils.error(ResultCode.SERVER_ERROR, "获取热门文章失败: " + e.getMessage());
         }
     }
 
