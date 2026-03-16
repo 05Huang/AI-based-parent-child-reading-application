@@ -98,7 +98,7 @@ flowchart TB
   SV --> PyRec;
 ```
 
-## � 仓库组成
+## 🧩 仓库组成
 
 本仓库为多模块/多子项目结构：
 
@@ -245,4 +245,4 @@ APP 项目推荐使用 HBuilderX 打开并运行到 App/小程序等平台；请
 
 ## 📄 License
 
-本仓库尚未声明开源许可证（License）。如需作为标准开源项目发布，建议补充 MIT/Apache-2.0 等许可证文件，并在此处更新对应信息。
+本项目采用 **Apache License 2.0** 开源发布，详见 [LICENSE](./LICENSE)。
