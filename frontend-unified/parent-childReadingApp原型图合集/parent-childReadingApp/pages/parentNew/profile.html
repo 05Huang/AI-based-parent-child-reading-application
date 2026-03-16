@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <!-- 顶部导航 -->
+    <header class="fixed top-0 left-0 right-0 bg-blue-500 z-50">
+        <div class="flex items-center justify-between px-4 py-2">
+            <h1 class="text-lg font-bold text-white">个人中心</h1>
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-cog text-white text-lg"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="mt-12 pb-16">
+        <!-- 用户信息卡片 -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
+            <div class="flex items-center mb-4">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4" 
+                     class="w-16 h-16 rounded-full border-2 border-white">
+                <div class="ml-4">
+                    <h2 class="text-white font-bold text-lg">张爸爸</h2>
+                    <p class="text-white/80 text-sm">ID: 888888</p>
+                </div>
+            </div>
+            <div class="flex justify-between text-white">
+                <div class="text-center">
+                    <div class="text-lg font-bold">128</div>
+                    <div class="text-sm opacity-80">关注</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold">256</div>
+                    <div class="text-sm opacity-80">粉丝</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold">98</div>
+                    <div class="text-sm opacity-80">阅读等级</div>
+                </div>
+            </div>
+            <button class="mt-4 w-full bg-white/20 text-white py-2 rounded-full text-sm">
+                编辑资料
+            </button>
+        </div>
+
+        <!-- 功能区 -->
+        <div class="bg-white mt-4 px-4">
+            <div class="grid grid-cols-4 py-4">
+                <a href="#" class="text-center">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-1">
+                        <i class="fas fa-book text-blue-500"></i>
+                    </div>
+                    <span class="text-xs text-gray-600">阅读记录</span>
+                </a>
+                <a href="#" class="text-center">
+                    <div class="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center mx-auto mb-1">
+                        <i class="fas fa-star text-pink-500"></i>
+                    </div>
+                    <span class="text-xs text-gray-600">我的收藏</span>
+                </a>
+                <a href="#" class="text-center">
+                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-1">
+                        <i class="fas fa-history text-purple-500"></i>
+                    </div>
+                    <span class="text-xs text-gray-600">阅读历史</span>
+                </a>
+                <a href="#" class="text-center">
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-1">
+                        <i class="fas fa-chart-line text-green-500"></i>
+                    </div>
+                    <span class="text-xs text-gray-600">阅读报告</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 阅读成就 -->
+        <div class="bg-white mt-4">
+            <div class="p-4 border-b">
+                <h3 class="text-lg font-bold">阅读成就</h3>
+            </div>
+            <div class="grid grid-cols-3 gap-4 p-4">
+                <div class="text-center">
+                    <div class="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-medal text-yellow-500 text-2xl"></i>
+                    </div>
+                    <span class="text-sm">阅读达人</span>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-book-reader text-blue-500 text-2xl"></i>
+                    </div>
+                    <span class="text-sm">读书百本</span>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-clock text-green-500 text-2xl"></i>
+                    </div>
+                    <span class="text-sm">坚持打卡</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 亲密度排行 -->
+        <div class="bg-white mt-4">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold">亲密度排行</h3>
+                <a href="intimacy-ranking.html" class="text-sm text-gray-500">
+                    查看全部 <i class="fas fa-chevron-right text-xs"></i>
+                </a>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-white font-bold text-sm mr-3">
+                            1
+                        </div>
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345" 
+                             class="w-10 h-10 rounded-full mr-3">
+                        <div>
+                            <h4 class="font-medium">小明</h4>
+                            <p class="text-xs text-gray-500">亲密度: 98%</p>
+                        </div>
+                    </div>
+                    <div class="text-xs px-2 py-1 bg-green-100 text-green-600 rounded-full">
+                        <i class="fas fa-arrow-up"></i> 上升
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm mr-3">
+                            2
+                        </div>
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=mom456" 
+                             class="w-10 h-10 rounded-full mr-3">
+                        <div>
+                            <h4 class="font-medium">妈妈</h4>
+                            <p class="text-xs text-gray-500">亲密度: 95%</p>
+                        </div>
+                    </div>
+                    <div class="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">
+                        <i class="fas fa-arrow-down"></i> 下降
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置选项 -->
+        <div class="bg-white mt-4">
+            <div class="p-4">
+                <a href="#" class="flex items-center justify-between py-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-bell text-gray-400 w-6"></i>
+                        <span class="ml-3">消息通知</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </a>
+                <a href="#" class="flex items-center justify-between py-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-shield-alt text-gray-400 w-6"></i>
+                        <span class="ml-3">隐私设置</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </a>
+                <a href="#" class="flex items-center justify-between py-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-question-circle text-gray-400 w-6"></i>
+                        <span class="ml-3">帮助与反馈</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
+        <a href="home.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-home text-xl"></i>
+            <span class="text-xs mt-1">首页</span>
+        </a>
+        <a href="reading.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-book-reader text-xl"></i>
+            <span class="text-xs mt-1">书架</span>
+        </a>
+        <a href="video-feed.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-play-circle text-xl"></i>
+            <span class="text-xs mt-1">视频</span>
+        </a>
+        <a href="ai-chat.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-comments text-xl"></i>
+            <span class="text-xs mt-1">AI对话</span>
+        </a>
+        <a href="profile.html" class="flex flex-col items-center text-blue-500">
+            <i class="fas fa-user text-xl"></i>
+            <span class="text-xs mt-1">我的</span>
+        </a>
+    </nav>
+</body>
+</html> 

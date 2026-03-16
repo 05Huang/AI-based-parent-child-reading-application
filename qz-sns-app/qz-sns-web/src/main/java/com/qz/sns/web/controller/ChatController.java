@@ -10,6 +10,7 @@ import com.qz.sns.sv.session.UserSession;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +52,9 @@ public class ChatController {
     
     @Autowired
     private IUserService userService;
+    
+    @Autowired
+    private IFriendService friendService;
 
     @ApiOperation("获取聊天列表（包括群聊和私聊）")
     @GetMapping("/list")
@@ -117,6 +121,10 @@ public class ChatController {
             for (FamilyRelation relation : relations) {
                 User relativeUser = userService.getById(relation.getRelativeId());
                 if (relativeUser == null) continue;
+
+                LambdaQueryWrapper<Friend> meFriendWrapper = new LambdaQueryWrapper<>();
+                meFriendWrapper.eq(Friend::getUserId, userId).eq(Friend::getFriendId, relation.getRelativeId());
+                Friend meFriend = friendService.getOne(meFriendWrapper);
                 
                 // 获取最后一条私聊消息
                 LambdaQueryWrapper<PrivateMessage> privateMessageWrapper = new LambdaQueryWrapper<>();
@@ -125,7 +133,11 @@ public class ChatController {
                                    .eq(PrivateMessage::getRecvId, relation.getRelativeId()))
                            .or(w -> w.eq(PrivateMessage::getSendId, relation.getRelativeId())
                                    .eq(PrivateMessage::getRecvId, userId))
-                ).orderByDesc(PrivateMessage::getSendTime)
+                );
+                if (meFriend != null && meFriend.getClearTime() != null) {
+                    privateMessageWrapper.gt(PrivateMessage::getSendTime, meFriend.getClearTime());
+                }
+                privateMessageWrapper.orderByDesc(PrivateMessage::getSendTime)
                  .last("LIMIT 1");
                 PrivateMessage lastPrivateMessage = privateMessageService.getOne(privateMessageWrapper);
                 
@@ -139,7 +151,15 @@ public class ChatController {
                 Map<String, Object> privateChat = new HashMap<>();
                 privateChat.put("id", relativeUser.getId());
                 privateChat.put("type", "private");
-                privateChat.put("name", relativeUser.getNickname());
+                String displayName = relativeUser.getNickname();
+                if (meFriend != null) {
+                    if (StringUtils.hasText(meFriend.getRemark())) {
+                        displayName = meFriend.getRemark();
+                    } else if (StringUtils.hasText(meFriend.getFriendNickName())) {
+                        displayName = meFriend.getFriendNickName();
+                    }
+                }
+                privateChat.put("name", displayName);
                 privateChat.put("avatar", relativeUser.getAvatar());
                 privateChat.put("lastMessage", lastPrivateMessage != null ? 
                     lastPrivateMessage.getContent() : "");
@@ -147,6 +167,77 @@ public class ChatController {
                     lastPrivateMessage.getSendTime() : relativeUser.getCreatedTime());
                 privateChat.put("unread", unreadCount);
                 privateChat.put("online", true); // TODO: 实现在线状态
+                privateChat.put("pinned", meFriend != null && Boolean.TRUE.equals(meFriend.getPinned()));
+                
+                chatList.add(privateChat);
+            }
+            
+            LambdaQueryWrapper<Friend> friendWrapper = new LambdaQueryWrapper<>();
+            friendWrapper.eq(Friend::getUserId, userId);
+            List<Friend> friends = friendService.list(friendWrapper);
+            System.out.println("好友数量: " + friends.size());
+            for (Friend f : friends) {
+                Long otherId = f.getFriendId();
+                LambdaQueryWrapper<Friend> reciprocalWrapper = new LambdaQueryWrapper<>();
+                reciprocalWrapper.eq(Friend::getUserId, otherId)
+                                 .eq(Friend::getFriendId, userId);
+                Friend reciprocal = friendService.getOne(reciprocalWrapper);
+                if (reciprocal == null) {
+                    continue;
+                }
+                
+                User friendUser = userService.getById(otherId);
+                if (friendUser == null) {
+                    continue;
+                }
+                
+                boolean exists = chatList.stream().anyMatch(item ->
+                    "private".equals(item.get("type")) && friendUser.getId().equals(item.get("id"))
+                );
+                if (exists) {
+                    continue;
+                }
+                
+                Friend meFriend = f;
+                
+                LambdaQueryWrapper<PrivateMessage> pmWrapper = new LambdaQueryWrapper<>();
+                pmWrapper.and(wrapper -> 
+                    wrapper.and(w -> w.eq(PrivateMessage::getSendId, userId)
+                                   .eq(PrivateMessage::getRecvId, friendUser.getId()))
+                           .or(w -> w.eq(PrivateMessage::getSendId, friendUser.getId())
+                                   .eq(PrivateMessage::getRecvId, userId))
+                );
+                if (meFriend != null && meFriend.getClearTime() != null) {
+                    pmWrapper.gt(PrivateMessage::getSendTime, meFriend.getClearTime());
+                }
+                pmWrapper.orderByDesc(PrivateMessage::getSendTime)
+                 .last("LIMIT 1");
+                PrivateMessage lastPM = privateMessageService.getOne(pmWrapper);
+                
+                LambdaQueryWrapper<PrivateMessage> unreadPmWrapper = new LambdaQueryWrapper<>();
+                unreadPmWrapper.eq(PrivateMessage::getSendId, friendUser.getId())
+                               .eq(PrivateMessage::getRecvId, userId)
+                               .eq(PrivateMessage::getStatus, false);
+                long unreadCount = privateMessageService.count(unreadPmWrapper);
+                
+                Map<String, Object> privateChat = new HashMap<>();
+                privateChat.put("id", friendUser.getId());
+                privateChat.put("type", "private");
+                String displayName = friendUser.getNickname();
+                if (meFriend != null) {
+                    if (StringUtils.hasText(meFriend.getRemark())) {
+                        displayName = meFriend.getRemark();
+                    } else if (StringUtils.hasText(meFriend.getFriendNickName())) {
+                        displayName = meFriend.getFriendNickName();
+                    }
+                }
+                privateChat.put("name", displayName);
+                privateChat.put("avatar", friendUser.getAvatar());
+                privateChat.put("lastMessage", lastPM != null ? lastPM.getContent() : "");
+                privateChat.put("lastTime", lastPM != null ? lastPM.getSendTime() : friendUser.getCreatedTime());
+                privateChat.put("unread", unreadCount);
+                privateChat.put("online", true);
+                privateChat.put("pinned", meFriend != null && Boolean.TRUE.equals(meFriend.getPinned()));
                 
                 chatList.add(privateChat);
             }
@@ -156,7 +247,7 @@ public class ChatController {
             aiChat.put("id", -1);
             aiChat.put("type", "ai");
             aiChat.put("name", "AI阅读助手");
-            aiChat.put("avatar", "https://api.dicebear.com/7.x/bottts/svg?seed=ai123");
+            aiChat.put("avatar", "/static/images/avatars/AI机器人.svg");
             aiChat.put("lastMessage", "根据您的阅读习惯，为您推荐...");
             aiChat.put("lastTime", LocalDateTime.now());
             aiChat.put("unread", 0);

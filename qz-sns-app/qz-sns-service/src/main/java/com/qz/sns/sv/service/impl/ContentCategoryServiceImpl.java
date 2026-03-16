@@ -224,9 +224,8 @@ public class ContentCategoryServiceImpl extends ServiceImpl<ContentCategoryMappe
         result.setTotal(categoryPage.getTotal());
         result.setCurrent((int) categoryPage.getCurrent());
         result.setSize((int) categoryPage.getSize());
-        result.setPages(categoryPage.getPages());
 
-        log.info("分类列表查询完成，共查询到{}条记录，总页数：{}", result.getTotal(), result.getPages());
+        log.info("分类列表查询完成，共查询到{}条记录", result.getTotal());
         return result;
     }
 

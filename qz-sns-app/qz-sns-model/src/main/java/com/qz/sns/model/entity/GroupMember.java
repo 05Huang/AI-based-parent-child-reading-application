@@ -44,6 +44,15 @@ public class GroupMember implements Serializable {
     @ApiModelProperty("显示群名备注")
     private String remarkGroupName;
 
+    @ApiModelProperty("是否置顶")
+    private Boolean pinned;
+
+    @ApiModelProperty("置顶时间")
+    private LocalDateTime pinnedTime;
+
+    @ApiModelProperty("清除消息时间")
+    private LocalDateTime clearTime;
+
     @ApiModelProperty("是否已退出")
     private Boolean quit;
 
@@ -109,6 +118,30 @@ public class GroupMember implements Serializable {
         this.remarkGroupName = remarkGroupName;
     }
 
+    public Boolean getPinned() {
+        return pinned;
+    }
+
+    public void setPinned(Boolean pinned) {
+        this.pinned = pinned;
+    }
+
+    public LocalDateTime getPinnedTime() {
+        return pinnedTime;
+    }
+
+    public void setPinnedTime(LocalDateTime pinnedTime) {
+        this.pinnedTime = pinnedTime;
+    }
+
+    public LocalDateTime getClearTime() {
+        return clearTime;
+    }
+
+    public void setClearTime(LocalDateTime clearTime) {
+        this.clearTime = clearTime;
+    }
+
     public Boolean getQuit() {
         return quit;
     }
@@ -143,6 +176,9 @@ public class GroupMember implements Serializable {
         ", remarkNickName = " + remarkNickName +
         ", headImage = " + headImage +
         ", remarkGroupName = " + remarkGroupName +
+        ", pinned = " + pinned +
+        ", pinnedTime = " + pinnedTime +
+        ", clearTime = " + clearTime +
         ", quit = " + quit +
         ", quitTime = " + quitTime +
         ", createdTime = " + createdTime +

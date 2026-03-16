@@ -184,18 +184,20 @@ public class ContentController {
      * @param keyword 搜索关键词
      * @param current 页码
      * @param size 每页大小
+     * @param type 内容类型（可选）
      * @return 搜索结果
      */
     @GetMapping("/search")
     public Result<PageDTO<ContentRequest>> searchContent(
             @RequestParam @NotBlank(message = "搜索关键词不能为空") String keyword,
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "页码必须大于0") Integer current,
-            @RequestParam(defaultValue = "10") @Min(value = 1, message = "每页大小必须大于0") Integer size) {
+            @RequestParam(defaultValue = "10") @Min(value = 1, message = "每页大小必须大于0") Integer size,
+            @RequestParam(required = false) Integer type) {
 
-        log.info("接收搜索内容请求，关键词：{}，页码：{}，每页大小：{}", keyword, current, size);
+        log.info("接收搜索内容请求，关键词：{}，页码：{}，每页大小：{}，类型：{}", keyword, current, size, type);
 
         try {
-            PageDTO<ContentRequest> pageResult = contentService.searchContent(keyword, current, size);
+            PageDTO<ContentRequest> pageResult = contentService.searchContent(keyword, current, size, type);
             return ResultUtils.success(pageResult);
         } catch (Exception e) {
             log.error("搜索内容失败：{}", e.getMessage(), e);

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>亲密度排行榜</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .medal-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #fff;
+        }
+        .medal-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A9A9A9);
+            color: #fff;
+        }
+        .medal-3 {
+            background: linear-gradient(135deg, #CD7F32, #A0522D);
+            color: #fff;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-animate {
+            transition: width 1s ease-in-out;
+        }
+        .tab-active {
+            color: #3B82F6;
+            border-bottom: 2px solid #3B82F6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航 -->
+    <nav class="bg-white shadow-lg p-4">
+        <div class="flex items-center">
+            <button onclick="history.back()" class="mr-4">
+                <i class="fas fa-arrow-left text-gray-600"></i>
+            </button>
+            <h1 class="text-xl font-bold">亲密度排行榜</h1>
+        </div>
+    </nav>
+
+    <!-- 排行榜标题区 -->
+    <div class="p-4">
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white shadow-md mb-4">
+            <h2 class="text-xl font-bold mb-2">亲密度排行榜</h2>
+            <p class="text-sm opacity-90">提升您与孩子的亲密度，赢在家庭教育的起跑线！</p>
+            <div class="flex items-center mt-4">
+                <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 text-sm mr-2">
+                    <i class="fas fa-crown text-yellow-300 mr-1"></i>本周排名：<span id="my-rank" class="font-bold">--</span>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 text-sm">
+                    <i class="fas fa-heart text-red-300 mr-1"></i>我的亲密度：<span id="my-intimacy" class="font-bold">--%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 排行榜类型选项卡 -->
+    <div class="px-4">
+        <div class="flex border-b border-gray-200">
+            <button id="tab-global" class="flex-1 py-3 text-center tab-active font-medium">
+                全网排行
+            </button>
+            <button id="tab-family" class="flex-1 py-3 text-center text-gray-500 font-medium">
+                家庭内部排行
+            </button>
+        </div>
+    </div>
+
+    <!-- 排行榜和趋势 -->
+    <div class="grid grid-cols-1 gap-4 p-4">
+        <!-- 全网排行榜 -->
+        <div id="global-ranking" class="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">全网排行</h3>
+                <select id="rankTimeRange" class="text-sm border rounded-full px-3 py-1">
+                    <option value="week">本周</option>
+                    <option value="month">本月</option>
+                    <option value="all">全部</option>
+                </select>
+            </div>
+            <div id="global-ranking-container" class="space-y-4">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="text-gray-500">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 家庭内部排行榜 -->
+        <div id="family-ranking" class="bg-white rounded-xl p-4 shadow-sm mb-4 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">家庭内部排行</h3>
+                <select id="familyRankTimeRange" class="text-sm border rounded-full px-3 py-1">
+                    <option value="week">本周</option>
+                    <option value="month">本月</option>
+                    <option value="all">全部</option>
+                </select>
+            </div>
+            <div id="family-ranking-container" class="space-y-4">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="text-gray-500">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 亲密度趋势 -->
+        <div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">亲密度趋势</h3>
+                <select id="chartTimeRange" class="text-sm border rounded-full px-3 py-1">
+                    <option value="week">近7天</option>
+                    <option value="month">近30天</option>
+                </select>
+            </div>
+            <div class="w-full" style="height: 240px; position: relative;">
+                <canvas id="intimacy-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- 亲密度成长提示 -->
+        <div class="bg-white rounded-xl p-4 shadow-sm">
+            <h3 class="text-lg font-semibold mb-3">提升亲密度的方法</h3>
+            <div class="space-y-3">
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-book text-blue-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium">每日共读</h4>
+                        <p class="text-sm text-gray-600">每天坚持与孩子共读15分钟，对话交流可提升亲密度。</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-comments text-green-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium">互动交流</h4>
+                        <p class="text-sm text-gray-600">对孩子的问题及时回应，与他们多进行思考型交流。</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-gamepad text-purple-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium">积极参与</h4>
+                        <p class="text-sm text-gray-600">积极参与孩子的学习活动和游戏，提高互动质量。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 排行榜数据模拟API
+        class RankingAPI {
+            constructor() {
+                // 模拟用户ID
+                this.myUserId = "user123";
+                this.myFamilyId = "family001";
+            }
+
+            // 获取全网排行榜数据
+            async getGlobalRankingData(timeRange = 'week') {
+                // 模拟数据
+                const users = [
+                    { id: "user123", name: "张爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhang123", intimacy: 92, childName: "小张", trend: "up" },
+                    { id: "user456", name: "王妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=wang456", intimacy: 96, childName: "小王", trend: "up" },
+                    { id: "user789", name: "李爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=li789", intimacy: 90, childName: "小李", trend: "down" },
+                    { id: "user012", name: "陈妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=chen012", intimacy: 88, childName: "小陈", trend: "up" },
+                    { id: "user345", name: "刘爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=liu345", intimacy: 84, childName: "小刘", trend: "same" },
+                    { id: "user678", name: "孙妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sun678", intimacy: 94, childName: "小孙", trend: "up" },
+                    { id: "user901", name: "赵爸爸", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhao901", intimacy: 82, childName: "小赵", trend: "down" },
+                    { id: "user234", name: "吴妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=wu234", intimacy: 86, childName: "小吴", trend: "same" },
+                ];
+
+                // 根据亲密度排序
+                users.sort((a, b) => b.intimacy - a.intimacy);
+
+                // 找到当前用户的排名
+                const myRank = users.findIndex(user => user.id === this.myUserId) + 1;
+                const myIntimacy = users.find(user => user.id === this.myUserId)?.intimacy || 0;
+
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve({
+                            rankings: users,
+                            myRank,
+                            myIntimacy
+                        });
+                    }, 800);
+                });
+            }
+
+            // 获取家庭内部排行榜数据
+            async getFamilyRankingData(timeRange = 'week') {
+                // 模拟数据
+                const familyMembers = [
+                    { id: "dad123", name: "爸爸", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4", intimacy: 95, role: "父亲", trend: "up" },
+                    { id: "mom456", name: "妈妈", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=mom456", intimacy: 98, role: "母亲", trend: "up" },
+                    { id: "grandpa789", name: "爷爷", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=grandpa789", intimacy: 88, role: "祖父", trend: "down" },
+                    { id: "grandma012", name: "奶奶", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=grandma012", intimacy: 90, role: "祖母", trend: "same" },
+                    { id: "uncle345", name: "叔叔", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=uncle345", intimacy: 84, role: "叔叔", trend: "up" }
+                ];
+
+                // 根据亲密度排序
+                familyMembers.sort((a, b) => b.intimacy - a.intimacy);
+
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve({
+                            rankings: familyMembers
+                        });
+                    }, 800);
+                });
+            }
+
+            // 获取亲密度趋势数据
+            async getIntimacyTrend(timeRange = 'week') {
+                const data = {
+                    week: {
+                        labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                        data: [87, 88, 86, 90, 91, 92, 92],
+                        average: [83, 84, 85, 85, 86, 87, 87]
+                    },
+                    month: {
+                        labels: ['第1周', '第2周', '第3周', '第4周'],
+                        data: [85, 87, 89, 92],
+                        average: [82, 83, 85, 86]
+                    }
+                };
+
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve(data[timeRange]);
+                    }, 800);
+                });
+            }
+        }
+
+        // 确保DOM加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            const rankingAPI = new RankingAPI();
+
+            // 初始化加载
+            loadGlobalRankingData();
+            loadFamilyRankingData();
+            loadIntimacyTrend();
+
+            // 选项卡切换事件
+            document.getElementById('tab-global').addEventListener('click', function() {
+                this.classList.add('tab-active');
+                this.classList.remove('text-gray-500');
+                document.getElementById('tab-family').classList.remove('tab-active');
+                document.getElementById('tab-family').classList.add('text-gray-500');
+                
+                document.getElementById('global-ranking').classList.remove('hidden');
+                document.getElementById('family-ranking').classList.add('hidden');
+            });
+
+            document.getElementById('tab-family').addEventListener('click', function() {
+                this.classList.add('tab-active');
+                this.classList.remove('text-gray-500');
+                document.getElementById('tab-global').classList.remove('tab-active');
+                document.getElementById('tab-global').classList.add('text-gray-500');
+                
+                document.getElementById('family-ranking').classList.remove('hidden');
+                document.getElementById('global-ranking').classList.add('hidden');
+            });
+
+            // 排行榜时间范围切换
+            document.getElementById('rankTimeRange').addEventListener('change', function() {
+                loadGlobalRankingData(this.value);
+            });
+
+            document.getElementById('familyRankTimeRange').addEventListener('change', function() {
+                loadFamilyRankingData(this.value);
+            });
+
+            // 图表时间范围切换
+            document.getElementById('chartTimeRange').addEventListener('change', function() {
+                loadIntimacyTrend(this.value);
+            });
+
+            // 加载全网排行榜数据
+            async function loadGlobalRankingData(timeRange = 'week') {
+                const rankingContainer = document.getElementById('global-ranking-container');
+                rankingContainer.innerHTML = '<div class="loading"><div class="loading-spinner"></div><div class="text-gray-500">加载中...</div></div>';
+
+                try {
+                    const data = await rankingAPI.getGlobalRankingData(timeRange);
+                    
+                    // 更新我的排名和亲密度
+                    document.getElementById('my-rank').textContent = data.myRank;
+                    document.getElementById('my-intimacy').textContent = data.myIntimacy + '%';
+                    
+                    // 清空容器
+                    rankingContainer.innerHTML = '';
+                    
+                    // 填充排行榜
+                    data.rankings.forEach((user, index) => {
+                        const rank = index + 1;
+                        const medalClass = rank <= 3 ? `medal-${rank}` : 'bg-gray-100';
+                        const trendIcon = user.trend === 'up' 
+                            ? '<i class="fas fa-caret-up text-green-500"></i>' 
+                            : user.trend === 'down' 
+                                ? '<i class="fas fa-caret-down text-red-500"></i>'
+                                : '<i class="fas fa-minus text-gray-400"></i>';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center p-3 rounded-lg ' + (user.id === rankingAPI.myUserId ? 'bg-blue-50' : '');
+                        item.innerHTML = `
+                            <div class="w-8 h-8 rounded-full ${medalClass} flex items-center justify-center font-bold mr-3">
+                                ${rank}
+                            </div>
+                            <div class="w-10 h-10 rounded-full overflow-hidden mr-3">
+                                <img src="${user.avatar}" alt="${user.name}" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">${user.name} (${user.childName})</span>
+                                    <span class="text-sm flex items-center">
+                                        ${trendIcon} ${user.intimacy}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                    <div class="bg-blue-600 h-2 rounded-full progress-animate" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        `;
+                        rankingContainer.appendChild(item);
+                        
+                        // 进度条动画
+                        setTimeout(() => {
+                            item.querySelector('.progress-animate').style.width = `${user.intimacy}%`;
+                        }, 100);
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to load ranking data:', error);
+                    rankingContainer.innerHTML = '<div class="text-center text-red-500 py-4">加载排行榜失败，请重试</div>';
+                }
+            }
+
+            // 加载家庭内部排行榜数据
+            async function loadFamilyRankingData(timeRange = 'week') {
+                const rankingContainer = document.getElementById('family-ranking-container');
+                rankingContainer.innerHTML = '<div class="loading"><div class="loading-spinner"></div><div class="text-gray-500">加载中...</div></div>';
+
+                try {
+                    const data = await rankingAPI.getFamilyRankingData(timeRange);
+                    
+                    // 清空容器
+                    rankingContainer.innerHTML = '';
+                    
+                    // 填充排行榜
+                    data.rankings.forEach((member, index) => {
+                        const rank = index + 1;
+                        const medalClass = rank <= 3 ? `medal-${rank}` : 'bg-gray-100';
+                        const trendIcon = member.trend === 'up' 
+                            ? '<i class="fas fa-caret-up text-green-500"></i>' 
+                            : member.trend === 'down' 
+                                ? '<i class="fas fa-caret-down text-red-500"></i>'
+                                : '<i class="fas fa-minus text-gray-400"></i>';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center p-3 rounded-lg';
+                        item.innerHTML = `
+                            <div class="w-8 h-8 rounded-full ${medalClass} flex items-center justify-center font-bold mr-3">
+                                ${rank}
+                            </div>
+                            <div class="w-10 h-10 rounded-full overflow-hidden mr-3">
+                                <img src="${member.avatar}" alt="${member.name}" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">${member.name} <span class="text-xs text-gray-500">${member.role}</span></span>
+                                    <span class="text-sm flex items-center">
+                                        ${trendIcon} ${member.intimacy}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                    <div class="bg-purple-600 h-2 rounded-full progress-animate" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        `;
+                        rankingContainer.appendChild(item);
+                        
+                        // 进度条动画
+                        setTimeout(() => {
+                            item.querySelector('.progress-animate').style.width = `${member.intimacy}%`;
+                        }, 100);
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to load family ranking data:', error);
+                    rankingContainer.innerHTML = '<div class="text-center text-red-500 py-4">加载排行榜失败，请重试</div>';
+                }
+            }
+
+            // 加载亲密度趋势图
+            async function loadIntimacyTrend(timeRange = 'week') {
+                const ctx = document.getElementById('intimacy-chart').getContext('2d');
+                
+                try {
+                    const trendData = await rankingAPI.getIntimacyTrend(timeRange);
+                    
+                    if (window.intimacyChart) {
+                        window.intimacyChart.destroy();
+                    }
+                    
+                    window.intimacyChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: trendData.labels,
+                            datasets: [{
+                                label: '我的亲密度',
+                                data: trendData.data,
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }, {
+                                label: '平均亲密度',
+                                data: trendData.average,
+                                borderColor: '#9CA3AF',
+                                backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                                borderDash: [5, 5],
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    align: 'end',
+                                    labels: {
+                                        boxWidth: 12,
+                                        padding: 15,
+                                        font: {
+                                            size: 12
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    min: 80,
+                                    max: 100,
+                                    ticks: {
+                                        callback: value => value + '%'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            },
+                            elements: {
+                                point: {
+                                    radius: 3,
+                                    hoverRadius: 5
+                                },
+                                line: {
+                                    borderWidth: 2
+                                }
+                            }
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to load intimacy trend:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

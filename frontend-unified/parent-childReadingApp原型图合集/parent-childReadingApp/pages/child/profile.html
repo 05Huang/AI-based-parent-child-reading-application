@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的成就 - 孩子版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .header-gradient {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+        .badge-card {
+            transition: transform 0.3s ease;
+        }
+        .badge-card:hover {
+            transform: translateY(-5px);
+        }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .progress-ring__circle {
+            stroke-dasharray: 283;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        .level-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 header-gradient shadow-md z-50">
+        <div class="flex items-center justify-between px-4 py-3">
+            <h1 class="text-xl font-bold text-white">我的成就</h1>
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-cog text-white text-lg"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="mt-16 mb-20 px-4">
+        <!-- 个人信息卡片 -->
+        <section class="mb-6 mt-4">
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="flex items-center">
+                    <div class="relative">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345" 
+                             class="w-20 h-20 rounded-full object-cover border-4 border-indigo-100" 
+                             alt="用户头像">
+                        <div class="level-badge">8</div>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h2 class="text-lg font-bold">小明</h2>
+                        <p class="text-gray-500 text-sm">阅读探险家</p>
+                        <div class="mt-2 flex items-center">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-indigo-500 h-2.5 rounded-full" style="width: 75%"></div>
+                            </div>
+                            <span class="ml-2 text-xs text-gray-500">75%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between mt-4 pt-4 border-t border-gray-100">
+                    <div class="text-center">
+                        <p class="text-xl font-bold text-indigo-500">42</p>
+                        <p class="text-xs text-gray-500">已读书籍</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xl font-bold text-indigo-500">18</p>
+                        <p class="text-xs text-gray-500">获得徽章</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xl font-bold text-indigo-500">5280</p>
+                        <p class="text-xs text-gray-500">阅读分钟</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 阅读统计 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">阅读统计</h2>
+                <a href="#" class="text-indigo-500 text-sm">查看详情</a>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">本周阅读</p>
+                            <p class="text-2xl font-bold mt-1">195<span class="text-sm font-normal text-gray-500 ml-1">分钟</span></p>
+                        </div>
+                        <div class="w-12 h-12 relative">
+                            <svg class="progress-ring" width="48" height="48">
+                                <circle class="progress-ring__circle" stroke="#e5e7eb" stroke-width="4" fill="transparent" r="20" cx="24" cy="24"/>
+                                <circle class="progress-ring__circle" stroke="#6366f1" stroke-width="4" fill="transparent" r="20" cx="24" cy="24" stroke-dashoffset="99"/>
+                            </svg>
+                            <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-medium">65%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">连续阅读</p>
+                            <p class="text-2xl font-bold mt-1">12<span class="text-sm font-normal text-gray-500 ml-1">天</span></p>
+                        </div>
+                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 我的徽章 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">我的徽章</h2>
+                <a href="#" class="text-indigo-500 text-sm">全部徽章</a>
+            </div>
+            <div class="grid grid-cols-4 gap-3">
+                <div class="badge-card bg-white p-3 rounded-xl shadow-sm flex flex-col items-center">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-500 mb-2">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <p class="text-xs text-center">阅读达人</p>
+                </div>
+                <div class="badge-card bg-white p-3 rounded-xl shadow-sm flex flex-col items-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-500 mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <p class="text-xs text-center">时间管理</p>
+                </div>
+                <div class="badge-card bg-white p-3 rounded-xl shadow-sm flex flex-col items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 mb-2">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <p class="text-xs text-center">知识探索</p>
+                </div>
+                <div class="badge-card bg-white p-3 rounded-xl shadow-sm flex flex-col items-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-500 mb-2">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="text-xs text-center">精彩评论</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 阅读挑战 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">进行中的挑战</h2>
+                <a href="#" class="text-indigo-500 text-sm">更多</a>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 mr-3">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium">暑假阅读马拉松</h3>
+                            <p class="text-xs text-gray-500">还剩15天</p>
+                        </div>
+                    </div>
+                    <span class="text-sm font-medium text-indigo-500">3/10</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-indigo-500 h-2 rounded-full" style="width: 30%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 家庭关系分析 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">我的家庭</h2>
+                <a href="family-analysis.html" class="text-indigo-500 text-sm">查看详情</a>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-500">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium">家庭关系分析</h3>
+                        <p class="text-xs text-gray-500">了解你与家人之间的亲密关系和互动情况</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2 overflow-x-auto pb-2">
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4" alt="爸爸头像" class="w-full h-full rounded-full object-cover">
+                        </div>
+                        <span class="text-xs mt-1">爸爸</span>
+                        <span class="text-xs text-purple-500">95%</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=mom456" alt="妈妈头像" class="w-full h-full rounded-full object-cover">
+                        </div>
+                        <span class="text-xs mt-1">妈妈</span>
+                        <span class="text-xs text-purple-500">98%</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=grandpa789" alt="爷爷头像" class="w-full h-full rounded-full object-cover">
+                        </div>
+                        <span class="text-xs mt-1">爷爷</span>
+                        <span class="text-xs text-purple-500">88%</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=grandma012" alt="奶奶头像" class="w-full h-full rounded-full object-cover">
+                        </div>
+                        <span class="text-xs mt-1">奶奶</span>
+                        <span class="text-xs text-purple-500">90%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 阅读记录 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">最近阅读</h2>
+                <a href="#" class="text-indigo-500 text-sm">查看全部</a>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
+                <div class="p-4 flex items-center">
+                    <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop&q=60" 
+                         class="w-12 h-16 object-cover rounded-lg flex-shrink-0" 
+                         alt="书籍封面">
+                    <div class="ml-3 flex-1">
+                        <h3 class="font-medium">哈利·波特与魔法石</h3>
+                        <p class="text-xs text-gray-500 mt-1">今天 · 阅读了25分钟</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300"></i>
+                </div>
+                <div class="p-4 flex items-center">
+                    <img src="https://images.unsplash.com/photo-1629992101753-56d196c8aabb?w=500&auto=format&fit=crop&q=60" 
+                         class="w-12 h-16 object-cover rounded-lg flex-shrink-0" 
+                         alt="书籍封面">
+                    <div class="ml-3 flex-1">
+                        <h3 class="font-medium">夏洛的网</h3>
+                        <p class="text-xs text-gray-500 mt-1">昨天 · 阅读了30分钟</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300"></i>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 底部导航栏 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+        <div class="flex justify-around py-3">
+            <a href="home.html" class="text-gray-400">
+                <i class="fas fa-book text-xl"></i>
+                <p class="text-xs mt-1">我的书架</p>
+            </a>
+            <a href="reading.html" class="text-gray-400">
+                <i class="fas fa-book-open text-xl"></i>
+                <p class="text-xs mt-1">阅读</p>
+            </a>
+            <a href="video-feed.html" class="text-gray-400">
+                <i class="fas fa-play-circle text-xl"></i>
+                <p class="text-xs mt-1">视频</p>
+            </a>
+            <a href="ai-chat.html" class="text-gray-400">
+                <i class="fas fa-comments text-xl"></i>
+                <p class="text-xs mt-1">问答</p>
+            </a>
+            <a href="profile.html" class="text-indigo-500">
+                <i class="fas fa-medal text-xl"></i>
+                <p class="text-xs mt-1">成就</p>
+            </a>
+        </div>
+    </nav>
+</body>
+</html> 

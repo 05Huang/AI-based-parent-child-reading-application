@@ -50,7 +50,7 @@ aliyun:
     enabled: true
     access-key-id: LTAI5tM59apoUsDjGqmG5eYb
     access-key-secret: D7txrDw3VvqCq23nAu8ioNaNL0RMfu
-    sign-name: 亲子阅读APP
+    sign-name: 阅桥亲子阅读APPAPP
     template-code: SMS_474930088
     region-id: cn-hangzhou
 
@@ -61,8 +61,14 @@ minio:
   endpoint: http://127.0.0.1:9000 #内网地址
   domain: http://127.0.0.1:9000  #外网访问地址
   accessKey: root
-  secretKey: 12345678
+  secretKey: 123456789
   bucketName: qz-sns
   imagePath: image
   filePath: file
   videoPath: video
+
+tencent:
+  captcha:
+    enabled: false # 是否开启人机验证
+    app-id: 191227724
+    app-secret-key: AU0MuQh1ZLbI3lHk22AoJHaPq

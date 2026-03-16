@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+        <div class="flex items-center px-4 py-3">
+            <button class="text-gray-600" onclick="history.back()">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </button>
+            <h1 class="text-xl font-bold ml-4">创建账号</h1>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="mt-14 px-4 py-6">
+        <!-- 头像上传 -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="relative">
+                <div class="w-24 h-24 bg-gray-200 rounded-full overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop&q=60" 
+                         class="w-full h-full object-cover" 
+                         alt="默认头像">
+                </div>
+                <button class="absolute bottom-0 right-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                    <i class="fas fa-camera text-white text-sm"></i>
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">点击更换头像</p>
+        </div>
+
+        <!-- 注册表单 -->
+        <div class="space-y-4">
+            <div class="bg-white rounded-xl p-4">
+                <input type="text" placeholder="请输入昵称" class="w-full focus:outline-none">
+            </div>
+            <div class="bg-white rounded-xl p-4">
+                <div class="flex items-center">
+                    <span class="text-gray-500">+86</span>
+                    <span class="mx-2 text-gray-300">|</span>
+                    <input type="tel" placeholder="请输入手机号" class="flex-1 focus:outline-none">
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4">
+                <div class="flex items-center">
+                    <input type="text" placeholder="请输入验证码" class="flex-1 focus:outline-none">
+                    <button class="text-blue-500 text-sm">获取验证码</button>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4">
+                <div class="flex items-center">
+                    <input type="password" placeholder="请设置密码（不少于8位）" class="flex-1 focus:outline-none">
+                    <button class="text-gray-400">
+                        <i class="far fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 兴趣选择 -->
+            <div class="mt-6">
+                <h3 class="text-sm text-gray-500 mb-3">选择你感兴趣的内容（可多选）</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button class="px-4 py-2 bg-blue-50 text-blue-500 rounded-full text-sm">文学</button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">科普</button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">历史</button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">艺术</button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">哲学</button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">心理学</button>
+                </div>
+            </div>
+
+            <button class="w-full bg-blue-500 text-white py-4 rounded-xl font-medium mt-8">完成注册</button>
+        </div>
+
+        <!-- 底部协议 -->
+        <div class="mt-6 text-center">
+            <p class="text-xs text-gray-400">
+                注册即表示同意
+                <a href="#" class="text-blue-500">用户协议</a>
+                和
+                <a href="#" class="text-blue-500">隐私政策</a>
+            </p>
+        </div>
+    </main>
+</body>
+</html> 

@@ -1,0 +1,743 @@
+<template>
+  <div class="page-container">
+    <!-- 搜索区域 -->
+    <div class="search-card">
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="内容类型">
+          <el-select v-model="searchForm.type" placeholder="请选择内容类型" clearable>
+            <el-option label="文章评论" value="article" />
+            <el-option label="视频评论" value="video" />
+            <el-option label="AI对话评论" value="chat" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="评论内容">
+          <el-input v-model="searchForm.content" placeholder="请输入评论内容" clearable />
+        </el-form-item>
+        <el-form-item label="评论状态">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+            <el-option label="已通过" value="approved" />
+            <el-option label="待审核" value="pending" />
+            <el-option label="已拒绝" value="rejected" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <!-- 表格区域 -->
+    <div class="table-card">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        style="width: 100%"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column label="评论内容" min-width="350">
+          <template #default="scope">
+            <div class="comment-content">
+              <div class="user-info">
+                <el-avatar :size="32" :src="scope.row.userAvatar" />
+                <div class="user-details">
+                  <span class="username">{{ scope.row.username }}</span>
+                  <span class="location" v-if="scope.row.location">{{ scope.row.location }}</span>
+                </div>
+                <el-tag v-if="scope.row.isTop" type="danger" size="small">置顶</el-tag>
+              </div>
+              <div class="content">{{ scope.row.content }}</div>
+              <div class="target-info" v-if="scope.row.targetTitle">
+                <span class="target-type">
+                  {{ scope.row.type === 'article' ? '文章' : scope.row.type === 'video' ? '视频' : 'AI对话' }}：
+                </span>
+                <el-link type="primary" @click="handleViewTarget(scope.row)">{{ scope.row.targetTitle }}</el-link>
+                <span v-if="scope.row.paragraphIndex !== undefined" class="paragraph-info">
+                  (第{{ scope.row.paragraphIndex + 1 }}段)
+                </span>
+              </div>
+              <div class="comment-stats">
+                <span class="stat-item">
+                  <el-icon><ThumbsUp /></el-icon>
+                  {{ scope.row.likes }}
+                </span>
+                <span class="stat-item">
+                  <el-icon><ChatDotRound /></el-icon>
+                  {{ scope.row.replies }}
+                </span>
+                <span v-if="scope.row.reportCount > 0" class="stat-item report">
+                  <el-icon><Warning /></el-icon>
+                  举报{{ scope.row.reportCount }}次
+                </span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="类型" width="100" align="center">
+          <template #default="scope">
+            <el-tag :type="getTypeTagType(scope.row.type)">
+              {{ getTypeText(scope.row.type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100" align="center">
+          <template #default="scope">
+            <el-tag :type="getStatusType(scope.row.status)">
+              {{ getStatusText(scope.row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="评论时间" width="180" align="center" />
+        <el-table-column label="操作" width="320" fixed="right">
+          <template #default="scope">
+            <div class="action-buttons">
+              <el-button 
+                v-if="scope.row.status === 'pending'"
+                type="success" 
+                link 
+                size="small"
+                @click="handleApprove(scope.row)"
+              >
+                <el-icon><Check /></el-icon>通过
+              </el-button>
+              <el-button 
+                v-if="scope.row.status === 'pending'"
+                type="danger" 
+                link 
+                size="small"
+                @click="handleReject(scope.row)"
+              >
+                <el-icon><Close /></el-icon>拒绝
+              </el-button>
+              <el-button 
+                v-if="scope.row.status === 'approved'"
+                :type="scope.row.isTop ? 'warning' : 'primary'" 
+                link 
+                size="small"
+                @click="handleToggleTop(scope.row)"
+              >
+                <el-icon><Top /></el-icon>{{ scope.row.isTop ? '取消置顶' : '置顶' }}
+              </el-button>
+              <el-button type="primary" link size="small" @click="handleViewReplies(scope.row)">
+                <el-icon><ChatDotRound /></el-icon>查看回复
+              </el-button>
+              <el-button type="primary" link size="small" @click="handleReply(scope.row)">
+                <el-icon><Edit /></el-icon>回复
+              </el-button>
+              <el-button type="danger" link size="small" @click="handleDelete(scope.row)">
+                <el-icon><Delete /></el-icon>删除
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="pagination.currentPage"
+          v-model:page-size="pagination.pageSize"
+          :page-sizes="[10, 20, 30, 50]"
+          :total="pagination.total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </div>
+
+    <!-- 回复对话框 -->
+    <el-dialog
+      v-model="replyDialogVisible"
+      title="回复评论"
+      width="500px"
+      destroy-on-close
+    >
+      <div class="reply-dialog-content">
+        <div class="original-comment">
+          <div class="label">原评论：</div>
+          <div class="content">{{ selectedComment.content }}</div>
+        </div>
+        <el-form
+          ref="replyFormRef"
+          :model="replyForm"
+          :rules="replyRules"
+          label-width="0"
+        >
+          <el-form-item prop="content">
+            <el-input
+              v-model="replyForm.content"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入回复内容"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="replyDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmitReply">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 查看回复对话框 -->
+    <el-dialog
+      v-model="repliesDialogVisible"
+      title="评论回复"
+      width="600px"
+      destroy-on-close
+    >
+      <div class="replies-list">
+        <div v-for="reply in currentReplies" :key="reply.id" class="reply-item">
+          <div class="reply-header">
+            <el-avatar :size="32" :src="reply.avatar" />
+            <div class="reply-info">
+              <span class="reply-author">{{ reply.author }}</span>
+              <span class="reply-time">{{ reply.createTime }}</span>
+            </div>
+            <div class="reply-actions">
+              <span class="like-count">
+                <el-icon><ThumbsUp /></el-icon>
+                {{ reply.likes }}
+              </span>
+            </div>
+          </div>
+          <div class="reply-content">{{ reply.content }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="repliesDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive } from 'vue'
+import {
+  Search,
+  Refresh,
+  Check,
+  Close,
+  ChatDotRound,
+  Delete,
+  Edit,
+  Top,
+  ThumbsUp,
+  Warning
+} from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+// 搜索表单
+const searchForm = reactive({
+  type: '',
+  content: '',
+  status: ''
+})
+
+// 表格数据
+const loading = ref(false)
+const tableData = ref([
+  {
+    id: 1,
+    content: '这篇文章写得很好，对我帮助很大！特别是关于专注力培养的部分，我已经开始在家里实践了。',
+    type: 'article',
+    username: '张小明',
+    userAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    targetTitle: '培养孩子专注力的科学方法：从神经科学角度解析',
+    targetId: 1,
+    paragraphIndex: 2, // 文章段落索引
+    location: '上海',
+    likes: 12,
+    replies: 3,
+    status: 'approved',
+    createTime: '2024-03-20 10:00:00',
+    reportCount: 0,
+    isTop: false
+  },
+  {
+    id: 2,
+    content: '视频讲解很清晰，希望能有更多类似的内容。孩子看了很感兴趣！',
+    type: 'video',
+    username: '李小红',
+    userAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    targetTitle: '如何培养孩子的阅读习惯',
+    targetId: 1,
+    location: '北京',
+    likes: 8,
+    replies: 1,
+    status: 'pending',
+    createTime: '2024-03-20 09:30:00',
+    reportCount: 0,
+    isTop: false
+  },
+  {
+    id: 3,
+    content: '这个方法我试过，效果不错！我家孩子现在每天都能专心阅读30分钟了。',
+    type: 'article',
+    username: '王妈妈',
+    userAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    targetTitle: '培养孩子专注力的科学方法：从神经科学角度解析',
+    targetId: 1,
+    paragraphIndex: 5, // 实用训练方法段落
+    location: '广州',
+    likes: 15,
+    replies: 5,
+    status: 'approved',
+    createTime: '2024-03-19 16:20:00',
+    reportCount: 0,
+    isTop: true
+  },
+  {
+    id: 4,
+    content: '广告内容，请联系微信XXXX购买相关产品',
+    type: 'article',
+    username: '营销号123',
+    userAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    targetTitle: '儿童创造力开发：激发想象力的艺术教育方法',
+    targetId: 2,
+    paragraphIndex: 1,
+    location: '未知',
+    likes: 0,
+    replies: 0,
+    status: 'rejected',
+    createTime: '2024-03-19 14:30:00',
+    reportCount: 8,
+    isTop: false,
+    rejectReason: '包含广告内容，违反社区规范'
+  },
+  {
+    id: 5,
+    content: '这个AI助手真的很棒！我家孩子现在每天都要和它聊天，学到了很多知识。',
+    type: 'chat',
+    username: '科技爸爸',
+    userAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    targetTitle: 'AI阅读助手对话',
+    targetId: 'chat_001',
+    location: '深圳',
+    likes: 6,
+    replies: 2,
+    status: 'approved',
+    createTime: '2024-03-19 11:15:00',
+    reportCount: 0,
+    isTop: false
+  }
+])
+
+// 分页配置
+const pagination = reactive({
+  currentPage: 1,
+  pageSize: 10,
+  total: 2
+})
+
+// 状态映射
+const statusMap = {
+  approved: { type: 'success', text: '已通过' },
+  pending: { type: 'warning', text: '待审核' },
+  rejected: { type: 'danger', text: '已拒绝' }
+}
+
+const getStatusType = (status) => statusMap[status]?.type || ''
+const getStatusText = (status) => statusMap[status]?.text || status
+
+// 类型标签映射
+const typeTagMap = {
+  article: { type: 'success', text: '文章评论' },
+  video: { type: 'warning', text: '视频评论' },
+  chat: { type: 'info', text: 'AI对话' }
+}
+
+const getTypeTagType = (type) => typeTagMap[type]?.type || ''
+const getTypeText = (type) => typeTagMap[type]?.text || type
+
+// 回复对话框
+const replyDialogVisible = ref(false)
+const selectedComment = ref({})
+const replyFormRef = ref(null)
+const replyForm = reactive({
+  content: ''
+})
+
+// 回复表单验证规则
+const replyRules = {
+  content: [
+    { required: true, message: '请输入回复内容', trigger: 'blur' },
+    { min: 2, max: 200, message: '长度在 2 到 200 个字符', trigger: 'blur' }
+  ]
+}
+
+// 搜索
+const handleSearch = () => {
+  pagination.currentPage = 1
+  fetchCommentList()
+}
+
+// 重置
+const handleReset = () => {
+  Object.keys(searchForm).forEach(key => {
+    searchForm[key] = ''
+  })
+  pagination.currentPage = 1
+  fetchCommentList()
+}
+
+// 获取评论列表
+const fetchCommentList = async () => {
+  loading.value = true
+  try {
+    // 模拟API调用延迟
+    await new Promise(resolve => setTimeout(resolve, 300))
+    
+    // 根据搜索条件过滤数据
+    const filteredData = tableData.value.filter(item => {
+      const typeMatch = !searchForm.type || item.type === searchForm.type
+      const contentMatch = !searchForm.content || item.content.includes(searchForm.content)
+      const statusMatch = !searchForm.status || item.status === searchForm.status
+      return typeMatch && contentMatch && statusMatch
+    })
+    
+    tableData.value = filteredData
+    pagination.total = filteredData.length
+  } catch (error) {
+    console.error('获取评论列表失败:', error)
+    ElMessage.error('获取评论列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 查看评论目标内容
+const handleViewTarget = (row) => {
+  // TODO: 实现查看原文章或视频的功能
+  ElMessage.info('查看原内容功能开发中...')
+}
+
+// 通过评论
+const handleApprove = (row) => {
+  ElMessageBox.confirm(
+    '确定通过该评论吗？',
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = tableData.value.findIndex(item => item.id === row.id)
+    if (index > -1) {
+      tableData.value[index].status = 'approved'
+      ElMessage.success('评论已通过')
+    }
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+// 拒绝评论
+const handleReject = (row) => {
+  ElMessageBox.confirm(
+    '确定拒绝该评论吗？',
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = tableData.value.findIndex(item => item.id === row.id)
+    if (index > -1) {
+      tableData.value[index].status = 'rejected'
+      ElMessage.success('评论已拒绝')
+    }
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+// 回复评论
+const handleReply = (row) => {
+  selectedComment.value = row
+  replyDialogVisible.value = true
+}
+
+// 提交回复
+const handleSubmitReply = async () => {
+  if (!replyFormRef.value) return
+  
+  try {
+    await replyFormRef.value.validate()
+    // TODO: 实现回复提交逻辑
+    ElMessage.success('回复成功')
+    replyDialogVisible.value = false
+    replyForm.content = ''
+  } catch (error) {
+    console.error('表单验证失败:', error)
+  }
+}
+
+// 置顶/取消置顶
+const handleToggleTop = (row) => {
+  const action = row.isTop ? '取消置顶' : '置顶'
+  ElMessageBox.confirm(
+    `确定要${action}该评论吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = tableData.value.findIndex(item => item.id === row.id)
+    if (index > -1) {
+      tableData.value[index].isTop = !tableData.value[index].isTop
+      ElMessage.success(`${action}成功`)
+    }
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+// 查看回复
+const repliesDialogVisible = ref(false)
+const currentReplies = ref([])
+const handleViewReplies = (row) => {
+  // 模拟获取回复数据
+  currentReplies.value = [
+    {
+      id: 1,
+      author: '热心家长',
+      avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+      content: '我也有同样的感受，这个方法真的很实用！',
+      createTime: '2024-03-20 11:30:00',
+      likes: 5
+    },
+    {
+      id: 2,
+      author: '教育专家',
+      avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+      content: '感谢分享，这些方法确实有科学依据。',
+      createTime: '2024-03-20 12:15:00',
+      likes: 8
+    }
+  ]
+  repliesDialogVisible.value = true
+}
+
+// 删除评论
+const handleDelete = (row) => {
+  ElMessageBox.confirm(
+    '确定删除该评论吗？删除后将无法恢复。',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = tableData.value.findIndex(item => item.id === row.id)
+    if (index > -1) {
+      tableData.value.splice(index, 1)
+      pagination.total--
+      ElMessage.success('删除成功')
+    }
+  }).catch(() => {
+    ElMessage.info('已取消删除')
+  })
+}
+
+// 选择变化
+const selectedComments = ref([])
+const handleSelectionChange = (selection) => {
+  selectedComments.value = selection
+}
+
+// 分页大小变化
+const handleSizeChange = (val) => {
+  pagination.pageSize = val
+  fetchCommentList()
+}
+
+// 页码变化
+const handleCurrentChange = (val) => {
+  pagination.currentPage = val
+  fetchCommentList()
+}
+</script>
+
+<style lang="scss" scoped>
+.page-container {
+  padding: 20px;
+  background-color: #f5f7fa;
+
+  .search-card {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .table-card {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+
+    .comment-content {
+          .user-info {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+
+      .user-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+        .username {
+          font-weight: 500;
+          color: #606266;
+          font-size: 14px;
+        }
+
+        .location {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+    }
+
+      .content {
+        color: #303133;
+        line-height: 1.5;
+        margin-bottom: 8px;
+      }
+
+      .target-info {
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 8px;
+
+        .target-type {
+          font-weight: 500;
+        }
+
+        .paragraph-info {
+          color: #67c23a;
+          font-weight: 500;
+        }
+      }
+
+      .comment-stats {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+
+        .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: #909399;
+
+          &.report {
+            color: #f56c6c;
+          }
+        }
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  }
+
+  .pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.replies-list {
+  max-height: 400px;
+  overflow-y: auto;
+
+  .reply-item {
+    padding: 16px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .reply-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+
+      .reply-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+
+        .reply-author {
+          font-size: 14px;
+          font-weight: 500;
+          color: #606266;
+        }
+
+        .reply-time {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+
+      .reply-actions {
+        .like-count {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: #909399;
+          font-size: 12px;
+        }
+      }
+    }
+
+    .reply-content {
+      color: #303133;
+      line-height: 1.5;
+      padding-left: 40px;
+    }
+  }
+}
+
+.reply-dialog-content {
+  .original-comment {
+    margin-bottom: 20px;
+    padding: 12px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+
+    .label {
+      font-size: 14px;
+      color: #909399;
+      margin-bottom: 8px;
+    }
+
+    .content {
+      color: #606266;
+      line-height: 1.5;
+    }
+  }
+}
+</style>

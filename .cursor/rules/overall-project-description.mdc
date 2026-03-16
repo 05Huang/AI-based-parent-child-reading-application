@@ -1,4 +1,0 @@
----
-alwaysApply: true
----
-这是一个前后端分离的亲子阅读APP项目，技术架构为前端使用uniapp(vue)，对应@frontend/ 文件夹，后端使用springboot+redis+minio，对应@qz-sns-app/ 文件夹，数据库表结构文件为@qz_sns(含数据版）.sql(可能会随着和你不断交流进而更新这个数据库表结构文件) 。

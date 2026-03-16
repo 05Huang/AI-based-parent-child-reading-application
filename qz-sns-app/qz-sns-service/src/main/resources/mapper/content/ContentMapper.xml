@@ -29,11 +29,13 @@
     <sql id="Base_Column_List">
         c.id, c.title, c.content, c.type, c.cover_url, c.media_url, c.category_id, c.tags,
         c.view_count, c.like_count, c.comment_count, c.share_count, c.status, c.creator_id,
-        c.created_time, c.updated_time, c.content_length, u.nickname as creator_name, u.avatar as creator_avatar
+        c.created_time, c.updated_time, c.content_length, 
+        CASE WHEN c.creator_id = -999 THEN '阅读小助手' ELSE u.nickname END as creator_name,
+        u.avatar as creator_avatar
     </sql>
 
     <sql id="Base_Where_Clause">
-        WHERE u.status = 1
+        WHERE (u.status = 1 OR c.creator_id = -999)
         <choose>
             <!-- 如果指定了状态，则按指定状态查询 -->
             <when test="query.status != null">
@@ -159,8 +161,11 @@
         SELECT <include refid="Base_Column_List" />
         FROM content c
         LEFT JOIN user u ON c.creator_id = u.id
-        WHERE c.status = 1 AND u.status = 1
+        WHERE c.status = 1 AND (u.status = 1 OR c.creator_id = -999)
         AND (c.title LIKE CONCAT('%', #{keyword}, '%') OR c.content LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="type != null">
+            AND c.type = #{type}
+        </if>
         ORDER BY c.popularity_score DESC, c.created_time DESC
     </select>
 

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 孩子版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .header-gradient {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+        .input-field {
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .register-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            transition: all 0.3s ease;
+        }
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+        }
+        .avatar-option {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .avatar-option:hover {
+            transform: scale(1.05);
+        }
+        .avatar-option.selected {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="header-gradient h-64 w-full absolute top-0 left-0 rounded-b-[40px]"></div>
+    
+    <div class="container mx-auto px-6 relative z-10">
+        <div class="pt-16 pb-8 text-center">
+            <h1 class="text-3xl font-bold text-white">创建账号</h1>
+            <p class="text-indigo-100 mt-2">加入我们，开启阅读之旅！</p>
+        </div>
+        
+        <div class="bg-white rounded-3xl shadow-xl p-8 max-w-md mx-auto mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">注册新账号</h2>
+            
+            <form action="home.html" method="GET">
+                <!-- 基本信息 -->
+                <div class="mb-5">
+                    <label for="username" class="block text-gray-700 font-medium mb-2">用户名</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" id="username" name="username" placeholder="创建一个用户名" class="input-field w-full py-3 pl-10 pr-3 rounded-xl focus:outline-none">
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <label for="password" class="block text-gray-700 font-medium mb-2">密码</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" name="password" placeholder="创建一个密码" class="input-field w-full py-3 pl-10 pr-3 rounded-xl focus:outline-none">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">密码至少需要6个字符</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="age" class="block text-gray-700 font-medium mb-2">年龄</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fas fa-birthday-cake"></i>
+                        </span>
+                        <select id="age" name="age" class="input-field w-full py-3 pl-10 pr-3 rounded-xl focus:outline-none appearance-none">
+                            <option value="" disabled selected>选择你的年龄</option>
+                            <option value="8">8岁</option>
+                            <option value="9">9岁</option>
+                            <option value="10">10岁</option>
+                            <option value="11">11岁</option>
+                            <option value="12">12岁</option>
+                            <option value="13">13岁</option>
+                            <option value="14">14岁</option>
+                        </select>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 选择头像 -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-medium mb-3">选择你的头像</label>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div class="avatar-option border-2 border-transparent rounded-xl p-1">
+                            <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=500&auto=format&fit=crop&q=60" class="w-full h-16 object-cover rounded-lg" alt="头像1">
+                        </div>
+                        <div class="avatar-option border-2 border-transparent rounded-xl p-1">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=60" class="w-full h-16 object-cover rounded-lg" alt="头像2">
+                        </div>
+                        <div class="avatar-option border-2 border-transparent rounded-xl p-1">
+                            <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=500&auto=format&fit=crop&q=60" class="w-full h-16 object-cover rounded-lg" alt="头像3">
+                        </div>
+                        <div class="avatar-option border-2 border-transparent rounded-xl p-1">
+                            <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=500&auto=format&fit=crop&q=60" class="w-full h-16 object-cover rounded-lg" alt="头像4">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 阅读兴趣 -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-medium mb-3">你喜欢阅读什么类型的书？</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="adventure" name="interests[]" value="adventure" class="h-4 w-4 text-indigo-500 focus:ring-indigo-400 border-gray-300 rounded">
+                            <label for="adventure" class="ml-2 block text-sm text-gray-700">冒险故事</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="fantasy" name="interests[]" value="fantasy" class="h-4 w-4 text-indigo-500 focus:ring-indigo-400 border-gray-300 rounded">
+                            <label for="fantasy" class="ml-2 block text-sm text-gray-700">奇幻魔法</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="science" name="interests[]" value="science" class="h-4 w-4 text-indigo-500 focus:ring-indigo-400 border-gray-300 rounded">
+                            <label for="science" class="ml-2 block text-sm text-gray-700">科学知识</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="history" name="interests[]" value="history" class="h-4 w-4 text-indigo-500 focus:ring-indigo-400 border-gray-300 rounded">
+                            <label for="history" class="ml-2 block text-sm text-gray-700">历史故事</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 家长邮箱 -->
+                <div class="mb-6">
+                    <label for="parent_email" class="block text-gray-700 font-medium mb-2">家长邮箱</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fas fa-envelope"></i>
+                        </span>
+                        <input type="email" id="parent_email" name="parent_email" placeholder="输入家长的邮箱地址" class="input-field w-full py-3 pl-10 pr-3 rounded-xl focus:outline-none">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">我们需要家长的邮箱来验证你的账号</p>
+                </div>
+                
+                <div class="flex items-center mb-6">
+                    <input type="checkbox" id="agreement" name="agreement" class="h-4 w-4 text-indigo-500 focus:ring-indigo-400 border-gray-300 rounded">
+                    <label for="agreement" class="ml-2 block text-sm text-gray-700">
+                        我已阅读并同意<a href="#" class="text-indigo-500">用户协议</a>和<a href="#" class="text-indigo-500">隐私政策</a>
+                    </label>
+                </div>
+                
+                <button type="submit" class="register-btn w-full py-3 text-white font-medium rounded-xl mb-4">
+                    创建账号
+                </button>
+                
+                <p class="text-center text-gray-600 text-sm">
+                    已有账号？ <a href="login.html" class="text-indigo-500 font-medium">立即登录</a>
+                </p>
+            </form>
+        </div>
+        
+        <div class="text-center mb-8">
+            <a href="../../select.html" class="text-indigo-500 flex items-center justify-center">
+                <i class="fas fa-arrow-left mr-2"></i> 返回选择页面
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // 头像选择功能
+        const avatarOptions = document.querySelectorAll('.avatar-option');
+        
+        avatarOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                // 移除其他选项的选中状态
+                avatarOptions.forEach(opt => opt.classList.remove('selected'));
+                // 添加当前选项的选中状态
+                option.classList.add('selected');
+            });
+        });
+    </script>
+</body>
+</html> 

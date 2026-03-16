@@ -16,6 +16,7 @@ import com.qz.sns.sv.mapper.CommentMapper;
 import com.qz.sns.sv.mapper.ContentImageMapper;
 import com.qz.sns.sv.mapper.ContentMapper;
 import com.qz.sns.sv.mapper.UserMapper;
+import com.qz.sns.sv.service.FileService;
 import com.qz.sns.sv.service.IContentService;
 import com.qz.sns.sv.session.SessionContext;
 import com.qz.sns.sv.session.UserSession;
@@ -72,6 +73,7 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
     @Autowired
     private ViewHistoryServiceImpl  viewHistoryService;
 
+    @Autowired
     private FileService fileService;
 
     @Override
@@ -243,8 +245,14 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         BeanUtils.copyProperties(content, detailDTO);
 
         // 设置创建者信息
-        detailDTO.setCreatorName(creator.getNickname());
-        detailDTO.setCreatorAvatar(creator.getAvatar());
+        if (creator != null) {
+            detailDTO.setCreatorName(creator.getNickname());
+            detailDTO.setCreatorAvatar(creator.getAvatar());
+        } else {
+            // 如果找不到创建者（例如系统生成的内容），设置默认值
+            detailDTO.setCreatorName("阅桥亲子阅读APP小助手");
+            detailDTO.setCreatorAvatar("http://114.55.233.139:9000/imtest/%E6%B5%8B%E8%AF%95%E5%A5%B6%E9%BE%99.gif");
+        }
 
         // 设置图片列表
         detailDTO.setImages(images);
@@ -419,11 +427,10 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
-        result.setPages(contentPage.getPages());  // 设置总页数
 
         String statusText = queryDTO.getStatus() != null ?
                 (queryDTO.getStatus() == 1 ? "正常" : "下架") : "默认(正常)";
-        log.info("内容列表查询完成，状态：{}，共查询到{}条记录，总页数：{}", statusText, result.getTotal(), result.getPages());
+        log.info("内容列表查询完成，状态：{}，共查询到{}条记录", statusText, result.getTotal());
 
         return result;
     }
@@ -520,8 +527,8 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
      * 搜索内容
      */
     @Override
-    public PageDTO<ContentRequest> searchContent(String keyword, Integer current, Integer size) {
-        log.info("搜索内容，关键词：{}，页码：{}，每页大小：{}", keyword, current, size);
+    public PageDTO<ContentRequest> searchContent(String keyword, Integer current, Integer size, Integer type) {
+        log.info("搜索内容，关键词：{}，页码：{}，每页大小：{}，类型：{}", keyword, current, size, type);
 
         if (keyword == null || keyword.trim().isEmpty()) {
             throw new IllegalArgumentException("搜索关键词不能为空");
@@ -531,7 +538,7 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         Page<ContentRequest> page = new Page<>(current, size);
 
         // 执行搜索
-        IPage<ContentRequest> contentPage = contentMapper.searchContent(page, keyword.trim());
+        IPage<ContentRequest> contentPage = contentMapper.searchContent(page, keyword.trim(), type);
 
         // 构建返回结果
         PageDTO<ContentRequest> result = new PageDTO<>();
@@ -539,9 +546,8 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
-        result.setPages(contentPage.getPages());
 
-        log.info("内容搜索完成，关键词：{}，共找到{}条记录，总页数：{}", keyword, result.getTotal(), result.getPages());
+        log.info("内容搜索完成，关键词：{}，共找到{}条记录", keyword, result.getTotal());
         return result;
     }
 
@@ -614,9 +620,8 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
-        result.setPages(contentPage.getPages());
 
-        log.info("根据创建者获取内容完成，创建者ID：{}，共找到{}条记录，总页数：{}", creatorId, result.getTotal(), result.getPages());
+        log.info("根据创建者获取内容完成，创建者ID：{}，共找到{}条记录", creatorId, result.getTotal());
         return result;
     }
 
@@ -643,9 +648,8 @@ public class ContentServiceImpl extends ServiceImpl<ContentMapper, Content> impl
         result.setTotal(contentPage.getTotal());
         result.setCurrent((int) contentPage.getCurrent());
         result.setSize((int) contentPage.getSize());
-        result.setPages(contentPage.getPages());
 
-        log.info("根据标签获取内容完成，标签：{}，共找到{}条记录，总页数：{}", tag, result.getTotal(), result.getPages());
+        log.info("根据标签获取内容完成，标签：{}，共找到{}条记录", tag, result.getTotal());
         return result;
     }
 

@@ -27,7 +27,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/user/check-email/**",  // 检查邮箱是否已注册接口
                         "/api/user/check-phone/**",  // 检查手机号是否已注册接口
                         "/api/user/reset-password",  // 重置密码接口
-                        "/api/file/upload"           // 文件上传接口
+                        "/api/file/upload",          // 文件上传接口
+                        "/api/admin/register",       // 管理员注册接口
+                        "/api/admin/check-username", // 检查管理员用户名接口
+                        "/api/admin/check-phone"     // 检查管理员手机号接口
                 );
     }
 }

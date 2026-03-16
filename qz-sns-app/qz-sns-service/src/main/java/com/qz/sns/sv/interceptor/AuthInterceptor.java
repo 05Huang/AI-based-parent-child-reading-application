@@ -43,7 +43,10 @@ public class AuthInterceptor implements HandlerInterceptor {
             "/api/user/reset-password",  // 重置密码接口
             "/api/file/upload",          // 文件上传接口
             "/api/category/**",          // 分类相关接口
-            "/api/content/**"            // 内容相关接口（测试阶段）
+            "/api/content/**",           // 内容相关接口（测试阶段）
+            "/api/admin/register",       // 管理员注册接口
+            "/api/admin/check-username", // 检查管理员用户名接口
+            "/api/admin/check-phone"     // 检查管理员手机号接口
     );
 
     @Override

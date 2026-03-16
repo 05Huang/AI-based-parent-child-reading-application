@@ -1,6 +1,7 @@
 package com.qz.sns.sv.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import com.alibaba.fastjson.JSON;
@@ -17,15 +18,19 @@ import java.util.Map;
 public class TencentCaptchaUtil {
     
     // 腾讯云验证码配置
-    private static final String CAPTCHA_APP_ID = "191227724";
-    private static final String APP_SECRET_KEY = "AU0MuQh1ZLbI3lHk22AoJHaPq";
+    @Value("${tencent.captcha.app-id}")
+    private String captchaAppId;
+
+    @Value("${tencent.captcha.app-secret-key}")
+    private String appSecretKey;
+
+    @Value("${tencent.captcha.enabled:false}")
+    private boolean enableCaptchaVerify;
+
     private static final String VERIFY_URL = "https://ssl.captcha.qq.com/ticket/verify";
     
-    // 是否启用验证码校验（开发阶段可以设为false，生产环境设为true）
-    private static final boolean ENABLE_CAPTCHA_VERIFY = false;
-    
     private final RestTemplate restTemplate = new RestTemplate();
-    
+
     /**
      * 校验腾讯云验证码票据
      * @param ticket 验证码返回的票据
@@ -38,8 +43,8 @@ public class TencentCaptchaUtil {
             log.info("开始校验腾讯云验证码，ticket：{}，randstr：{}，userIp：{}", ticket, randstr, userIp);
             
             // 如果禁用了验证码校验，直接返回true（仅用于开发测试）
-            if (!ENABLE_CAPTCHA_VERIFY) {
-                log.warn("⚠️ 验证码校验已禁用（ENABLE_CAPTCHA_VERIFY=false），直接返回成功。生产环境请启用！");
+            if (!enableCaptchaVerify) {
+                log.warn("⚠️ 验证码校验已禁用（tencent.captcha.enabled=false），直接返回成功。生产环境请启用！");
                 return true;
             }
             
@@ -55,15 +60,15 @@ public class TencentCaptchaUtil {
             String requestUrl = String.format(
                 "%s?aid=%s&AppSecretKey=%s&Ticket=%s&Randstr=%s&UserIP=%s",
                 VERIFY_URL,
-                CAPTCHA_APP_ID,
-                APP_SECRET_KEY,
+                captchaAppId,
+                appSecretKey,
                 ticket,
                 randstr,
                 finalUserIp
             );
             
             log.info("腾讯云验证码校验请求URL（隐藏密钥）：{}?aid={}&Ticket={}&Randstr={}&UserIP={}", 
-                    VERIFY_URL, CAPTCHA_APP_ID, ticket, randstr, finalUserIp);
+                    VERIFY_URL, captchaAppId, ticket, randstr, finalUserIp);
             
             // 发送GET请求
             String response = restTemplate.getForObject(requestUrl, String.class);
@@ -85,7 +90,7 @@ public class TencentCaptchaUtil {
                 log.warn("❌ 腾讯云验证码校验失败，responseCode：{}，errMsg：{}", responseCode, errMsg);
                 if (responseCode != null && responseCode == 100) {
                     log.error("错误码100：AppId、AppSecretKey或Ticket不匹配，请检查配置！");
-                    log.error("当前AppId：{}，请到腾讯云控制台确认AppSecretKey是否正确", CAPTCHA_APP_ID);
+                    log.error("当前AppId：{}，请到腾讯云控制台确认AppSecretKey是否正确", captchaAppId);
                 }
                 return false;
             }

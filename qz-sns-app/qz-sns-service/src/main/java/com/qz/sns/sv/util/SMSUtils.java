@@ -28,7 +28,7 @@ public class SMSUtils {
             String code = param.get("code").toString();
             String requestUrl = String.format("%s?name=%s&code=%s&targets=%s",
                 SPUG_API_URL,
-                "亲子阅读平台",
+                "阅桥亲子阅读APP平台",
                 code,
                 phoneNumbers
             );

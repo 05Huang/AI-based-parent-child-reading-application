@@ -13,6 +13,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import com.qz.sns.common.constant.UserConstant;
+
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -24,14 +26,16 @@ public class IntimacyService {
     private static final String GLOBAL_RANKING_KEY = "intimacy:global:ranking";
     private static final String FAMILY_RANKING_KEY_PREFIX = "intimacy:family:";
     private static final String USER_RANKING_KEY_PREFIX = "intimacy:user:";
+    private static final String INTIMACY_HISTORY_KEY_PREFIX = "intimacy:history:";
+    private static final String GLOBAL_USER_RANKS_KEY = "intimacy:global:user_ranks";
+    private static final double BASE_SCORE_FOR_100 = 500.0;
+    private static final int MAX_RANKING_SIZE = 50;
 
     // 私聊与群聊消息的权重比例
     private static final double PRIVATE_MSG_WEIGHT = 0.7;
     private static final double GROUP_MSG_WEIGHT = 0.3;
 
-    // 限制排行榜显示条数
-    private static final int MAX_RANKING_SIZE = 10;
-
+// 限制排行榜显示条数
     @Autowired
     private FamilyRelationMapper familyRelationMapper;
 
@@ -57,9 +61,21 @@ public class IntimacyService {
         log.info("开始计算全网亲密度排名");
         long startTime = System.currentTimeMillis();
 
-        // 只获取家长用户ID（role=1），因为亲密度排行榜是父母之间的排行
-        List<Long> allUserIds = familyRelationMapper.getParentUserIds();
-        log.info("获取到 {} 个家长用户ID", allUserIds.size());
+        // 获取所有家长用户ID（role=1）
+        List<Long> parentIds = userMapper.getAllParentUserIds();
+        // 获取所有拥有家庭关系的用户ID（防止某些家长role设置不正确但实际有家庭关系）
+        List<Long> relationUserIds = familyRelationMapper.getAllUserIds();
+
+        Set<Long> allUserIdsSet = new HashSet<>();
+        if (parentIds != null) allUserIdsSet.addAll(parentIds);
+        if (relationUserIds != null) allUserIdsSet.addAll(relationUserIds);
+
+        // 排除测试用户（如阅读小助手）
+        allUserIdsSet.remove(UserConstant.TEST_USER_ID);
+        allUserIdsSet.remove(-999L); // 双重保险
+
+        List<Long> allUserIds = new ArrayList<>(allUserIdsSet);
+        log.info("获取到 {} 个用户ID参与亲密度计算（已去重并排除测试用户）", allUserIds.size());
 
         // 用于存储每个用户的亲密度分数
         Map<Long, List<IntimacyScore>> allUserScores = new HashMap<>();
@@ -87,6 +103,9 @@ public class IntimacyService {
             if (familyGroupId != null) {
                 // 将用户添加到对应家庭群组的成员列表中
                 familyGroupMembers.computeIfAbsent(familyGroupId, k -> new ArrayList<>()).add(userId);
+                log.debug("用户 {} 归属于家庭群组 {}", userId, familyGroupId);
+            } else {
+                log.debug("用户 {} 未找到有效的家庭群组", userId);
             }
         }
 
@@ -100,7 +119,24 @@ public class IntimacyService {
                 .sorted(Comparator.comparing(IntimacyScore::getScore).reversed())
                 .collect(Collectors.toList());
 
-        // 去重并限制前10名
+        // 计算所有人的百分比
+        recalculatePercentages(globalRankingFull);
+
+        // 保存所有用户的排名和百分比到Redis，用于查询个人排名
+        Map<String, String> userRanksMap = new HashMap<>();
+        for (int i = 0; i < globalRankingFull.size(); i++) {
+            IntimacyScore score = globalRankingFull.get(i);
+            // 格式: rank:percentage
+            String value = (i + 1) + ":" + score.getPercentage();
+            userRanksMap.put(String.valueOf(score.getUserId()), value);
+        }
+        redisTemplate.delete(GLOBAL_USER_RANKS_KEY);
+        if (!userRanksMap.isEmpty()) {
+            redisTemplate.opsForHash().putAll(GLOBAL_USER_RANKS_KEY, userRanksMap);
+            redisTemplate.expire(GLOBAL_USER_RANKS_KEY, 7, TimeUnit.DAYS);
+        }
+
+        // 去重并限制前50名
         Set<Long> addedUserIds = new HashSet<>();
         List<IntimacyScore> globalRanking = new ArrayList<>();
 
@@ -203,7 +239,12 @@ public class IntimacyService {
         // 获取用户的家庭关系
         List<Map<String, Object>> relations = familyRelationMapper.getRelationsWithUserInfo(userId);
         if (relations == null || relations.isEmpty()) {
-            log.info("用户 {} 没有家庭关系记录", userId);
+            log.info("用户 {} 没有家庭关系记录，创建默认0分记录", userId);
+            IntimacyScore selfScore = new IntimacyScore();
+            selfScore.setUserId(userId);
+            selfScore.setScore(0.0);
+            selfScore.setPercentage(0.0);
+            results.add(selfScore);
             return results;
         }
 
@@ -437,6 +478,22 @@ public class IntimacyService {
             redisTemplate.expire(familyKey, 7, TimeUnit.DAYS);
         }
 
+        // 保存历史趋势数据
+        String today = java.time.LocalDate.now().toString();
+        for (Map.Entry<Long, List<IntimacyScore>> entry : allUserScores.entrySet()) {
+            Long userId = entry.getKey();
+            List<IntimacyScore> scores = entry.getValue();
+            if (scores != null && !scores.isEmpty()) {
+                // 取最高分
+                double maxScore = scores.get(0).getScore();
+                double percentage = Math.min(100.0, (maxScore / BASE_SCORE_FOR_100) * 100.0);
+                percentage = Math.round(percentage * 10.0) / 10.0;
+                
+                // 存入Redis Hash: key=intimacy:history:{userId}, field=date, value=percentage
+                redisTemplate.opsForHash().put(INTIMACY_HISTORY_KEY_PREFIX + userId, today, String.valueOf(percentage));
+            }
+        }
+
         // 设置全局排名的过期时间
         redisTemplate.expire(GLOBAL_RANKING_KEY, 7, TimeUnit.DAYS);
     }
@@ -552,62 +609,19 @@ public class IntimacyService {
     }
 
     /**
-     * 重新计算百分比，使用更合理的渐变比例
+     * 重新计算百分比，不再强制归一化，而是基于基准分
      */
     private void recalculatePercentages(List<IntimacyScore> scores) {
         if (scores == null || scores.isEmpty()) {
             return;
         }
 
-        // 获取最高分
-        double maxScore = scores.get(0).getScore();
-
-        // 如果只有一条记录，则为100%
-        if (scores.size() == 1) {
-            scores.get(0).setPercentage(100.0);
-            return;
-        }
-
-        // 获取最低分
-        double minScore = scores.get(scores.size() - 1).getScore();
-        double scoreDiff = maxScore - minScore;
-
-        if (scoreDiff < 0.001) {  // 几乎为0，使用排名梯度
-            for (int i = 0; i < scores.size(); i++) {
-                // 排名越高，百分比越高，呈线性递减
-                // 第一名100%，最后一名60%
-                double percentage = 100.0 - (40.0 * i / (scores.size() - 1));
-                scores.get(i).setPercentage(Math.max(percentage, 60.0));
-            }
-        } else {
-            // 分数有差异时，使用更平滑的分布
-            for (int i = 0; i < scores.size(); i++) {
-                IntimacyScore score = scores.get(i);
-
-                // 计算基于分数的百分比
-                double basePercentage;
-                if (i == 0) {
-                    basePercentage = 100.0;  // 第一名总是100%
-                } else {
-                    // 使用对数衰减，确保前几名的百分比差距较小，后面差距较大
-                    double position = (double) i / scores.size();
-                    double scoreFactor = (score.getScore() - minScore) / scoreDiff;
-
-                    // 结合排名位置和分数因素，越靠前的排名分数因素权重越高
-                    double rankWeight = 1.0 - Math.pow(position, 0.7);  // 前排名次排名权重更高
-                    double weightedScoreFactor = scoreFactor * rankWeight;
-
-                    // 计算最终百分比，范围从60%到95%
-                    basePercentage = 60.0 + (weightedScoreFactor * 35.0);
-                }
-
-                score.setPercentage(Math.min(100.0, Math.max(60.0, basePercentage)));
-            }
-        }
-
-        // 确保第一名为100%
-        if (!scores.isEmpty()) {
-            scores.get(0).setPercentage(100.0);
+        for (IntimacyScore score : scores) {
+            // 基于基准分计算百分比
+            double percentage = (score.getScore() / BASE_SCORE_FOR_100) * 100.0;
+            // 限制在 0-100 之间，保留一位小数
+            percentage = Math.min(100.0, Math.max(0.0, percentage));
+            score.setPercentage(Math.round(percentage * 10.0) / 10.0);
         }
     }
 
@@ -669,49 +683,41 @@ public class IntimacyService {
     public Map<String, Object> getUserGlobalInfo(Long userId) {
         Map<String, Object> result = new HashMap<>();
 
-        // 从Redis获取全局排名
-        List<Object> cachedRanking = redisTemplate.opsForList().range(GLOBAL_RANKING_KEY, 0, -1);
+        // 排除测试用户
+        if (userId == -999L || (userId != null && userId.equals(UserConstant.TEST_USER_ID))) {
+            result.put("globalRank", 0);
+            result.put("intimacyPercentage", 0.0);
+            result.put("ranking", new ArrayList<>());
+            return result;
+        }
 
-        if (cachedRanking == null || cachedRanking.isEmpty()) {
-            // 如果没有缓存，重新计算
+        // 尝试从Redis Hash中直接获取用户的排名信息
+        Object rankInfoObj = redisTemplate.opsForHash().get(GLOBAL_USER_RANKS_KEY, String.valueOf(userId));
+
+        if (rankInfoObj == null) {
+            // 如果缓存不存在，可能是还没计算或者过期，重新计算
             calculateAndSaveAllIntimacyScores();
-            cachedRanking = redisTemplate.opsForList().range(GLOBAL_RANKING_KEY, 0, -1);
+            rankInfoObj = redisTemplate.opsForHash().get(GLOBAL_USER_RANKS_KEY, String.valueOf(userId));
         }
 
-        // 查找用户的全局排名
-        Integer globalRank = null;
-        Double intimacyPercentage = null;
+        Integer globalRank = 0;
+        Double intimacyPercentage = 0.0;
 
-        // 需要先去重
-        Set<Long> processedUserIds = new HashSet<>();
-        List<IntimacyScore> uniqueScores = new ArrayList<>();
-
-        for (Object obj : cachedRanking) {
-            IntimacyScore score = (IntimacyScore) obj;
-            if (!processedUserIds.contains(score.getUserId())) {
-                uniqueScores.add(score);
-                processedUserIds.add(score.getUserId());
+        if (rankInfoObj != null) {
+            try {
+                String rankInfo = rankInfoObj.toString();
+                String[] parts = rankInfo.split(":");
+                if (parts.length == 2) {
+                    globalRank = Integer.parseInt(parts[0]);
+                    intimacyPercentage = Double.parseDouble(parts[1]);
+                }
+            } catch (Exception e) {
+                log.error("解析用户排名信息失败: {}", rankInfoObj, e);
             }
         }
 
-        // 重新排序
-        uniqueScores.sort(Comparator.comparing(IntimacyScore::getScore).reversed());
-
-        // 重新计算百分比
-        recalculatePercentages(uniqueScores);
-
-        // 查找用户排名
-        for (int i = 0; i < uniqueScores.size(); i++) {
-            IntimacyScore score = uniqueScores.get(i);
-            if (score.getUserId().equals(userId)) {
-                globalRank = i + 1;
-                intimacyPercentage = score.getPercentage();
-                break;
-            }
-        }
-
-        result.put("globalRank", globalRank != null ? globalRank : 0);
-        result.put("intimacyPercentage", intimacyPercentage != null ? intimacyPercentage : 0);
+        result.put("globalRank", globalRank);
+        result.put("intimacyPercentage", intimacyPercentage);
 
         // 添加用户家庭排名
         result.put("ranking", getUserRanking(userId));
@@ -748,5 +754,66 @@ public class IntimacyService {
         calculateAndSaveAllIntimacyScores();
         
         log.info("亲密度缓存清除和重新计算完成");
+    }
+
+    /**
+     * 获取亲密度趋势数据
+     * @param userId 用户ID
+     * @param days 天数 (7 或 30)
+     */
+    public Map<String, Object> getIntimacyTrend(Long userId, int days) {
+        Map<String, Object> result = new HashMap<>();
+        List<String> labels = new ArrayList<>();
+        List<Double> data = new ArrayList<>();
+        List<Double> average = new ArrayList<>(); 
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        
+        // 获取用户的历史数据
+        Map<Object, Object> history = redisTemplate.opsForHash().entries(INTIMACY_HISTORY_KEY_PREFIX + userId);
+        
+        for (int i = days - 1; i >= 0; i--) {
+            java.time.LocalDate date = today.minusDays(i);
+            String dateStr = date.toString();
+            
+            // 简化标签
+            if (days <= 7) {
+                // 周几
+                String dayOfWeek = "";
+                switch (date.getDayOfWeek().getValue()) {
+                    case 1: dayOfWeek = "周一"; break;
+                    case 2: dayOfWeek = "周二"; break;
+                    case 3: dayOfWeek = "周三"; break;
+                    case 4: dayOfWeek = "周四"; break;
+                    case 5: dayOfWeek = "周五"; break;
+                    case 6: dayOfWeek = "周六"; break;
+                    case 7: dayOfWeek = "周日"; break;
+                }
+                labels.add(dayOfWeek);
+            } else {
+                // MM-dd
+                labels.add(date.format(java.time.format.DateTimeFormatter.ofPattern("MM-dd")));
+            }
+            
+            // 获取数据
+            double score = 0.0;
+            if (history.containsKey(dateStr)) {
+                try {
+                    score = Double.parseDouble(history.get(dateStr).toString());
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+            data.add(score);
+            
+            // 模拟平均值 (60-80之间波动，作为全网基准线)
+            average.add(60.0 + (date.getDayOfYear() % 20)); 
+        }
+        
+        result.put("labels", labels);
+        result.put("data", data);
+        result.put("average", average);
+        
+        return result;
     }
 }

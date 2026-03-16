@@ -32,4 +32,9 @@ public class UserQueryDTO {
     @Min(value = 1, message = "每页大小必须大于0")
     @Max(value = 100, message = "每页大小不能超过100")
     private Integer size = 10;
+
+    /**
+     * 是否排除管理员和官方账号（id=-999）
+     */
+    private Boolean excludeAdminAndOfficial;
 }

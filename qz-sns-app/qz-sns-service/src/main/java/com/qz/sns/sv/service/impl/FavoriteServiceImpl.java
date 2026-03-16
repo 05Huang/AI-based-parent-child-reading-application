@@ -91,9 +91,8 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         result.setTotal(favoritePage.getTotal());
         result.setCurrent((int) favoritePage.getCurrent());
         result.setSize((int) favoritePage.getSize());
-        result.setPages(favoritePage.getPages());
 
-        log.info("用户收藏内容查询完成，共查询到{}条记录，总页数：{}", result.getTotal(), result.getPages());
+        log.info("用户收藏内容查询完成，共查询到{}条记录", result.getTotal());
         return result;
     }
 

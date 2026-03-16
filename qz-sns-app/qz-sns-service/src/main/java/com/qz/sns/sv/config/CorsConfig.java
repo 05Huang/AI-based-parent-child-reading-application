@@ -13,9 +13,15 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         
-        // 设置允许的来源域名，不使用通配符
-        config.addAllowedOrigin("http://localhost:5173"); // 前端开发服务器
-        
+        // 设置允许的来源域名 - 支持所有本地开发端口
+        config.addAllowedOrigin("http://localhost:5173"); // Vue/Vite 默认端口
+        config.addAllowedOrigin("http://localhost:5174"); // Uni-app 应用
+        config.addAllowedOrigin("http://localhost:5175"); // Uni-app H5
+        config.addAllowedOrigin("http://localhost:1574");  // Uni-app 应用（备选）
+        config.addAllowedOrigin("http://127.0.0.1:5173");
+        config.addAllowedOrigin("http://127.0.0.1:5174");
+        config.addAllowedOrigin("http://127.0.0.1:5175");
+        config.addAllowedOrigin("http://127.0.0.1:1574");
         // 如果需要添加多个域名
         // config.addAllowedOrigin("https://your-production-domain.com");
         

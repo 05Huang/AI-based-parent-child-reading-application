@@ -30,5 +30,11 @@ jwt:
     expireIn: 604800 #7天
     secret: IKDiqVmn0VFU
 
+tencent:
+  captcha:
+    enabled: false # 是否开启人机验证，默认关闭
+    app-id: 191227724
+    app-secret-key: AU0MuQh1ZLbI3lHk22AoJHaPq
+
 
 

@@ -10,5 +10,4 @@ public class PageDTO<T> {
     private Long total;
     private Integer current;
     private Integer size;
-    private Long pages;  // 总页数
 }

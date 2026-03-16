@@ -47,7 +47,6 @@ public class RedisConfig extends CachingConfigurerSupport {
         om.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         om.activateDefaultTyping(om.getPolymorphicTypeValidator(), ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
-
         Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(om, Object.class);
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
 

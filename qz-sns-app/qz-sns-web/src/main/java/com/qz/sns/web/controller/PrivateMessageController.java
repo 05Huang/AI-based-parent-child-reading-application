@@ -15,6 +15,7 @@ import com.qz.sns.sv.service.IPrivateMessageService;
 import com.qz.sns.sv.service.IUserService;
 import com.qz.sns.sv.session.SessionContext;
 import com.qz.sns.sv.session.UserSession;
+import com.qz.sns.web.ws.ChatWebSocketHandler;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -52,6 +53,9 @@ public class PrivateMessageController {
     @Autowired
     private IUserService userService;
 
+    @Autowired
+    private ChatWebSocketHandler chatWebSocketHandler;
+
     @ApiOperation("获取私聊联系人列表")
     @GetMapping("/contacts")
     public Result<List<Map<String, Object>>> getContacts() {
@@ -67,14 +71,23 @@ public class PrivateMessageController {
             Long userId = userSession.getUserId();
             System.out.println("当前用户ID: " + userId);
             
-            // 获取家庭成员（通过家庭关系表）
+            // 获取家庭成员（通过家庭关系表，检查双向关系）
             LambdaQueryWrapper<FamilyRelation> relationWrapper = new LambdaQueryWrapper<>();
-            relationWrapper.eq(FamilyRelation::getUserId, userId);
+            relationWrapper.and(wrapper -> 
+                wrapper.eq(FamilyRelation::getUserId, userId)
+                       .or()
+                       .eq(FamilyRelation::getRelativeId, userId)
+            );
             List<FamilyRelation> relations = familyRelationService.list(relationWrapper);
             System.out.println("家庭成员数量: " + relations.size());
             
             List<Map<String, Object>> contactList = relations.stream().map(relation -> {
-                User relativeUser = userService.getById(relation.getRelativeId());
+                // 确定对方用户ID：如果当前用户是user_id，则对方是relative_id，反之亦然
+                Long relativeUserId = relation.getUserId().equals(userId) 
+                    ? relation.getRelativeId() 
+                    : relation.getUserId();
+                
+                User relativeUser = userService.getById(relativeUserId);
                 if (relativeUser == null) {
                     return null;
                 }
@@ -83,8 +96,8 @@ public class PrivateMessageController {
                 LambdaQueryWrapper<PrivateMessage> messageWrapper = new LambdaQueryWrapper<>();
                 messageWrapper.and(wrapper -> 
                     wrapper.and(w -> w.eq(PrivateMessage::getSendId, userId)
-                                   .eq(PrivateMessage::getRecvId, relation.getRelativeId()))
-                           .or(w -> w.eq(PrivateMessage::getSendId, relation.getRelativeId())
+                                   .eq(PrivateMessage::getRecvId, relativeUserId))
+                           .or(w -> w.eq(PrivateMessage::getSendId, relativeUserId)
                                    .eq(PrivateMessage::getRecvId, userId))
                 ).orderByDesc(PrivateMessage::getSendTime)
                  .last("LIMIT 1");
@@ -92,7 +105,7 @@ public class PrivateMessageController {
                 
                 // 统计未读消息数量
                 LambdaQueryWrapper<PrivateMessage> unreadWrapper = new LambdaQueryWrapper<>();
-                unreadWrapper.eq(PrivateMessage::getSendId, relation.getRelativeId())
+                unreadWrapper.eq(PrivateMessage::getSendId, relativeUserId)
                            .eq(PrivateMessage::getRecvId, userId)
                            .eq(PrivateMessage::getStatus, false); // 0:未读
                 long unreadCount = privateMessageService.count(unreadWrapper);
@@ -110,6 +123,48 @@ public class PrivateMessageController {
                 return contactInfo;
             }).filter(contact -> contact != null).collect(Collectors.toList());
             
+            LambdaQueryWrapper<Friend> friendWrapper = new LambdaQueryWrapper<>();
+            friendWrapper.eq(Friend::getUserId, userId);
+            List<Friend> friends = friendService.list(friendWrapper);
+            for (Friend f : friends) {
+                LambdaQueryWrapper<Friend> reciprocalWrapper = new LambdaQueryWrapper<>();
+                reciprocalWrapper.eq(Friend::getUserId, f.getFriendId()).eq(Friend::getFriendId, userId);
+                Friend reciprocal = friendService.getOne(reciprocalWrapper);
+                if (reciprocal == null) {
+                    continue;
+                }
+                User relativeUser = userService.getById(f.getFriendId());
+                if (relativeUser == null) {
+                    continue;
+                }
+                boolean exists = contactList.stream().anyMatch(c -> c.get("id").equals(relativeUser.getId()));
+                if (exists) {
+                    continue;
+                }
+                LambdaQueryWrapper<PrivateMessage> messageWrapper = new LambdaQueryWrapper<>();
+                messageWrapper.and(wrapper -> 
+                    wrapper.and(w -> w.eq(PrivateMessage::getSendId, userId)
+                                   .eq(PrivateMessage::getRecvId, relativeUser.getId()))
+                           .or(w -> w.eq(PrivateMessage::getSendId, relativeUser.getId())
+                                   .eq(PrivateMessage::getRecvId, userId))
+                ).orderByDesc(PrivateMessage::getSendTime)
+                 .last("LIMIT 1");
+                PrivateMessage lastMessage = privateMessageService.getOne(messageWrapper);
+                LambdaQueryWrapper<PrivateMessage> unreadWrapper = new LambdaQueryWrapper<>();
+                unreadWrapper.eq(PrivateMessage::getSendId, relativeUser.getId())
+                           .eq(PrivateMessage::getRecvId, userId)
+                           .eq(PrivateMessage::getStatus, false);
+                long unreadCount = privateMessageService.count(unreadWrapper);
+                Map<String, Object> contactInfo = new HashMap<>();
+                contactInfo.put("id", relativeUser.getId());
+                contactInfo.put("name", relativeUser.getNickname());
+                contactInfo.put("avatar", relativeUser.getAvatar());
+                contactInfo.put("lastMessage", lastMessage != null ? lastMessage.getContent() : "");
+                contactInfo.put("lastTime", lastMessage != null ? lastMessage.getSendTime() : relativeUser.getCreatedTime());
+                contactInfo.put("unread", unreadCount);
+                contactInfo.put("online", true);
+                contactList.add(contactInfo);
+            }
             System.out.println("返回联系人列表，数量: " + contactList.size());
             return ResultUtils.success(contactList);
             
@@ -145,14 +200,28 @@ public class PrivateMessageController {
                 return ResultUtils.error(404, "联系人不存在");
             }
             
-            // 验证是否为家庭成员
             LambdaQueryWrapper<FamilyRelation> relationWrapper = new LambdaQueryWrapper<>();
-            relationWrapper.eq(FamilyRelation::getUserId, userId)
-                          .eq(FamilyRelation::getRelativeId, contactId);
+            relationWrapper.and(wrapper -> 
+                wrapper.and(subWrapper -> 
+                    subWrapper.eq(FamilyRelation::getUserId, userId)
+                             .eq(FamilyRelation::getRelativeId, contactId)
+                ).or(subWrapper -> 
+                    subWrapper.eq(FamilyRelation::getUserId, contactId)
+                             .eq(FamilyRelation::getRelativeId, userId)
+                )
+            );
             FamilyRelation relation = familyRelationService.getOne(relationWrapper);
-            if (relation == null) {
-                System.out.println("不是家庭成员");
-                return ResultUtils.error(403, "您与该用户不是家庭成员");
+            boolean isFamily = relation != null;
+            LambdaQueryWrapper<Friend> f1 = new LambdaQueryWrapper<>();
+            f1.eq(Friend::getUserId, userId).eq(Friend::getFriendId, contactId);
+            LambdaQueryWrapper<Friend> f2 = new LambdaQueryWrapper<>();
+            f2.eq(Friend::getUserId, contactId).eq(Friend::getFriendId, userId);
+            Friend rf1 = friendService.getOne(f1);
+            Friend rf2 = friendService.getOne(f2);
+            boolean isFriend = rf1 != null && rf2 != null;
+            if (!isFamily && !isFriend) {
+                System.out.println("无联系关系，用户ID: " + userId + ", 联系人ID: " + contactId);
+                return ResultUtils.error(403, "您与该用户无联系关系");
             }
             
             // 分页查询消息
@@ -164,6 +233,12 @@ public class PrivateMessageController {
                        .or(w -> w.eq(PrivateMessage::getSendId, contactId)
                                .eq(PrivateMessage::getRecvId, userId))
             ).orderByDesc(PrivateMessage::getSendTime);
+            LambdaQueryWrapper<Friend> meFriendWrapper = new LambdaQueryWrapper<>();
+            meFriendWrapper.eq(Friend::getUserId, userId).eq(Friend::getFriendId, contactId);
+            Friend meFriend = friendService.getOne(meFriendWrapper);
+            if (meFriend != null && meFriend.getClearTime() != null) {
+                messageWrapper.gt(PrivateMessage::getSendTime, meFriend.getClearTime());
+            }
             IPage<PrivateMessage> messagePageResult = privateMessageService.page(messagePage, messageWrapper);
             
             // 标记消息为已读
@@ -181,7 +256,11 @@ public class PrivateMessageController {
             Map<String, Object> result = new HashMap<>();
             result.put("contactInfo", Map.of(
                 "id", contact.getId(),
-                "name", contact.getNickname(),
+                "name", (meFriend != null && meFriend.getRemark() != null && !meFriend.getRemark().trim().isEmpty())
+                        ? meFriend.getRemark()
+                        : (meFriend != null && meFriend.getFriendNickName() != null && !meFriend.getFriendNickName().trim().isEmpty()
+                            ? meFriend.getFriendNickName()
+                            : contact.getNickname()),
                 "avatar", contact.getAvatar(),
                 "online", true // TODO: 实现在线状态
             ));
@@ -222,18 +301,45 @@ public class PrivateMessageController {
             }
             
             Long userId = userSession.getUserId();
-            Long contactId = Long.valueOf(params.get("contactId").toString());
-            String content = params.get("content").toString();
+            Object recvIdObj = params.get("recvId");
+            Object contactIdObj = params.get("contactId");
+            Long contactId = recvIdObj != null
+                    ? Long.valueOf(recvIdObj.toString())
+                    : (contactIdObj != null ? Long.valueOf(contactIdObj.toString()) : null);
+            if (contactId == null) {
+                System.out.println("缺少接收用户ID参数: recvId 或 contactId");
+                return ResultUtils.error(400, "缺少接收用户ID");
+            }
+            Object contentObj = params.get("content");
+            String content = contentObj == null ? null : contentObj.toString();
+            if (content == null || content.trim().isEmpty()) {
+                System.out.println("消息内容为空");
+                return ResultUtils.error(400, "消息内容不能为空");
+            }
             Integer type = Integer.valueOf(params.getOrDefault("type", 0).toString());
             
-            // 验证是否为家庭成员
             LambdaQueryWrapper<FamilyRelation> relationWrapper = new LambdaQueryWrapper<>();
-            relationWrapper.eq(FamilyRelation::getUserId, userId)
-                          .eq(FamilyRelation::getRelativeId, contactId);
+            relationWrapper.and(wrapper -> 
+                wrapper.and(subWrapper -> 
+                    subWrapper.eq(FamilyRelation::getUserId, userId)
+                             .eq(FamilyRelation::getRelativeId, contactId)
+                ).or(subWrapper -> 
+                    subWrapper.eq(FamilyRelation::getUserId, contactId)
+                             .eq(FamilyRelation::getRelativeId, userId)
+                )
+            );
             FamilyRelation relation = familyRelationService.getOne(relationWrapper);
-            if (relation == null) {
-                System.out.println("不是家庭成员");
-                return ResultUtils.error(403, "您与该用户不是家庭成员");
+            boolean isFamily = relation != null;
+            LambdaQueryWrapper<Friend> f1 = new LambdaQueryWrapper<>();
+            f1.eq(Friend::getUserId, userId).eq(Friend::getFriendId, contactId);
+            LambdaQueryWrapper<Friend> f2 = new LambdaQueryWrapper<>();
+            f2.eq(Friend::getUserId, contactId).eq(Friend::getFriendId, userId);
+            Friend rf1 = friendService.getOne(f1);
+            Friend rf2 = friendService.getOne(f2);
+            boolean isFriend = rf1 != null && rf2 != null;
+            if (!isFamily && !isFriend) {
+                System.out.println("无联系关系，用户ID: " + userId + ", 联系人ID: " + contactId);
+                return ResultUtils.error(403, "您与该用户无联系关系");
             }
             
             // 创建私聊消息
@@ -259,8 +365,18 @@ public class PrivateMessageController {
             result.put("sendTime", privateMessage.getSendTime());
             result.put("senderId", privateMessage.getSendId());
             result.put("isSelf", true);
+
+            try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("type", "private");
+                payload.put("chatId", userId);
+                payload.put("message", result);
+                chatWebSocketHandler.sendToUser(contactId, payload);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             
-            System.out.println("私聊消息发送成功，消息ID: " + privateMessage.getId());
+            System.out.println("私聊消息发送成功，联系人ID: " + contactId + ", 消息ID: " + privateMessage.getId());
             return ResultUtils.success(result);
             
         } catch (Exception e) {

@@ -7,11 +7,13 @@ import com.qz.sns.model.entity.UserBehavior;
 import com.qz.sns.model.vo.BrowsingStatsVO;
 import com.qz.sns.model.vo.CollectionStatsVO;
 import com.qz.sns.model.vo.HistoryStatsVO;
+import com.qz.sns.model.vo.ReadingRankingVO;
 import com.qz.sns.model.vo.WeeklyReportVO;
 import com.qz.sns.sv.result.Result;
 import com.qz.sns.sv.result.ResultUtils;
 import com.qz.sns.sv.service.UserBehaviorService;
 import com.qz.sns.sv.service.impl.UserBehaviorServiceImpl;
+import com.qz.sns.sv.session.SessionContext;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -141,6 +143,64 @@ public class UserBehaviorController {
             return ResultUtils.success("缓存刷新成功");
         } catch (Exception e) {
             return ResultUtils.error(500, "缓存刷新失败：" + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取周阅读排行榜")
+    @GetMapping("/weekly-ranking")
+    public Result<List<ReadingRankingVO>> getWeeklyReadingRanking(
+            @RequestParam(required = false, defaultValue = "20") Integer limit) {
+        try {
+            List<ReadingRankingVO> ranking = userBehaviorService.getWeeklyReadingRanking(limit);
+            return ResultUtils.success(ranking);
+        } catch (Exception e) {
+            log.error("获取周阅读排行榜失败", e);
+            return ResultUtils.error(500, "获取周阅读排行榜失败：" + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取连续阅读天数")
+    @GetMapping("/consecutive-days/{userId}")
+    public Result<Integer> getConsecutiveReadingDays(@PathVariable Long userId) {
+        try {
+            Integer days = userBehaviorService.getConsecutiveReadingDays(userId);
+            return ResultUtils.success(days);
+        } catch (Exception e) {
+            log.error("获取连续阅读天数失败，用户ID：{}", userId, e);
+            return ResultUtils.error(500, "获取连续阅读天数失败：" + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取每周目标阅读时间（分钟）")
+    @GetMapping("/reading-target/{userId}")
+    public Result<Integer> getWeeklyReadingTargetMinutes(@PathVariable Long userId) {
+        try {
+            Integer minutes = userBehaviorService.getWeeklyReadingTargetMinutes(userId);
+            return ResultUtils.success(minutes);
+        } catch (Exception e) {
+            log.error("获取目标阅读时间失败，用户ID：{}", userId, e);
+            return ResultUtils.error(500, "获取目标阅读时间失败：" + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "设置每周目标阅读时间（分钟）")
+    @PostMapping("/reading-target")
+    public Result<String> setWeeklyReadingTargetMinutes(@RequestParam Long userId, @RequestParam Integer targetMinutes) {
+        try {
+            Long sessionUserId = SessionContext.getSession() != null ? SessionContext.getSession().getUserId() : null;
+            if (sessionUserId == null) {
+                return ResultUtils.error(ResultCode.NO_LOGIN.getCode(), "未登录");
+            }
+            if (!sessionUserId.equals(userId)) {
+                return ResultUtils.error(ResultCode.FORBIDDEN.getCode(), "无权限修改他人目标");
+            }
+            userBehaviorService.setWeeklyReadingTargetMinutes(userId, targetMinutes);
+            return ResultUtils.success("ok");
+        } catch (IllegalArgumentException e) {
+            return ResultUtils.error(ResultCode.PARAM_ERROR, e.getMessage());
+        } catch (Exception e) {
+            log.error("设置目标阅读时间失败，userId={} targetMinutes={}", userId, targetMinutes, e);
+            return ResultUtils.error(500, "设置目标阅读时间失败：" + e.getMessage());
         }
     }
 }

@@ -25,4 +25,8 @@ webrtc:
   iceServers:
     - urls: stun:stun.l.google.com:19302
 
+ai:
+  deepseek:
+    api-key: "sk-edcc490700fe4d47b71be454f8526eb2"
+    model: "deepseek-chat"
 

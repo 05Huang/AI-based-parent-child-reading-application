@@ -86,9 +86,8 @@ public class ViewHistoryServiceImpl extends ServiceImpl<ViewHistoryMapper, ViewH
         result.setTotal(historyPage.getTotal());
         result.setCurrent((int) historyPage.getCurrent());
         result.setSize((int) historyPage.getSize());
-        result.setPages(historyPage.getPages());
 
-        log.info("用户浏览历史查询完成，用户ID：{}，共查询到{}条记录，总页数：{}", queryDTO.getUserId(), result.getTotal(), result.getPages());
+        log.info("用户浏览历史查询完成，用户ID：{}，共查询到{}条记录", queryDTO.getUserId(), result.getTotal());
         return result;
     }
 

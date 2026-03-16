@@ -11,30 +11,14 @@ public interface RecommendationService {
      * @param size 推荐数量
      * @return 推荐内容列表
      */
-    List<ContentRequest> getRecommendedContents(Long userId, Integer size);
-
-    /**
-     * 获取文章推荐（图文内容）
-     * @param userId 用户ID
-     * @param size 推荐数量
-     * @return 文章推荐列表
-     */
-    List<ContentRequest> getArticleRecommendations(Long userId, Integer size);
+    List<ContentRequest> getRecommendedContents(Long userId, Integer size, Integer type, Boolean shuffle);
 
     /**
      * 获取热门内容
      * @param size 数量
      * @return 热门内容列表
      */
-    List<ContentRequest> getHotContents(Integer size);
-
-    /**
-     * 获取热门文章（图文内容）
-     * @param userId 用户ID（用于去重）
-     * @param size 数量
-     * @return 热门文章列表
-     */
-    List<ContentRequest> getHotArticles(Long userId, Integer size);
+    List<ContentRequest> getHotContents(Integer size, Long userId, Integer type, Boolean shuffle);
 
     /**
      * 更新用户行为

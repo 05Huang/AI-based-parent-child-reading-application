@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.SurveyStarAnswerMapper">
+
+    <!-- 答卷结果映射 -->
+    <resultMap id="BaseResultMap" type="com.qz.sns.model.entity.SurveyStarAnswer">
+        <id column="id" property="id" />
+        <result column="answer_id" property="answerId" />
+        <result column="quest_id" property="questId" />
+        <result column="user_id" property="userId" />
+        <result column="answer_data" property="answerData" />
+        <result column="submit_ip" property="submitIp" />
+        <result column="submit_time" property="submitTime" />
+        <result column="received_time" property="receivedTime" />
+        <result column="status" property="status" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, answer_id, quest_id, user_id, answer_data, submit_ip, submit_time, received_time, status, created_at, updated_at
+    </sql>
+
+    <!-- 分页查询问卷答卷列表 -->
+    <select id="selectAnswerPageByQuestId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_answer
+        WHERE quest_id = #{questId}
+        ORDER BY submit_time DESC
+    </select>
+
+    <!-- 根据答卷ID查询答卷 -->
+    <select id="selectByAnswerId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_answer
+        WHERE answer_id = #{answerId}
+        LIMIT 1
+    </select>
+
+    <!-- 根据用户ID查询答卷列表 -->
+    <select id="selectAnswerPageByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_answer
+        WHERE user_id = #{userId}
+        ORDER BY submit_time DESC
+    </select>
+
+    <!-- 检查用户是否完成某个问卷 -->
+    <select id="selectByQuestIdAndUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_answer
+        WHERE quest_id = #{questId}
+          AND user_id = #{userId}
+        ORDER BY submit_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 批量检查用户完成状态 -->
+    <select id="selectCompletedQuestIdsByUserId" resultType="java.lang.Long">
+        SELECT DISTINCT quest_id
+        FROM survey_star_answer
+        WHERE quest_id IN
+        <foreach collection="questIds" item="questId" open="(" separator="," close=")">
+            #{questId}
+        </foreach>
+        AND user_id = #{userId}
+    </select>
+
+</mapper>
+

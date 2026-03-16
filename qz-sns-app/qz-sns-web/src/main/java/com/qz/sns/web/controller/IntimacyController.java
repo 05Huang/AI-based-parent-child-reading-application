@@ -85,4 +85,16 @@ public class IntimacyController {
         log.info("亲密度缓存清除和重新计算完成");
         return ResultUtils.success(result, "亲密度缓存已清除并重新计算");
     }
+
+    /**
+     * 获取亲密度趋势
+     * @param userId 用户ID
+     * @param days 天数（7或30）
+     */
+    @GetMapping("/trend")
+    public Result<Map<String, Object>> getIntimacyTrend(@RequestParam Long userId, @RequestParam(defaultValue = "7") int days) {
+        log.info("获取用户{}的亲密度趋势，天数：{}", userId, days);
+        Map<String, Object> trend = intimacyService.getIntimacyTrend(userId, days);
+        return ResultUtils.success(trend);
+    }
 }

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭关系分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/api.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .node-label {
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航 -->
+    <nav class="bg-white shadow-lg p-4">
+        <div class="flex items-center">
+            <button onclick="history.back()" class="mr-4">
+                <i class="fas fa-arrow-left text-gray-600"></i>
+            </button>
+            <h1 class="text-xl font-bold">家庭关系分析</h1>
+        </div>
+    </nav>
+
+    <!-- 关系网络图 -->
+    <div class="p-4">
+        <div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">家庭关系网络</h3>
+                <div class="flex gap-2">
+                    <button id="resetZoom" class="px-3 py-1 text-sm bg-gray-100 rounded-full text-gray-600">
+                        <i class="fas fa-undo"></i> 重置视图
+                    </button>
+                    <button id="toggleAnimation" class="px-3 py-1 text-sm bg-purple-100 rounded-full text-purple-600">
+                        <i class="fas fa-play"></i> 动画
+                    </button>
+                </div>
+            </div>
+            <div id="network-container" class="w-full h-80 relative">
+                <div class="tooltip"></div>
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="text-gray-500">加载中...</div>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="text-center p-3 bg-purple-50 rounded-lg">
+                    <div id="intimacy-rate" class="text-2xl font-bold text-purple-600">--%</div>
+                    <div class="text-sm text-gray-600">整体亲密度</div>
+                </div>
+                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                    <div id="weekly-interactions" class="text-2xl font-bold text-blue-600">--</div>
+                    <div class="text-sm text-gray-600">本周互动次数</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 情感分析趋势 -->
+    <div class="p-4">
+        <div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">情感互动分析</h3>
+                <div class="flex gap-2">
+                    <select id="timeRange" class="text-sm border rounded-full px-3 py-1">
+                        <option value="week">本周</option>
+                        <option value="month">本月</option>
+                        <option value="year">今年</option>
+                    </select>
+                </div>
+            </div>
+            <div class="w-full" style="height: 240px; position: relative;">
+                <canvas id="emotion-chart"></canvas>
+            </div>
+            <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="text-center p-2 bg-green-50 rounded-lg">
+                    <div class="text-sm font-bold text-green-600">积极</div>
+                    <div id="positive-rate" class="text-xs text-gray-600">--%</div>
+                </div>
+                <div class="text-center p-2 bg-blue-50 rounded-lg">
+                    <div class="text-sm font-bold text-blue-600">专注</div>
+                    <div id="focus-rate" class="text-xs text-gray-600">--%</div>
+                </div>
+                <div class="text-center p-2 bg-yellow-50 rounded-lg">
+                    <div class="text-sm font-bold text-yellow-600">互动</div>
+                    <div id="interaction-rate" class="text-xs text-gray-600">--%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 互动记录 -->
+    <div class="p-4">
+        <div class="bg-white rounded-xl p-4 shadow-sm">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">近期互动记录</h3>
+                <button id="loadMoreRecords" class="text-sm text-purple-500">查看更多</button>
+            </div>
+            <div id="records-container" class="space-y-4">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="text-gray-500">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 确保 DOM 加载完成后再初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 确保 familyAPI 存在
+            if (typeof window.familyAPI === 'undefined') {
+                window.familyAPI = new FamilyAnalysisAPI();
+            }
+            
+            // 初始化页面
+            initializePage();
+        });
+
+        // 全局变量
+        let networkGraph;
+        let emotionChart;
+        let currentPage = 1;
+        const recordsPerPage = 5;
+
+        // 初始化页面
+        async function initializePage() {
+            try {
+                await initializeNetworkGraph();
+                await initializeEmotionChart();
+                await loadInteractionRecords();
+            } catch (error) {
+                console.error('Failed to initialize page:', error);
+                // 显示错误提示
+                document.querySelector('.error-message').style.display = 'block';
+            }
+        }
+
+        // 初始化网络图
+        async function initializeNetworkGraph() {
+            const container = document.getElementById('network-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight || 320;
+
+            // 清除现有的SVG
+            d3.select("#network-container svg").remove();
+
+            // 创建新的SVG
+            const svg = d3.select("#network-container")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            // 创建缩放功能
+            const zoom = d3.zoom()
+                .extent([[0, 0], [width, height]])
+                .scaleExtent([0.5, 3])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+
+            // 添加缩放功能
+            const g = svg.append("g");
+            svg.call(zoom);
+
+            try {
+                // 从API获取数据
+                const data = await familyAPI.getRelationshipNetwork();
+                if (!data || !data.nodes || !data.links) {
+                    throw new Error('Invalid network data');
+                }
+
+                const { nodes, links } = data;
+
+                // 隐藏加载动画
+                container.querySelector('.loading').style.display = 'none';
+
+                // 添加箭头标记
+                svg.append("defs").selectAll("marker")
+                    .data(["relationship"])
+                    .enter().append("marker")
+                    .attr("id", d => d)
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 25)
+                    .attr("refY", 0)
+                    .attr("markerWidth", 6)
+                    .attr("markerHeight", 6)
+                    .attr("orient", "auto")
+                    .append("path")
+                    .attr("d", "M0,-5L10,0L0,5")
+                    .attr("fill", "#A78BFA");
+
+                // 创建力导向图
+                const simulation = d3.forceSimulation(nodes)
+                    .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+                    .force("charge", d3.forceManyBody().strength(-200))
+                    .force("center", d3.forceCenter(width / 2, height / 2));
+
+                // 创建连线
+                const link = g.append("g")
+                    .selectAll("line")
+                    .data(links)
+                    .join("line")
+                    .attr("stroke", "#A78BFA")
+                    .attr("stroke-width", d => Math.sqrt(d.value * 5))
+                    .attr("marker-end", "url(#relationship)");
+
+                // 创建节点
+                const node = g.append("g")
+                    .selectAll("g")
+                    .data(nodes)
+                    .join("g")
+                    .call(drag(simulation));
+
+                // 添加头像背景
+                node.append("circle")
+                    .attr("r", 20)
+                    .attr("fill", "white")
+                    .attr("stroke", "#A78BFA")
+                    .attr("stroke-width", 2);
+
+                // 添加头像
+                node.append("image")
+                    .attr("xlink:href", d => d.avatar)
+                    .attr("x", -18)
+                    .attr("y", -18)
+                    .attr("width", 36)
+                    .attr("height", 36)
+                    .attr("clip-path", "circle(18px at center)");
+
+                // 添加名字标签
+                node.append("text")
+                    .text(d => d.name)
+                    .attr("text-anchor", "middle")
+                    .attr("dy", 30)
+                    .attr("class", "text-sm font-medium");
+
+                // 添加提示框
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "absolute bg-white p-2 rounded shadow-lg text-sm")
+                    .style("opacity", 0)
+                    .style("pointer-events", "none");
+
+                // 添加交互事件
+                node.on("mouseover", (event, d) => {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`
+                        <div class="font-medium">${d.name}</div>
+                        <div>本周互动: ${d.weeklyInteractions}次</div>
+                        <div>亲密度: ${d.intimacy}%</div>
+                    `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                    .on("mouseout", () => {
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+
+                // 更新力导向图
+                simulation.on("tick", () => {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    node.attr("transform", d => `translate(${d.x},${d.y})`);
+                });
+
+                // 保存网络图实例
+                networkGraph = { simulation, svg, link, node };
+
+                // 更新统计数据
+                updateStatistics(nodes, links);
+
+                // 绑定按钮事件
+                document.getElementById('resetZoom').addEventListener('click', () => {
+                    svg.transition()
+                        .duration(750)
+                        .call(zoom.transform, d3.zoomIdentity);
+                });
+
+                let isAnimating = false;
+                document.getElementById('toggleAnimation').addEventListener('click', function() {
+                    const button = this;
+                    if (isAnimating) {
+                        simulation.alpha(0);
+                        button.innerHTML = '<i class="fas fa-play"></i> 动画';
+                        button.classList.remove('bg-purple-500', 'text-white');
+                        button.classList.add('bg-purple-100', 'text-purple-600');
+                    } else {
+                        simulation.alpha(0.3).restart();
+                        button.innerHTML = '<i class="fas fa-pause"></i> 暂停';
+                        button.classList.remove('bg-purple-100', 'text-purple-600');
+                        button.classList.add('bg-purple-500', 'text-white');
+                    }
+                    isAnimating = !isAnimating;
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize network graph:', error);
+                container.querySelector('.loading').innerHTML = `
+                    <div class="text-red-500">
+                        <i class="fas fa-exclamation-circle"></i>
+                        加载失败，请刷新重试
+                    </div>`;
+            }
+        }
+
+        // 初始化情感分析图表
+        async function initializeEmotionChart() {
+            const ctx = document.getElementById('emotion-chart').getContext('2d');
+            const emotionData = await familyAPI.getEmotionData('week');
+
+            // 更新情感分析百分比
+            const latestData = {
+                positive: Math.round(emotionData.data.positive[emotionData.data.positive.length - 1] * 100),
+                focus: Math.round(emotionData.data.focus[emotionData.data.focus.length - 1] * 100),
+                interaction: Math.round(emotionData.data.interaction[emotionData.data.interaction.length - 1] * 100)
+            };
+
+            document.getElementById('positive-rate').textContent = `${latestData.positive}%`;
+            document.getElementById('focus-rate').textContent = `${latestData.focus}%`;
+            document.getElementById('interaction-rate').textContent = `${latestData.interaction}%`;
+
+            Chart.defaults.maintainAspectRatio = false;
+            Chart.defaults.responsive = true;
+
+            emotionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: emotionData.labels,
+                    datasets: [{
+                        label: '积极情绪',
+                        data: emotionData.data.positive,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '专注度',
+                        data: emotionData.data.focus,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '互动指数',
+                        data: emotionData.data.interaction,
+                        borderColor: '#F59E0B',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            left: 10,
+                            right: 10,
+                            top: 20,
+                            bottom: 10
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'start',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                callback: value => Math.round(value * 100) + '%'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true,
+                                autoSkipPadding: 20
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 3,
+                            hoverRadius: 5
+                        },
+                        line: {
+                            borderWidth: 2
+                        }
+                    }
+                }
+            });
+
+            // 绑定时间范围切换事件
+            document.getElementById('timeRange').addEventListener('change', async function(e) {
+                const emotionData = await familyAPI.getEmotionData(e.target.value);
+                emotionChart.data.labels = emotionData.labels;
+                emotionChart.data.datasets[0].data = emotionData.data.positive;
+                emotionChart.data.datasets[1].data = emotionData.data.focus;
+                emotionChart.data.datasets[2].data = emotionData.data.interaction;
+                emotionChart.update();
+            });
+        }
+
+        // 加载互动记录
+        async function loadInteractionRecords(append = false) {
+            const container = document.getElementById('records-container');
+            if (!append) {
+                container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><div class="text-gray-500">加载中...</div></div>';
+            }
+
+            const {records, total} = await familyAPI.getInteractionRecords(currentPage, recordsPerPage);
+            
+            if (!append) {
+                container.innerHTML = '';
+            }
+
+            records.forEach(record => {
+                const recordElement = document.createElement('div');
+                recordElement.className = 'flex items-start space-x-3';
+                recordElement.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-${record.type === 'reading' ? 'book' : record.type === 'chat' ? 'comments' : 'gamepad'} text-purple-500"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium">${record.title}</h4>
+                            <span class="text-xs text-gray-500">${record.time}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">${record.description}</p>
+                        <div class="mt-2 flex items-center space-x-2">
+                            <span class="px-2 py-1 bg-green-100 text-green-600 rounded text-xs">情感：${record.emotion}</span>
+                            <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs">互动：${record.interaction}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(recordElement);
+            });
+
+            // 更新加载更多按钮状态
+            const loadMoreButton = document.getElementById('loadMoreRecords');
+            if (currentPage * recordsPerPage >= total) {
+                loadMoreButton.style.display = 'none';
+            } else {
+                loadMoreButton.style.display = 'block';
+            }
+        }
+
+        // 更新统计数据
+        function updateStatistics(nodes, links) {
+            // 计算整体亲密度（所有节点的平均亲密度）
+            const avgIntimacy = Math.round(nodes.reduce((sum, node) => sum + node.intimacy, 0) / nodes.length);
+            
+            // 计算本周总互动次数
+            const weeklyInteractions = nodes.reduce((sum, node) => sum + node.weeklyInteractions, 0);
+            
+            // 更新显示
+            document.getElementById('intimacy-rate').textContent = `${avgIntimacy}%`;
+            document.getElementById('weekly-interactions').textContent = weeklyInteractions;
+        }
+
+        // 拖拽功能
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+
+        // 绑定加载更多按钮事件
+        document.getElementById('loadMoreRecords').addEventListener('click', () => {
+            currentPage++;
+            loadInteractionRecords(true);
+        });
+    </script>
+</body>
+</html> 

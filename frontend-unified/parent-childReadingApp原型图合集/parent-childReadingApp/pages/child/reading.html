@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阅读 - 孩子版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .header-gradient {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+        .book-content {
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+        .highlight {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-bottom: 2px solid #6366f1;
+            cursor: pointer;
+        }
+        .toolbar {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .page-number {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 header-gradient shadow-md z-50">
+        <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center">
+                <a href="home.html" class="text-white mr-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="text-xl font-bold text-white">哈利·波特与魔法石</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-bookmark text-white text-lg"></i>
+                <i class="fas fa-ellipsis-v text-white text-lg"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 - 阅读界面 -->
+    <main class="mt-16 mb-20 px-4 py-6 relative">
+        <div class="book-content bg-white rounded-xl p-6 shadow-sm relative">
+            <h2 class="text-xl font-bold mb-4">第四章 猫头鹰邮差</h2>
+            
+            <p class="mb-4">
+                哈利从德思礼家逃出来后，他的生活发生了翻天覆地的变化。他从来没有想过，自己竟然是一个<span class="highlight">巫师</span>。
+            </p>
+            
+            <p class="mb-4">
+                海格告诉他，他将前往<span class="highlight">霍格沃茨魔法学校</span>学习魔法。这对哈利来说简直是一个梦想成真的时刻。
+            </p>
+            
+            <p class="mb-4">
+                "所有的学生都需要一根魔杖，"海格说，"我们得去对角巷给你买一根。"
+            </p>
+            
+            <p class="mb-4">
+                哈利从未听说过对角巷，但他已经开始期待这次旅行了。他想知道魔杖是什么样子的，是否真的能像童话故事里那样施展魔法。
+            </p>
+            
+            <p class="mb-4">
+                "还有，"海格继续说，"你需要一些课本和其他装备。我这里有一份清单。"
+            </p>
+            
+            <p class="mb-4">
+                海格从他那件巨大的外套里掏出一封皱巴巴的信，递给哈利。哈利小心翼翼地打开它，发现里面有一张羊皮纸，上面写着：
+            </p>
+            
+            <div class="bg-gray-50 p-4 rounded-lg mb-4 text-gray-700">
+                <p class="font-semibold mb-2">霍格沃茨魔法学校</p>
+                <p class="mb-1">一年级新生需要携带：</p>
+                <ol class="list-decimal pl-5 mb-2">
+                    <li>三套普通工作袍（黑色）</li>
+                    <li>一顶普通尖顶帽（黑色）</li>
+                    <li>一双防护手套（龙皮或类似材料）</li>
+                    <li>一件冬季斗篷（黑色，银扣）</li>
+                </ol>
+                <p>所有物品必须标有学生姓名。</p>
+            </div>
+            
+            <p class="mb-4">
+                哈利读完了清单，感到既兴奋又困惑。他从来没有买过这些东西，甚至不知道在哪里能买到。
+            </p>
+            
+            <p class="mb-4">
+                "海格，"哈利问道，"我们在哪里能买到这些东西呢？"
+            </p>
+            
+            <p class="mb-4">
+                "在对角巷，"海格回答，"不过首先，我们得回复这封信。他们在等着我们的回信呢。"
+            </p>
+            
+            <div class="page-number">42</div>
+        </div>
+    </main>
+
+    <!-- 底部工具栏 -->
+    <div class="toolbar fixed bottom-0 left-0 right-0 border-t border-gray-200 py-3 px-4">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <button class="text-gray-600">
+                    <i class="fas fa-font text-lg"></i>
+                </button>
+                <button class="text-gray-600">
+                    <i class="fas fa-adjust text-lg"></i>
+                </button>
+                <button class="text-gray-600">
+                    <i class="fas fa-volume-up text-lg"></i>
+                </button>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                    <i class="fas fa-chevron-left text-gray-600"></i>
+                </button>
+                <div class="text-sm text-gray-500">42/309</div>
+                <button class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
+                    <i class="fas fa-chevron-right text-white"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 词汇解释弹窗 -->
+    <div id="word-popup" class="hidden fixed bottom-20 left-4 right-4 bg-white rounded-xl shadow-lg p-4 z-50">
+        <div class="flex justify-between items-start mb-3">
+            <h3 class="text-lg font-bold text-gray-800">巫师</h3>
+            <button id="close-popup" class="text-gray-400">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <p class="text-gray-600 mb-3">
+            巫师是指拥有魔法能力的人，能够使用魔杖施展各种魔法。在魔法世界中，巫师们有自己的社会、学校和文化。
+        </p>
+        <div class="flex space-x-3">
+            <button class="flex-1 py-2 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-medium">
+                <i class="fas fa-volume-up mr-1"></i> 朗读
+            </button>
+            <button class="flex-1 py-2 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-medium">
+                <i class="fas fa-book mr-1"></i> 加入生词本
+            </button>
+            <button class="flex-1 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium">
+                <i class="fas fa-question-circle mr-1"></i> 提问
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 显示词汇解释弹窗
+        const highlights = document.querySelectorAll('.highlight');
+        const wordPopup = document.getElementById('word-popup');
+        const closePopup = document.getElementById('close-popup');
+        
+        highlights.forEach(highlight => {
+            highlight.addEventListener('click', () => {
+                wordPopup.classList.remove('hidden');
+            });
+        });
+        
+        closePopup.addEventListener('click', () => {
+            wordPopup.classList.add('hidden');
+        });
+    </script>
+</body>
+</html> 

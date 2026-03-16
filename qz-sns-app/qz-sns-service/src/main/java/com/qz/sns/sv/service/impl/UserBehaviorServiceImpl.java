@@ -7,7 +7,9 @@ import com.qz.sns.model.entity.UserBehavior;
 import com.qz.sns.model.vo.BrowsingStatsVO;
 import com.qz.sns.model.vo.CollectionStatsVO;
 import com.qz.sns.model.vo.HistoryStatsVO;
+import com.qz.sns.model.vo.ReadingRankingVO;
 import com.qz.sns.model.vo.WeeklyReportVO;
+import com.qz.sns.sv.mapper.StatisticsMapper;
 import com.qz.sns.sv.mapper.UserBehaviorMapper;
 import com.qz.sns.sv.service.UserBehaviorService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,13 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -36,17 +44,26 @@ public class UserBehaviorServiceImpl implements UserBehaviorService {
     
     @Autowired
     private UserBehaviorMapper userBehaviorMapper;
+    @Autowired
+    private StatisticsMapper statisticsMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     
     @Override
     public UserBehavior recordUserBehavior(UserBehaviorDTO dto) {
         UserBehavior behavior = new UserBehavior();
         BeanUtils.copyProperties(dto, behavior);
+        behavior.setCreatedTime(new Date());
         
         // 插入记录
         userBehaviorMapper.insert(behavior);
         log.info("记录用户行为成功：userId={}, contentId={}, behaviorType={}", 
                 dto.getUserId(), dto.getContentId(), dto.getBehaviorType());
+
+        try {
+            clearUserStatsCache(dto.getUserId());
+        } catch (Exception e) {
+            log.warn("清除用户统计缓存失败：userId={}", dto.getUserId(), e);
+        }
         
         return behavior;
     }
@@ -174,9 +191,26 @@ public class UserBehaviorServiceImpl implements UserBehaviorService {
         return getWeeklyReport(userId);
     }
 
+    @Override
+    public Integer getWeeklyReadingTargetMinutes(Long userId) {
+        Integer v = statisticsMapper.getWeeklyReadTargetMinutes(userId);
+        if (v == null || v <= 0) return 30;
+        return v;
+    }
+
+    @Override
+    public void setWeeklyReadingTargetMinutes(Long userId, Integer targetMinutes) {
+        if (targetMinutes == null || targetMinutes <= 0) {
+            throw new IllegalArgumentException("目标阅读时间必须大于0");
+        }
+        statisticsMapper.upsertWeeklyReadTargetMinutes(userId, targetMinutes);
+    }
+
     private WeeklyReportVO generateWeeklyReport(Long userId) {
-        LocalDateTime weekStart = LocalDateTime.now().minusDays(7);
+        // 修改为自然周（周一到周日），而不是滚动7天
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         WeeklyReportVO report = new WeeklyReportVO();
 
@@ -301,6 +335,131 @@ public class UserBehaviorServiceImpl implements UserBehaviorService {
         } catch (Exception e) {
             log.error("清除用户{}统计缓存失败", userId, e);
             throw new RuntimeException("清除缓存失败", e);
+        }
+    }
+
+    @Override
+    public Integer getConsecutiveReadingDays(Long userId) {
+        try {
+            log.info("开始计算用户{}的连续阅读天数", userId);
+            
+            // 获取最近60天的阅读日期
+            LocalDateTime sixtyDaysAgo = LocalDateTime.now().minusDays(60);
+            List<String> readingDates = userBehaviorMapper.getReadingDates(userId, sixtyDaysAgo);
+            
+            if (readingDates == null || readingDates.isEmpty()) {
+                log.info("用户{}没有阅读记录，连续阅读天数为0", userId);
+                return 0;
+            }
+            
+            // 将日期列表转换为Set以便快速查找
+            java.util.Set<String> readingDateSet = new java.util.HashSet<>(readingDates);
+            
+            // 计算连续天数
+            LocalDate today = LocalDate.now();
+            int consecutiveDays = 0;
+            boolean foundBreak = false;
+            
+            // 从今天开始往前检查
+            for (int i = 0; i < 60; i++) {
+                LocalDate checkDate = today.minusDays(i);
+                String dateStr = checkDate.toString();
+                
+                // 检查这一天是否有阅读记录
+                boolean hasReading = readingDateSet.contains(dateStr);
+                
+                if (hasReading) {
+                    consecutiveDays++;
+                } else {
+                    // 如果今天没有阅读，不算连续；如果今天有阅读，但昨天没有，则中断
+                    if (i == 0) {
+                        // 今天没有阅读，从昨天开始计算
+                        continue;
+                    } else {
+                        // 遇到中断，停止计算
+                        foundBreak = true;
+                        break;
+                    }
+                }
+            }
+            
+            log.info("用户{}的连续阅读天数：{}", userId, consecutiveDays);
+            return consecutiveDays;
+            
+        } catch (Exception e) {
+            log.error("计算用户{}连续阅读天数失败", userId, e);
+            return 0;
+        }
+    }
+
+    @Override
+    public List<ReadingRankingVO> getWeeklyReadingRanking(Integer limit) {
+        try {
+            // 默认限制为20
+            if (limit == null || limit <= 0) {
+                limit = 20;
+            }
+            
+            // 计算本周的开始时间（周一00:00:00）和结束时间（下周一00:00:00）
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime weekEnd = weekStart.plusWeeks(1);
+            
+            log.info("获取周阅读排行榜（全网用户），时间范围：{} 到 {}，限制：{}", weekStart, weekEnd, limit);
+            
+            // 调用Mapper查询数据
+            List<Map<String, Object>> rankingData = userBehaviorMapper.getWeeklyReadingRanking(
+                    weekStart, weekEnd, limit);
+            
+            log.info("数据库查询返回{}条原始记录", rankingData.size());
+            if (rankingData.isEmpty()) {
+                log.warn("未查询到任何阅读行为记录，可能原因：1) 本周没有阅读行为 2) 时间范围不正确 3) 没有孩子用户有阅读行为");
+            }
+            
+            // 转换为VO对象
+            List<ReadingRankingVO> result = new ArrayList<>();
+            for (int i = 0; i < rankingData.size(); i++) {
+                Map<String, Object> item = rankingData.get(i);
+                ReadingRankingVO vo = new ReadingRankingVO();
+                
+                vo.setRank(i + 1);
+                
+                // 处理用户ID
+                Object userIdObj = item.get("userId");
+                if (userIdObj instanceof Number) {
+                    vo.setUserId(((Number) userIdObj).longValue());
+                } else {
+                    log.warn("用户ID格式异常：{}", userIdObj);
+                    continue; // 跳过无效记录
+                }
+                
+                vo.setNickname((String) item.get("nickname"));
+                vo.setUsername((String) item.get("username"));
+                vo.setAvatar((String) item.get("avatar"));
+                
+                // 处理阅读时长
+                Object readDurationObj = item.get("readDuration");
+                if (readDurationObj instanceof Number) {
+                    vo.setReadDuration(((Number) readDurationObj).longValue());
+                } else {
+                    vo.setReadDuration(0L);
+                }
+                
+                // 趋势信息暂时设为持平（后续可以根据历史数据计算）
+                vo.setTrend("equal");
+                vo.setTrendNumber(0);
+                
+                result.add(vo);
+                log.debug("处理排行榜记录：用户ID={}, 昵称={}, 阅读时长={}秒", 
+                        vo.getUserId(), vo.getNickname(), vo.getReadDuration());
+            }
+            
+            log.info("周阅读排行榜查询成功，返回{}条记录", result.size());
+            return result;
+        } catch (Exception e) {
+            log.error("获取周阅读排行榜失败", e);
+            throw new RuntimeException("获取周阅读排行榜失败：" + e.getMessage(), e);
         }
     }
 }

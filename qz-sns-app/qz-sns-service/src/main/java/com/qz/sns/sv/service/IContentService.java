@@ -78,9 +78,10 @@ public interface IContentService extends IService<Content> {
      * @param keyword 搜索关键词
      * @param current 页码
      * @param size 每页大小
+     * @param type 内容类型（可选）
      * @return 搜索结果
      */
-    PageDTO<ContentRequest> searchContent(String keyword, Integer current, Integer size);
+    PageDTO<ContentRequest> searchContent(String keyword, Integer current, Integer size, Integer type);
 
     /**
      * 获取热门内容

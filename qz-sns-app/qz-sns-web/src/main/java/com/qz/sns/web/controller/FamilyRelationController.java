@@ -2,10 +2,13 @@ package com.qz.sns.web.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.qz.sns.model.entity.FamilyRelation;
+import com.qz.sns.model.entity.Friend;
 import com.qz.sns.model.entity.User;
 import com.qz.sns.sv.result.Result;
 import com.qz.sns.sv.result.ResultUtils;
 import com.qz.sns.sv.service.IFamilyRelationService;
+import com.qz.sns.sv.service.IFamilyIntimacyService;
+import com.qz.sns.sv.service.IFriendService;
 import com.qz.sns.sv.service.IUserService;
 import com.qz.sns.sv.session.SessionContext;
 import com.qz.sns.sv.session.UserSession;
@@ -15,9 +18,13 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +43,8 @@ public class FamilyRelationController {
 
     private final IFamilyRelationService familyRelationService;
     private final IUserService userService;
+    private final IFamilyIntimacyService familyIntimacyService;
+    private final IFriendService friendService;
 
     /**
      * 绑定孩子 - 根据用户名绑定
@@ -116,15 +125,55 @@ public class FamilyRelationController {
             if (saved) {
                 log.info("绑定家庭成员成功，发起者ID：{}，被绑定者ID：{}，关系类型：{} <-> {}", 
                     parentId, relativeUser.getId(), relationType, reverseRelationType);
+                
+                try {
+                    createFriendRelationIfAbsent(parent, relativeUser, now);
+                } catch (Exception e) {
+                    log.error("创建家庭成员好友关系失败，但不影响绑定结果：{}", e.getMessage(), e);
+                }
+                
                 return ResultUtils.success("绑定成功");
             } else {
                 log.error("绑定家庭成员失败，保存数据库记录失败");
                 return ResultUtils.error(500, "绑定失败");
             }
-
         } catch (Exception e) {
             log.error("绑定孩子操作异常：{}", e.getMessage(), e);
             return ResultUtils.error(500, "绑定失败：" + e.getMessage());
+        }
+    }
+
+    private void createFriendRelationIfAbsent(User parent, User child, LocalDateTime now) {
+        if (parent == null || child == null || parent.getId() == null || child.getId() == null) {
+            return;
+        }
+        Long parentId = parent.getId();
+        Long childId = child.getId();
+
+        QueryWrapper<Friend> p2cWrapper = new QueryWrapper<>();
+        p2cWrapper.eq("user_id", parentId).eq("friend_id", childId);
+        Friend p2c = friendService.getOne(p2cWrapper);
+        if (p2c == null) {
+            Friend parentToChild = new Friend();
+            parentToChild.setUserId(parentId);
+            parentToChild.setFriendId(childId);
+            parentToChild.setFriendNickName(child.getNickname() != null ? child.getNickname() : child.getUsername());
+            parentToChild.setFriendHeadImage(child.getAvatar() != null ? child.getAvatar() : child.getAvatarThumb());
+            parentToChild.setCreatedTime(now);
+            friendService.save(parentToChild);
+        }
+
+        QueryWrapper<Friend> c2pWrapper = new QueryWrapper<>();
+        c2pWrapper.eq("user_id", childId).eq("friend_id", parentId);
+        Friend c2p = friendService.getOne(c2pWrapper);
+        if (c2p == null) {
+            Friend childToParent = new Friend();
+            childToParent.setUserId(childId);
+            childToParent.setFriendId(parentId);
+            childToParent.setFriendNickName(parent.getNickname() != null ? parent.getNickname() : parent.getUsername());
+            childToParent.setFriendHeadImage(parent.getAvatar() != null ? parent.getAvatar() : parent.getAvatarThumb());
+            childToParent.setCreatedTime(now);
+            friendService.save(childToParent);
         }
     }
 
@@ -321,6 +370,324 @@ public class FamilyRelationController {
     }
 
     /**
+     * 管理员专用：获取指定用户的家庭成员列表
+     */
+    @GetMapping("/admin/members/{userId}")
+    public Result<Map<String, Object>> getAdminFamilyMembers(@PathVariable @NotNull Long userId) {
+        log.info("开始获取用户ID为{}的家庭成员列表", userId);
+        
+        try {
+            // 获取当前登录用户
+            UserSession currentUser = SessionContext.getSession();
+            if (currentUser == null) {
+                log.error("用户未登录");
+                return ResultUtils.error(401, "用户未登录");
+            }
+            
+            // 验证当前用户是否为管理员
+            User user = userService.getUserById(currentUser.getUserId());
+            if (user == null || user.getUserType() == null || user.getUserType() != 2) { // 假设管理员用户类型ID为2
+                log.error("当前用户不是管理员，用户ID：{}，用户类型：{}", currentUser.getUserId(), user != null ? user.getUserType() : "null");
+                return ResultUtils.error(403, "只有管理员可以查看其他用户的家庭成员");
+            }
+
+            // 获取用户信息
+            User targetUser = userService.getUserById(userId);
+            if (targetUser == null) {
+                log.error("目标用户不存在，用户ID：{}", userId);
+                return ResultUtils.error(404, "目标用户不存在");
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("targetUser", targetUser);
+
+            // 获取所有家庭关系（使用OR条件查询双向关系）
+            QueryWrapper<FamilyRelation> queryWrapper = new QueryWrapper<>();
+            queryWrapper.and(wrapper -> 
+                wrapper.eq("user_id", userId).or().eq("relative_id", userId)
+            );
+            List<FamilyRelation> relations = familyRelationService.list(queryWrapper);
+            
+            log.info("用户ID：{}的家庭关系记录数：{}", userId, relations.size());
+            
+            // 统计关注数和粉丝数
+            // 关注数：我主动绑定的人（user_id = 我）
+            QueryWrapper<FamilyRelation> followingWrapper = new QueryWrapper<>();
+            followingWrapper.eq("user_id", userId);
+            long followingCount = familyRelationService.count(followingWrapper);
+            
+            // 粉丝数：绑定我的人（relative_id = 我）
+            QueryWrapper<FamilyRelation> followersWrapper = new QueryWrapper<>();
+            followersWrapper.eq("relative_id", userId);
+            long followersCount = familyRelationService.count(followersWrapper);
+            
+            log.info("用户ID：{}的关注数：{}，粉丝数：{}", userId, followingCount, followersCount);
+            
+            // 转换为家庭成员信息列表
+            List<Map<String, Object>> allMembers = relations.stream()
+                .map(relation -> {
+                    // 确定对方用户ID：如果当前用户是user_id，则对方是relative_id，反之亦然
+                    Long relativeUserId = relation.getUserId().equals(userId) 
+                        ? relation.getRelativeId() 
+                        : relation.getUserId();
+                    
+                    User relative = userService.getUserById(relativeUserId);
+                    if (relative == null) {
+                        log.warn("未找到家庭成员用户，ID：{}", relativeUserId);
+                        return null;
+                    }
+                    
+                    // 解析关系类型：格式为 "关系1,关系2"
+                    String relationTypeStr = relation.getRelationType();
+                    String[] relationTypes = relationTypeStr.split(",");
+                    
+                    // 确定当前用户的关系类型
+                    String currentUserRelationType;
+                    if (relation.getUserId().equals(userId)) {
+                        // 当前用户是user_id，使用第一个关系类型
+                        currentUserRelationType = relationTypes.length > 0 ? relationTypes[0] : relationTypeStr;
+                    } else {
+                        // 当前用户是relative_id，使用第二个关系类型
+                        currentUserRelationType = relationTypes.length > 1 ? relationTypes[1] : relationTypeStr;
+                    }
+                    
+                    Map<String, Object> memberInfo = new HashMap<>();
+                    memberInfo.put("id", relative.getId());
+                    memberInfo.put("nickname", relative.getNickname());
+                    memberInfo.put("username", relative.getUsername());
+                    memberInfo.put("avatar", relative.getAvatar());
+                    memberInfo.put("avatarThumb", relative.getAvatarThumb());
+                    memberInfo.put("bindTime", relation.getCreatedTime());
+                    memberInfo.put("relationType", currentUserRelationType);
+                    memberInfo.put("sex", relative.getSex());
+                    memberInfo.put("role", relative.getRole());
+                    
+                    log.info("家庭成员 - 昵称：{}，用户名：{}，关系类型：{}", 
+                        relative.getNickname(), relative.getUsername(), currentUserRelationType);
+                    
+                    return memberInfo;
+                })
+                .filter(info -> info != null)
+                .collect(Collectors.toList());
+            
+            // 按关系类型分类家庭成员
+            List<Map<String, Object>> children = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("子") && (relationType.startsWith("父") || relationType.startsWith("母")) ||
+                        relationType.contains("女") && (relationType.startsWith("父") || relationType.startsWith("母"))
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> parents = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("子") && (relationType.contains("父") || relationType.contains("母")) ||
+                        relationType.startsWith("女") && (relationType.contains("父") || relationType.contains("母"))
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            Map<String, Object> spouse = allMembers.stream()
+                .filter(m -> "夫妻".equals(m.get("relationType")))
+                .findFirst()
+                .orElse(null);
+            
+            List<Map<String, Object>> siblings = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("兄") || relationType.contains("弟") ||
+                        relationType.contains("姐") || relationType.contains("妹")
+                    ) && !relationType.contains("父") && !relationType.contains("母");
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> grandparents = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("孙") || relationType.startsWith("女")
+                    ) && (relationType.contains("祖") || relationType.contains("奶") || relationType.contains("外"));
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> grandchildren = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.startsWith("祖") || relationType.startsWith("奶") || relationType.startsWith("外")
+                    ) && (relationType.contains("孙") || relationType.contains("女"));
+                })
+                .collect(Collectors.toList());
+            
+            List<Map<String, Object>> others = allMembers.stream()
+                .filter(m -> {
+                    String relationType = (String) m.get("relationType");
+                    return relationType != null && (
+                        relationType.contains("叔") || relationType.contains("婶") ||
+                        relationType.contains("侄") || relationType.contains("舅") ||
+                        relationType.contains("甥") || relationType.equals("其他亲属")
+                    );
+                })
+                .collect(Collectors.toList());
+            
+            // 添加所有分类到结果中
+            result.put("children", children);
+            result.put("parents", parents);
+            if (spouse != null) {
+                result.put("spouse", spouse);
+            }
+            result.put("siblings", siblings);
+            result.put("grandparents", grandparents);
+            result.put("grandchildren", grandchildren);
+            result.put("others", others);
+            
+            // 添加统计数据
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("followingCount", followingCount); // 关注数（我主动绑定的人）
+            stats.put("followersCount", followersCount); // 粉丝数（绑定我的人）
+            result.put("stats", stats);
+            
+            log.info("获取用户ID为{}的家庭成员成功 - 子女：{}，父母：{}，配偶：{}，兄弟姐妹：{}，祖辈：{}，孙辈：{}，其他：{}，关注数：{}，粉丝数：{}", 
+                userId, children.size(), parents.size(), spouse != null ? 1 : 0, 
+                siblings.size(), grandparents.size(), grandchildren.size(), others.size(),
+                followingCount, followersCount);
+
+            return ResultUtils.success(result);
+
+        } catch (Exception e) {
+            log.error("获取用户ID为{}的家庭成员列表异常：{}", userId, e.getMessage(), e);
+            return ResultUtils.error(500, "获取家庭成员失败：" + e.getMessage());
+        }
+    }
+
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getFamilyStats() {
+        try {
+            UserSession currentUser = SessionContext.getSession();
+            if (currentUser == null) {
+                return ResultUtils.error(401, "用户未登录");
+            }
+
+            User user = userService.getUserById(currentUser.getUserId());
+            if (user == null || user.getUserType() == null || user.getUserType() != 2) {
+                return ResultUtils.error(403, "只有管理员可以查看家庭统计");
+            }
+
+            QueryWrapper<User> eligibleUsersWrapper = new QueryWrapper<>();
+            eligibleUsersWrapper.ne("id", -999L);
+            eligibleUsersWrapper.and(w -> w.ne("user_type", 2).or().isNull("user_type"));
+            List<User> eligibleUsers = userService.list(eligibleUsersWrapper);
+
+            if (eligibleUsers == null || eligibleUsers.isEmpty()) {
+                Map<String, Object> empty = new HashMap<>();
+                empty.put("totalFamilies", 0);
+                empty.put("totalParents", 0);
+                empty.put("totalChildren", 0);
+                return ResultUtils.success(empty);
+            }
+
+            Set<Long> eligibleUserIds = eligibleUsers.stream().map(User::getId).collect(Collectors.toSet());
+            Map<Long, Integer> roleByUserId = eligibleUsers.stream()
+                .collect(Collectors.toMap(User::getId, User::getRole, (a, b) -> a));
+            long totalParents = eligibleUsers.stream().filter(u -> u.getRole() != null && u.getRole() == 1).count();
+            long totalChildren = eligibleUsers.stream().filter(u -> u.getRole() != null && u.getRole() == 2).count();
+
+            QueryWrapper<FamilyRelation> relationWrapper = new QueryWrapper<>();
+            relationWrapper.in("user_id", eligibleUserIds);
+            relationWrapper.in("relative_id", eligibleUserIds);
+            List<FamilyRelation> relations = familyRelationService.list(relationWrapper);
+
+            Map<Long, Set<Long>> graph = new HashMap<>();
+            for (Long id : eligibleUserIds) {
+                graph.put(id, new HashSet<>());
+            }
+            if (relations != null) {
+                for (FamilyRelation relation : relations) {
+                    if (relation == null || relation.getUserId() == null || relation.getRelativeId() == null) {
+                        continue;
+                    }
+                    Long a = relation.getUserId();
+                    Long b = relation.getRelativeId();
+                    Set<Long> aEdges = graph.get(a);
+                    if (aEdges != null) {
+                        aEdges.add(b);
+                    }
+                    Set<Long> bEdges = graph.get(b);
+                    if (bEdges != null) {
+                        bEdges.add(a);
+                    }
+                }
+            }
+
+            Set<Long> visited = new HashSet<>();
+            int families = 0;
+
+            for (Long start : eligibleUserIds) {
+                if (start == null || visited.contains(start)) {
+                    continue;
+                }
+
+                Deque<Long> queue = new ArrayDeque<>();
+                queue.add(start);
+                visited.add(start);
+
+                Set<Long> component = new HashSet<>();
+                component.add(start);
+
+                while (!queue.isEmpty()) {
+                    Long cur = queue.poll();
+                    Set<Long> neighbors = graph.get(cur);
+                    if (neighbors == null || neighbors.isEmpty()) {
+                        continue;
+                    }
+                    for (Long next : neighbors) {
+                        if (next == null || visited.contains(next)) {
+                            continue;
+                        }
+                        visited.add(next);
+                        queue.add(next);
+                        component.add(next);
+                    }
+                }
+
+                boolean hasParent = false;
+                boolean hasChild = false;
+                for (Long id : component) {
+                    Integer role = roleByUserId.get(id);
+                    if (role != null && role == 1) {
+                        hasParent = true;
+                    } else if (role != null && role == 2) {
+                        hasChild = true;
+                    }
+                    if (hasParent && hasChild) {
+                        break;
+                    }
+                }
+
+                if (!hasParent || !hasChild) {
+                    continue;
+                }
+
+                families++;
+            }
+
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalFamilies", families);
+            stats.put("totalParents", totalParents);
+            stats.put("totalChildren", totalChildren);
+            return ResultUtils.success(stats);
+        } catch (Exception e) {
+            log.error("获取家庭统计异常：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "获取家庭统计失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 解除绑定关系
      */
     @DeleteMapping("/unbind/{relativeId}")
@@ -490,5 +857,38 @@ public class FamilyRelationController {
         );
         
         return reverseMap.getOrDefault(relationType, "其他亲属");
+    }
+
+    /**
+     * 获取家庭关系亲密度分析
+     * 计算当前用户与所有家庭成员之间的亲密度分数
+     */
+    @GetMapping("/intimacy-analysis")
+    public Result<com.qz.sns.model.vo.FamilyIntimacyAnalysisVO> getIntimacyAnalysis() {
+        log.info("开始获取家庭关系亲密度分析");
+        
+        try {
+            // 获取当前登录用户
+            UserSession currentUser = SessionContext.getSession();
+            if (currentUser == null) {
+                log.error("用户未登录");
+                return ResultUtils.error(401, "用户未登录");
+            }
+            
+            Long userId = currentUser.getUserId();
+            log.info("当前用户ID：{}", userId);
+            
+            // 计算亲密度分析（百分比计算已在Service中完成）
+            com.qz.sns.model.vo.FamilyIntimacyAnalysisVO result = familyIntimacyService.calculateIntimacyAnalysis(userId);
+            
+            log.info("获取家庭关系亲密度分析成功，用户ID：{}，成员数：{}", 
+                userId, result.getMembers() != null ? result.getMembers().size() : 0);
+            
+            return ResultUtils.success(result);
+            
+        } catch (Exception e) {
+            log.error("获取家庭关系亲密度分析异常：{}", e.getMessage(), e);
+            return ResultUtils.error(500, "获取亲密度分析失败：" + e.getMessage());
+        }
     }
 } 

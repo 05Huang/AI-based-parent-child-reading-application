@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孩子端首页</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航 -->
+    <nav class="bg-gradient-to-r from-indigo-500 to-purple-500 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming345" alt="小明头像" class="w-10 h-10 rounded-full border-2 border-white object-cover bg-white">
+                <div class="ml-3 text-white">
+                    <h2 class="text-lg font-bold">小明</h2>
+                    <p class="text-sm opacity-90">今日阅读时间: 30分钟</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <div class="bg-white/20 px-3 py-1 rounded-full">
+                    <span class="text-white text-sm">⭐ 120</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 当前阅读 -->
+    <div class="p-4">
+        <div class="bg-white rounded-xl p-4 shadow-sm">
+            <h3 class="text-lg font-semibold mb-3">继续阅读</h3>
+            <div class="flex items-center">
+                <div class="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+                    <img src="https://m.media-amazon.com/images/I/71OZY035QKL._AC_UF1000,1000_QL80_.jpg" alt="小王子封面" class="w-full h-full object-cover">
+                </div>
+                <div class="ml-4 flex-1">
+                    <h4 class="font-medium">《小王子》</h4>
+                    <p class="text-sm text-gray-500">第3章 · 已读60%</p>
+                    <div class="mt-2 h-1 bg-gray-200 rounded-full">
+                        <div class="h-1 bg-purple-500 rounded-full" style="width: 60%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 今日推荐话题 -->
+    <div class="p-4">
+        <h3 class="text-lg font-semibold mb-3">今日话题</h3>
+        <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium">和爸爸聊聊小王子遇到的狐狸</span>
+                    <span class="text-xs text-purple-500">推荐话题</span>
+                </div>
+                <p class="text-sm text-gray-500">狐狸说："对我来说，你只是一个小男孩，和其他千万个小男孩没有什么不同。"你觉得这句话是什么意思呢？</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium">分享今天最喜欢的情节</span>
+                    <span class="text-xs text-purple-500">互动话题</span>
+                </div>
+                <p class="text-sm text-gray-500">今天读到了哪些有趣的故事？来和大家分享一下吧！</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 家人动态 -->
+    <div class="p-4">
+        <h3 class="text-lg font-semibold mb-3">家人在读</h3>
+        <div class="flex gap-4 overflow-x-auto pb-2">
+            <div class="flex-shrink-0 w-32">
+                <div class="relative w-full aspect-[3/4] bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                    <img src="https://img9.doubanio.com/view/subject/s/public/s33956867.jpg" alt="教育的智慧" class="w-full h-full object-cover">
+                    <div class="absolute top-2 left-2">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=dad123&backgroundColor=b6e3f4" alt="爸爸头像" class="w-8 h-8 rounded-full border-2 border-white bg-white">
+                    </div>
+                </div>
+                <p class="text-sm font-medium">爸爸正在读</p>
+                <p class="text-xs text-gray-500">《教育的智慧》</p>
+            </div>
+            <div class="flex-shrink-0 w-32">
+                <div class="relative w-full aspect-[3/4] bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                    <img src="https://img2.doubanio.com/view/subject/s/public/s34037254.jpg" alt="亲子沟通的艺术" class="w-full h-full object-cover">
+                    <div class="absolute top-2 left-2">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=mom456" alt="妈妈头像" class="w-8 h-8 rounded-full border-2 border-white bg-white">
+                    </div>
+                </div>
+                <p class="text-sm font-medium">妈妈正在读</p>
+                <p class="text-xs text-gray-500">《亲子沟通的艺术》</p>
+            </div>
+            <div class="flex-shrink-0 w-32">
+                <div class="relative w-full aspect-[3/4] bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                    <img src="https://img9.doubanio.com/view/subject/s/public/s34039166.jpg" alt="中国传统故事" class="w-full h-full object-cover">
+                    <div class="absolute top-2 left-2">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=grandpa789" alt="爷爷头像" class="w-8 h-8 rounded-full border-2 border-white bg-white">
+                    </div>
+                </div>
+                <p class="text-sm font-medium">爷爷正在读</p>
+                <p class="text-xs text-gray-500">《中国传统故事》</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 家庭关系分析入口 -->
+    <div class="p-4">
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-4 shadow-sm mb-4 relative overflow-hidden">
+            <div class="absolute right-0 bottom-0 opacity-10">
+                <i class="fas fa-users text-9xl text-white"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">家庭关系地图</h3>
+            <p class="text-sm text-white/80 mb-4">了解你与家人之间的亲密关系和互动情况</p>
+            <a href="family-analysis.html" class="inline-block px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-white text-sm transition-colors">
+                <i class="fas fa-chart-network mr-1"></i>查看我的家庭关系
+            </a>
+        </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <nav class="fixed bottom-0 w-full bg-white border-t flex justify-around py-2">
+        <a href="home.html" class="flex flex-col items-center text-purple-500">
+            <i class="fas fa-home text-xl"></i>
+            <span class="text-xs mt-1">首页</span>
+        </a>
+        <a href="reading.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-book-reader text-xl"></i>
+            <span class="text-xs mt-1">阅读</span>
+        </a>
+        <a href="ai-chat.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-comments text-xl"></i>
+            <span class="text-xs mt-1">对话</span>
+        </a>
+        <a href="profile.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-star text-xl"></i>
+            <span class="text-xs mt-1">成就</span>
+        </a>
+    </nav>
+</body>
+</html> 

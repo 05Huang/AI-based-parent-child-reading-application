@@ -25,4 +25,6 @@ public class LoginDTO {
     @Schema(description = "用户密码")
     private String password;
 
+    @Schema(description = "角色 1:家长 2:孩子")
+    private Integer role;
 }

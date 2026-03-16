@@ -353,7 +353,22 @@ class RecommendationEngine:
 
         return np.array(reduced)
 
-    def get_recommendations(self, user_id: int, size: int = 20, content_type: int = None) -> List[int]:
+    def _sample_weighted(self, items: List[Tuple[int, float]], k: int) -> List[int]:
+        if k <= 0 or not items:
+            return []
+
+        k = min(k, len(items))
+        ids = np.array([cid for cid, _ in items], dtype=np.int64)
+        weights = np.array([max(0.0, float(score)) for _, score in items], dtype=np.float64)
+        if np.all(weights == 0):
+            probs = np.ones(len(items), dtype=np.float64) / len(items)
+        else:
+            probs = weights / weights.sum()
+
+        selected_indices = np.random.choice(len(items), size=k, replace=False, p=probs)
+        return [int(ids[i]) for i in selected_indices]
+
+    def get_recommendations(self, user_id: int, size: int = 20, content_type: int = None, shuffle: bool = False) -> List[int]:
         """获取推荐内容ID列表，使用分层过滤策略
         content_type: 1=图文, 2=视频, None=全部
         """
@@ -375,7 +390,7 @@ class RecommendationEngine:
 
         # 检查缓存
         cache_key = f"recommendations:user:{user_id}:type:{content_type}:v3"
-        cached = self.redis_client.get(cache_key)
+        cached = None if shuffle else self.redis_client.get(cache_key)
 
         if cached:
             all_recommendations = json.loads(cached)
@@ -489,40 +504,78 @@ class RecommendationEngine:
         final_recommendations = []
         recommendations_for_log = []
 
-        # 优先级1：从未推荐的
-        for content_id, score in priority_1[:size]:
-            final_recommendations.append(content_id)
-            strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
-            recommendations_for_log.append((content_id, float(score), strategy))
+        if shuffle:
+            pool = {}
 
-        # 优先级2：较早推荐的
-        if len(final_recommendations) < size:
-            remaining = size - len(final_recommendations)
-            for content_id, score in priority_2[:remaining]:
+            def add_pool(items: List[Tuple[int, float]], multiplier: float):
+                for cid, sc in items:
+                    s = float(sc) * multiplier
+                    if cid not in pool or s > pool[cid]:
+                        pool[cid] = s
+
+            add_pool(priority_1, 1.0)
+            add_pool(priority_2, 0.7)
+            add_pool(priority_3, 0.4)
+
+            min_pool = max(size * 5, size + 1)
+            if len(pool) < min_pool:
+                try:
+                    hot_pool = self.get_hot_contents_with_filter(
+                        size=min_pool * 2,
+                        content_type=content_type,
+                        user_id=user_id,
+                        shuffle=True
+                    )
+                    for cid in hot_pool:
+                        if cid not in pool:
+                            pool[cid] = 0.05
+                except Exception as e:
+                    logging.error(f"Hot pool for shuffle failed: {str(e)}")
+
+            final_recommendations = self._sample_weighted(list(pool.items()), size)
+            for content_id in final_recommendations:
+                score = float(pool.get(content_id, 0.0))
+                if content_id in content_strategies:
+                    strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
+                    recommendations_for_log.append((content_id, score, strategy + '_shuffle'))
+                else:
+                    recommendations_for_log.append((content_id, score, 'hot_shuffle'))
+
+            if recommendations_for_log:
+                self.db_manager.save_recommendation_log(user_id, recommendations_for_log)
+        else:
+            # 优先级1：从未推荐的
+            for content_id, score in priority_1[:size]:
                 final_recommendations.append(content_id)
                 strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
-                recommendations_for_log.append((content_id, float(score), strategy + '_repeat'))
+                recommendations_for_log.append((content_id, float(score), strategy))
 
-        # 优先级3：如果还不够，考虑最近推荐的
-        if len(final_recommendations) < size:
-            remaining = size - len(final_recommendations)
-            for content_id, score in priority_3[:remaining]:
-                final_recommendations.append(content_id)
-                strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
-                recommendations_for_log.append((content_id, float(score), strategy + '_recent_repeat'))
+            # 优先级2：较早推荐的
+            if len(final_recommendations) < size:
+                remaining = size - len(final_recommendations)
+                for content_id, score in priority_2[:remaining]:
+                    final_recommendations.append(content_id)
+                    strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
+                    recommendations_for_log.append((content_id, float(score), strategy + '_repeat'))
 
-        # 保存推荐记录
-        if recommendations_for_log:
-            self.db_manager.save_recommendation_log(user_id, recommendations_for_log)
+            # 优先级3：如果还不够，考虑最近推荐的
+            if len(final_recommendations) < size:
+                remaining = size - len(final_recommendations)
+                for content_id, score in priority_3[:remaining]:
+                    final_recommendations.append(content_id)
+                    strategy = 'mixed' if len(content_strategies[content_id]) > 1 else content_strategies[content_id][0]
+                    recommendations_for_log.append((content_id, float(score), strategy + '_recent_repeat'))
 
-        # 缓存候选内容
-        all_candidates = []
-        for content_id, _ in priority_1 + priority_2:
-            if content_id not in final_recommendations:
-                all_candidates.append(content_id)
+            if recommendations_for_log:
+                self.db_manager.save_recommendation_log(user_id, recommendations_for_log)
 
-        if all_candidates:
-            self.redis_client.setex(cache_key, 300, json.dumps(all_candidates[:size * 3]))
+            all_candidates = []
+            for content_id, _ in priority_1 + priority_2:
+                if content_id not in final_recommendations:
+                    all_candidates.append(content_id)
+
+            if all_candidates:
+                self.redis_client.setex(cache_key, 300, json.dumps(all_candidates[:size * 3]))
 
         logging.info(f"======== 推荐生成完成 ========")
         logging.info(f"✅ 最终推荐数量: {len(final_recommendations)}")
@@ -543,13 +596,36 @@ class RecommendationEngine:
                 logging.error(f"  ❌ 热门降级也失败了: {str(e)}")
                 return []
 
+        if len(final_recommendations) < size:
+            try:
+                top_up = self.get_hot_contents_with_filter(
+                    size=size - len(final_recommendations),
+                    content_type=content_type,
+                    user_id=user_id,
+                    shuffle=shuffle
+                )
+                for cid in top_up:
+                    if cid not in final_recommendations:
+                        final_recommendations.append(cid)
+            except Exception as e:
+                logging.error(f"Top up with hot contents failed: {str(e)}")
+
         return final_recommendations
 
     def get_user_based_recommendations(self, user_id: int, size: int, content_type: int = None) -> List[int]:
         """基于用户历史行为的推荐"""
         behaviors = self.db_manager.get_user_behavior_history(user_id, days=400, content_type=content_type)
+        if not behaviors and content_type is not None:
+            logging.info(f"User-based: no behaviors for type {content_type}, fallback to all types")
+            behaviors = self.db_manager.get_user_behavior_history(user_id, days=400, content_type=None)
         if not behaviors:
-            return []
+            try:
+                logging.info(f"User-based: no behaviors at all, fallback to hot contents")
+                return self.get_hot_contents_with_filter(size=size, content_type=content_type, user_id=user_id,
+                                                         shuffle=True)
+            except Exception as e:
+                logging.error(f"User-based hot fallback failed: {str(e)}")
+                return []
 
         # 统计用户偏好
         recent_contents = []
@@ -572,14 +648,35 @@ class RecommendationEngine:
                 if len(result) >= size:
                     break
 
-        return result
+        if result:
+            return result
+
+        try:
+            logging.info(f"User-based: no similar contents found, fallback to hot contents")
+            hot_ids = self.get_hot_contents_with_filter(size=size, content_type=content_type, user_id=user_id,
+                                                        shuffle=True)
+            filtered_hot = [cid for cid in hot_ids if cid not in recent_contents]
+            return (filtered_hot or hot_ids)[:size]
+        except Exception as e:
+            logging.error(f"User-based hot fallback after similarity failed: {str(e)}")
+            return []
 
     def get_content_based_recommendations(self, user_id: int, size: int, content_type: int = None) -> List[int]:
         """基于内容相似度的推荐"""
         behaviors = self.db_manager.get_user_behavior_history(user_id, days=400, content_type=content_type)
 
+        if not behaviors and content_type is not None:
+            logging.info(f"Content-based: no behaviors for type {content_type}, fallback to all types")
+            behaviors = self.db_manager.get_user_behavior_history(user_id, days=400, content_type=None)
+
         if not behaviors:
-            return []
+            try:
+                logging.info(f"Content-based: no behaviors at all, fallback to hot contents")
+                return self.get_hot_contents_with_filter(size=size, content_type=content_type, user_id=user_id,
+                                                         shuffle=True)
+            except Exception as e:
+                logging.error(f"Content-based hot fallback failed: {str(e)}")
+                return []
 
         # 获取高权重行为的内容
         seed_contents = []
@@ -596,8 +693,17 @@ class RecommendationEngine:
             similar = self.get_similar_contents_from_db(content_id, size // 3 + 1, content_type)
             recommendations.extend(similar)
 
-        # 去重
-        return list(dict.fromkeys(recommendations))[:size]
+        deduped = list(dict.fromkeys(recommendations))[:size]
+        if deduped:
+            return deduped
+
+        try:
+            logging.info(f"Content-based: no similar contents found, fallback to hot contents")
+            return self.get_hot_contents_with_filter(size=size, content_type=content_type, user_id=user_id,
+                                                     shuffle=True)
+        except Exception as e:
+            logging.error(f"Content-based hot fallback after similarity failed: {str(e)}")
+            return []
 
     def get_collaborative_filtering_recommendations(self, user_id: int, size: int, content_type: int = None) -> List[
         int]:
@@ -613,7 +719,7 @@ class RecommendationEngine:
         recent_relative_contents = self.db_manager.get_relatives_recent_viewed_contents(
             relatives,
             days=400,  # 只获取最近400天的
-            limit=size * 2,  # 获取足够的内容
+            limit=size * 20,  # 获取足够的内容
             content_type=content_type
         )
 
@@ -622,7 +728,7 @@ class RecommendationEngine:
 
         return recommendations[:size]
 
-    def get_hot_contents_with_filter(self, size: int = 20, content_type: int = None, user_id: int = None) -> List[int]:
+    def get_hot_contents_with_filter(self, size: int = 20, content_type: int = None, user_id: int = None, shuffle: bool = False) -> List[int]:
         """获取热门内容（支持分层过滤）
         content_type: 1=图文, 2=视频, None=全部
         user_id: 如果提供，将进行去重过滤
@@ -693,21 +799,27 @@ class RecommendationEngine:
                 recommendations_for_log = []
 
                 # 优先级1
-                for content_id, score in priority_1[:size]:
+                selected_p1 = self._sample_weighted(priority_1, size) if shuffle else [cid for cid, _ in priority_1[:size]]
+                for content_id in selected_p1:
+                    score = float(dict(all_hot_contents).get(content_id, 0.0))
                     final_recommendations.append(content_id)
                     recommendations_for_log.append((content_id, float(score), 'hot'))
 
                 # 优先级2
                 if len(final_recommendations) < size:
                     remaining = size - len(final_recommendations)
-                    for content_id, score in priority_2[:remaining]:
+                    selected_p2 = self._sample_weighted(priority_2, remaining) if shuffle else [cid for cid, _ in priority_2[:remaining]]
+                    for content_id in selected_p2:
+                        score = float(dict(all_hot_contents).get(content_id, 0.0))
                         final_recommendations.append(content_id)
                         recommendations_for_log.append((content_id, float(score), 'hot_repeat'))
 
                 # 优先级3
                 if len(final_recommendations) < size:
                     remaining = size - len(final_recommendations)
-                    for content_id, score in priority_3[:remaining]:
+                    selected_p3 = self._sample_weighted(priority_3, remaining) if shuffle else [cid for cid, _ in priority_3[:remaining]]
+                    for content_id in selected_p3:
+                        score = float(dict(all_hot_contents).get(content_id, 0.0))
                         final_recommendations.append(content_id)
                         recommendations_for_log.append((content_id, float(score), 'hot_recent_repeat'))
 
@@ -772,6 +884,18 @@ class RecommendationEngine:
                         LIMIT %s
                     """
                     cursor.execute(sql, (content_id, content_type, limit))
+                    rows = cursor.fetchall()
+                    if not rows:
+                        logging.info(f"Similarity: no results for content {content_id} with type {content_type}, fallback without type filter")
+                        sql = """
+                            SELECT content_id2 as similar_content_id
+                            FROM content_similarity
+                            WHERE content_id1 = %s
+                            ORDER BY similarity_score DESC
+                            LIMIT %s
+                        """
+                        cursor.execute(sql, (content_id, limit))
+                        rows = cursor.fetchall()
                 else:
                     sql = """
                         SELECT content_id2 as similar_content_id
@@ -781,7 +905,8 @@ class RecommendationEngine:
                         LIMIT %s
                     """
                     cursor.execute(sql, (content_id, limit))
-                return [row[0] for row in cursor.fetchall()]
+                    rows = cursor.fetchall()
+                return [row[0] for row in rows]
         finally:
             conn.close()
 
@@ -1125,11 +1250,12 @@ def get_recommendations():
         data = request.json
         user_id = data.get('user_id')
         size = data.get('size', 20)
+        shuffle = bool(data.get('shuffle', False))
 
         logging.info(f"Getting mixed recommendations for user: {user_id}")
 
         # 获取推荐
-        recommendations = recommendation_engine.get_recommendations(user_id, size)
+        recommendations = recommendation_engine.get_recommendations(user_id, size, shuffle=shuffle)
 
         return jsonify({
             'success': True,
@@ -1150,11 +1276,12 @@ def get_article_recommendations():
         data = request.json
         user_id = data.get('user_id')
         size = data.get('size', 20)
+        shuffle = bool(data.get('shuffle', False))
 
         logging.info(f"Getting article recommendations for user: {user_id}")
 
         # 获取图文推荐（type=1）
-        recommendations = recommendation_engine.get_recommendations(user_id, size, content_type=1)
+        recommendations = recommendation_engine.get_recommendations(user_id, size, content_type=1, shuffle=shuffle)
 
         return jsonify({
             'success': True,
@@ -1176,11 +1303,12 @@ def get_video_recommendations():
         data = request.json
         user_id = data.get('user_id')
         size = data.get('size', 20)
+        shuffle = bool(data.get('shuffle', False))
 
         logging.info(f"Getting video recommendations for user: {user_id}")
 
         # 获取视频推荐（type=2）
-        recommendations = recommendation_engine.get_recommendations(user_id, size, content_type=2)
+        recommendations = recommendation_engine.get_recommendations(user_id, size, content_type=2, shuffle=shuffle)
 
         return jsonify({
             'success': True,
@@ -1228,11 +1356,14 @@ def get_hot_contents():
         size = request.args.get('size', 20, type=int)
         user_id = request.args.get('user_id', type=int)
         content_type = request.args.get('type', type=int)
+        shuffle = request.args.get('shuffle', default='false')
+        shuffle = str(shuffle).lower() in ['1', 'true', 'yes', 'y', 't']
 
         hot_contents = recommendation_engine.get_hot_contents_with_filter(
             size=size,
             content_type=content_type,
-            user_id=user_id
+            user_id=user_id,
+            shuffle=shuffle
         )
 
         return jsonify({

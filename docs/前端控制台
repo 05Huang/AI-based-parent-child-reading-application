@@ -1,0 +1,30 @@
+App Launch
+App.vue:4 App Show
+reading-rank.vue:298 [阅读时长排行榜] 页面加载
+reading-rank.vue:286 [阅读时长排行榜] 加载所有数据
+reading-rank.vue:99 [阅读时长排行榜] 开始获取当前用户信息
+api.js:649 调用获取当前用户信息接口
+request.js:20 发起GET请求：/api/user/current 
+reading-rank.vue:303 [阅读时长排行榜] 页面显示
+reading-rank.vue:286 [阅读时长排行榜] 加载所有数据
+reading-rank.vue:99 [阅读时长排行榜] 开始获取当前用户信息
+api.js:649 调用获取当前用户信息接口
+request.js:20 发起GET请求：/api/user/current 
+request.js:39 请求响应： {code: 200, message: '成功', data: {…}}
+reading-rank.vue:103 [阅读时长排行榜] 获取当前用户成功: 小暄暄
+reading-rank.vue:114 [阅读时长排行榜] 开始加载排行榜数据
+api.js:625 调用获取周阅读排行榜接口，参数： {limit: 20}
+request.js:20 发起GET请求：/api/user/behavior/weekly-ranking {limit: 20}
+request.js:39 请求响应： {code: 200, message: '成功', data: {…}}
+reading-rank.vue:103 [阅读时长排行榜] 获取当前用户成功: 小暄暄
+reading-rank.vue:114 [阅读时长排行榜] 开始加载排行榜数据
+api.js:625 调用获取周阅读排行榜接口，参数： {limit: 20}
+request.js:20 发起GET请求：/api/user/behavior/weekly-ranking {limit: 20}
+request.js:39 请求响应： {code: 200, message: '成功', data: Array(2)}
+reading-rank.vue:121 [阅读时长排行榜] API响应: {code: 200, message: '成功', data: Array(2)}
+reading-rank.vue:188 [阅读时长排行榜] 处理后的排行榜数据: Proxy(Array) {0: {…}, 1: {…}}
+reading-rank.vue:196 [阅读时长排行榜] 当前用户排名: Proxy(Object) {rank: 1, name: '小暄暄', avatar: 'http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg', minutes: 6, trend: 'equal', …}
+request.js:39 请求响应： {code: 200, message: '成功', data: Array(2)}
+reading-rank.vue:121 [阅读时长排行榜] API响应: {code: 200, message: '成功', data: Array(2)}
+reading-rank.vue:188 [阅读时长排行榜] 处理后的排行榜数据: Proxy(Array) {0: {…}, 1: {…}}
+reading-rank.vue:196 [阅读时长排行榜] 当前用户排名: Proxy(Object) {rank: 1, name: '小暄暄', avatar: 'http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg', minutes: 6, trend: 'equal', …}

@@ -40,6 +40,15 @@ public class Friend implements Serializable {
 
     @ApiModelProperty("创建时间")
     private LocalDateTime createdTime;
+    
+    @ApiModelProperty("是否置顶")
+    private Boolean pinned;
+    
+    @ApiModelProperty("备注名")
+    private String remark;
+    
+    @ApiModelProperty("消息清除时间")
+    private LocalDateTime clearTime;
 
     public Long getId() {
         return id;
@@ -88,6 +97,30 @@ public class Friend implements Serializable {
     public void setCreatedTime(LocalDateTime createdTime) {
         this.createdTime = createdTime;
     }
+    
+    public Boolean getPinned() {
+        return pinned;
+    }
+    
+    public void setPinned(Boolean pinned) {
+        this.pinned = pinned;
+    }
+    
+    public String getRemark() {
+        return remark;
+    }
+    
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+    
+    public LocalDateTime getClearTime() {
+        return clearTime;
+    }
+    
+    public void setClearTime(LocalDateTime clearTime) {
+        this.clearTime = clearTime;
+    }
 
     @Override
     public String toString() {
@@ -98,6 +131,9 @@ public class Friend implements Serializable {
         ", friendNickName = " + friendNickName +
         ", friendHeadImage = " + friendHeadImage +
         ", createdTime = " + createdTime +
+        ", pinned = " + pinned +
+        ", remark = " + remark +
+        ", clearTime = " + clearTime +
         "}";
     }
 }

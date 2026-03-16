@@ -1,0 +1,78 @@
+2026-01-09T02:45:37.060+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-3] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+2026-01-09T02:45:37.062+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-3] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1d3418a7] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@49636735 wrapping com.mysql.cj.jdbc.ConnectionImpl@43d4e872] will not be managed by Spring
+==>  Preparing: SELECT * FROM user WHERE id = ?
+==> Parameters: 45(Long)
+<==    Columns: id, username, email, phone, password, nickname, avatar, avatar_thumb, sex, user_type, role, birth_date, interests, status, wechat_id, im_server_id, online_status, last_online_time, created_time, updated_time
+<==        Row: 45, child_2576, 19052616802@temp.com, 19052616802, $2a$10$SCrnyVgPZeY/jSkKkhtZP.ylhzozOQ4Z904v4mpyEDobP.9dVVCz2, 小暄暄, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, null, null, null, 2, null, 冒险故事,奇幻魔法, 1, null, null, 0, null, 2025-12-29 13:04:00, 2025-12-29 13:04:00
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1d3418a7]
+2026-01-09T02:45:37.075+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-1] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+2026-01-09T02:45:37.076+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-1] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+2026-01-09T02:45:37.076+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-1] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 获取周阅读排行榜（全网用户），时间范围：2026-01-05T00:00 到 2026-01-12T00:00，限制：20
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5e807499] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@887267265 wrapping com.mysql.cj.jdbc.ConnectionImpl@2ddbd284] will not be managed by Spring
+==>  Preparing: SELECT u.id as userId, u.nickname, u.username, u.avatar, COALESCE(SUM(CASE WHEN ub.duration IS NOT NULL THEN ub.duration ELSE 0 END), 0) as readDuration FROM user u INNER JOIN user_behavior ub ON u.id = ub.user_id AND ub.behavior_type = 'view' AND ub.created_time >= ? AND ub.created_time < ? WHERE u.status = 1 GROUP BY u.id, u.nickname, u.username, u.avatar ORDER BY readDuration DESC LIMIT ?
+==> Parameters: 2026-01-05T00:00(LocalDateTime), 2026-01-12T00:00(LocalDateTime), 20(Integer)
+<==    Columns: userId, nickname, username, avatar, readDuration
+<==        Row: 45, 小暄暄, child_2576, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, 333
+<==        Row: 43, 黄暄, user_8639, http://127.0.0.1:9000/qz-sns/image/register/avatar/9a033ab7-26e0-4bff-a794-ec5b352afe69.webp, 208
+<==      Total: 2
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5e807499]
+2026-01-09T02:45:37.082+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-1] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 数据库查询返回2条原始记录
+2026-01-09T02:45:37.082+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-1] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 周阅读排行榜查询成功，返回2条记录
+2026-01-09T02:45:38.328+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-5] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+2026-01-09T02:45:38.329+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-5] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7c7d6bfe] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@2057157959 wrapping com.mysql.cj.jdbc.ConnectionImpl@2ddbd284] will not be managed by Spring
+==>  Preparing: SELECT * FROM user WHERE id = ?
+==> Parameters: 45(Long)
+<==    Columns: id, username, email, phone, password, nickname, avatar, avatar_thumb, sex, user_type, role, birth_date, interests, status, wechat_id, im_server_id, online_status, last_online_time, created_time, updated_time
+<==        Row: 45, child_2576, 19052616802@temp.com, 19052616802, $2a$10$SCrnyVgPZeY/jSkKkhtZP.ylhzozOQ4Z904v4mpyEDobP.9dVVCz2, 小暄暄, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, null, null, null, 2, null, 冒险故事,奇幻魔法, 1, null, null, 0, null, 2025-12-29 13:04:00, 2025-12-29 13:04:00
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7c7d6bfe]
+2026-01-09T02:45:38.362+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-2] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+2026-01-09T02:45:38.364+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-2] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/current
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7bc8b23d] was not registered for synchronization because synchronization is not active
+2026-01-09T02:45:38.371+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-6] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+2026-01-09T02:45:38.373+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-6] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+JDBC Connection [HikariProxyConnection@1298716018 wrapping com.mysql.cj.jdbc.ConnectionImpl@db70480] will not be managed by Spring
+==>  Preparing: SELECT * FROM user WHERE id = ?
+==> Parameters: 45(Long)
+2026-01-09T02:45:38.379+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-6] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 获取周阅读排行榜（全网用户），时间范围：2026-01-05T00:00 到 2026-01-12T00:00，限制：20
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11dab406] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1332888559 wrapping com.mysql.cj.jdbc.ConnectionImpl@2ddbd284] will not be managed by Spring
+==>  Preparing: SELECT u.id as userId, u.nickname, u.username, u.avatar, COALESCE(SUM(CASE WHEN ub.duration IS NOT NULL THEN ub.duration ELSE 0 END), 0) as readDuration FROM user u INNER JOIN user_behavior ub ON u.id = ub.user_id AND ub.behavior_type = 'view' AND ub.created_time >= ? AND ub.created_time < ? WHERE u.status = 1 GROUP BY u.id, u.nickname, u.username, u.avatar ORDER BY readDuration DESC LIMIT ?
+==> Parameters: 2026-01-05T00:00(LocalDateTime), 2026-01-12T00:00(LocalDateTime), 20(Integer)
+<==    Columns: id, username, email, phone, password, nickname, avatar, avatar_thumb, sex, user_type, role, birth_date, interests, status, wechat_id, im_server_id, online_status, last_online_time, created_time, updated_time
+<==        Row: 45, child_2576, 19052616802@temp.com, 19052616802, $2a$10$SCrnyVgPZeY/jSkKkhtZP.ylhzozOQ4Z904v4mpyEDobP.9dVVCz2, 小暄暄, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, null, null, null, 2, null, 冒险故事,奇幻魔法, 1, null, null, 0, null, 2025-12-29 13:04:00, 2025-12-29 13:04:00
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7bc8b23d]
+<==    Columns: userId, nickname, username, avatar, readDuration
+<==        Row: 45, 小暄暄, child_2576, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, 333
+<==        Row: 43, 黄暄, user_8639, http://127.0.0.1:9000/qz-sns/image/register/avatar/9a033ab7-26e0-4bff-a794-ec5b352afe69.webp, 208
+<==      Total: 2
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11dab406]
+2026-01-09T02:45:38.390+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-6] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 数据库查询返回2条原始记录
+2026-01-09T02:45:38.390+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-6] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 周阅读排行榜查询成功，返回2条记录
+2026-01-09T02:45:38.501+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-7] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+2026-01-09T02:45:38.505+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-7] c.qz.sns.sv.interceptor.AuthInterceptor  : 请求路径：/api/user/behavior/weekly-ranking
+2026-01-09T02:45:38.511+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-7] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 获取周阅读排行榜（全网用户），时间范围：2026-01-05T00:00 到 2026-01-12T00:00，限制：20
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3dbad8de] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1636859158 wrapping com.mysql.cj.jdbc.ConnectionImpl@2ddbd284] will not be managed by Spring
+==>  Preparing: SELECT u.id as userId, u.nickname, u.username, u.avatar, COALESCE(SUM(CASE WHEN ub.duration IS NOT NULL THEN ub.duration ELSE 0 END), 0) as readDuration FROM user u INNER JOIN user_behavior ub ON u.id = ub.user_id AND ub.behavior_type = 'view' AND ub.created_time >= ? AND ub.created_time < ? WHERE u.status = 1 GROUP BY u.id, u.nickname, u.username, u.avatar ORDER BY readDuration DESC LIMIT ?
+==> Parameters: 2026-01-05T00:00(LocalDateTime), 2026-01-12T00:00(LocalDateTime), 20(Integer)
+<==    Columns: userId, nickname, username, avatar, readDuration
+<==        Row: 45, 小暄暄, child_2576, http://127.0.0.1:9000/qz-sns/image/register/avatar/f4dcd677-498b-44d5-9995-0319db75f540.jpg, 333
+<==        Row: 43, 黄暄, user_8639, http://127.0.0.1:9000/qz-sns/image/register/avatar/9a033ab7-26e0-4bff-a794-ec5b352afe69.webp, 208
+<==      Total: 2
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3dbad8de]
+2026-01-09T02:45:38.522+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-7] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 数据库查询返回2条原始记录
+2026-01-09T02:45:38.522+08:00  INFO 19912 --- [qz-sns-web] [0.0-8888-exec-7] c.q.s.s.s.impl.UserBehaviorServiceImpl   : 周阅读排行榜查询成功，返回2条记录

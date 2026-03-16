@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') ||
+        CSS.supports('top: constant(a)'))
+      document.write(
+        '<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0' +
+        (coverSupport ? ', viewport-fit=cover' : '') + '" />')
+    </script>
+    <title>阅桥亲子阅读APP</title>
+    <!--preload-links-->
+    <!--app-context-->
+    <link href="https://cdn.tiny.cloud/1/764579ac5e25de416388e8131589a497264a8e24fd6009fa9e3272ec92646c6b/tinymce/6/skins/ui/oxide/skin.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app"><!--app-html--></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html> 

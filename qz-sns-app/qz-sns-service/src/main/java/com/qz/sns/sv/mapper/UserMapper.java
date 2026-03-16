@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -61,6 +62,12 @@ public interface UserMapper extends BaseMapper<User> {
      */
     @Select("SELECT id, nickname, avatar, avatar_thumb FROM user WHERE id = #{userId}")
     Map<String, Object> getUserBasicInfo(@Param("userId") Long userId);
+
+    /**
+     * 获取所有家长用户的ID（role=1）
+     */
+    @Select("SELECT id FROM user WHERE role = 1")
+    List<Long> getAllParentUserIds();
 
 
 }

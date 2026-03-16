@@ -40,8 +40,8 @@ public class UserCreateDTO {
     @Max(value = 2, message = "用户类型值范围为1-2")
     private Integer userType = 1;
 
-    @Min(value = 1, message = "角色值范围为1-2")
-    @Max(value = 2, message = "角色值范围为1-2")
+    @Min(value = 0, message = "角色值范围为0-2")
+    @Max(value = 2, message = "角色值范围为0-2")
     private Integer role = 1;
 
     private String wechatId;

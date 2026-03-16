@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选择用户类型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .parent-gradient {
+            background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+        }
+        .child-gradient {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 flex flex-col items-center justify-center">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-3">阅桥亲子阅读APP</h1>
+        <p class="text-center text-gray-600 mb-10">请选择您的身份</p>
+        
+        <div class="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <!-- 家长端卡片 -->
+            <a href="pages/login.html" class="card w-64 bg-white rounded-2xl overflow-hidden shadow-lg">
+                <div class="parent-gradient p-4 flex justify-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user-tie text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="p-4 text-center">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">家长端</h2>
+                    <p class="text-gray-600 text-sm mb-3">监督阅读进度，设置目标</p>
+                    <button class="w-full py-2 bg-blue-600 text-white rounded-full text-sm font-medium">
+                        进入家长端
+                    </button>
+                </div>
+            </a>
+            
+            <!-- 孩子端卡片 -->
+            <a href="pages/child/login.html" class="card w-64 bg-white rounded-2xl overflow-hidden shadow-lg">
+                <div class="child-gradient p-4 flex justify-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-child text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="p-4 text-center">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">孩子端</h2>
+                    <p class="text-gray-600 text-sm mb-3">阅读故事，获得成就</p>
+                    <button class="w-full py-2 bg-indigo-500 text-white rounded-full text-sm font-medium">
+                        进入孩子端
+                    </button>
+                </div>
+            </a>
+        </div>
+        
+        <p class="text-center text-gray-500 mt-8 text-xs">© 2025 江苏师范大学智慧教育学院-阅桥亲子阅读APP应用</p>
+    </div>
+</body>
+</html> 

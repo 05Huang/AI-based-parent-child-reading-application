@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qz.sns.sv.mapper.SurveyStarQuestionnaireMapper">
+
+    <!-- 问卷结果映射 -->
+    <resultMap id="BaseResultMap" type="com.qz.sns.model.entity.SurveyStarQuestionnaire">
+        <id column="id" property="id" />
+        <result column="quest_id" property="questId" />
+        <result column="title" property="title" />
+        <result column="description" property="description" />
+        <result column="type" property="type" />
+        <result column="status" property="status" />
+        <result column="answer_count" property="answerCount" />
+        <result column="survey_url" property="surveyUrl" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="remark" property="remark" />
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, quest_id, title, description, type, status, answer_count, survey_url, created_at, updated_at, remark
+    </sql>
+
+    <!-- 分页查询问卷列表 -->
+    <select id="selectQuestionnairePage" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_questionnaire
+        WHERE 1=1
+        <if test="title != null and title != ''">
+            AND title LIKE CONCAT('%', #{title}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="type != null and type != ''">
+            AND type = #{type}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据问卷星ID查询问卷 -->
+    <select id="selectByQuestId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM survey_star_questionnaire
+        WHERE quest_id = #{questId}
+        LIMIT 1
+    </select>
+
+    <!-- 增加问卷回答数 -->
+    <update id="incrementAnswerCount">
+        UPDATE survey_star_questionnaire
+        SET answer_count = answer_count + 1,
+            updated_at = NOW()
+        WHERE quest_id = #{questId}
+    </update>
+
+</mapper>
+

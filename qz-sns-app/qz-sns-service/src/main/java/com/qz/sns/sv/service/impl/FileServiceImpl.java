@@ -4,7 +4,9 @@ import com.qz.sns.common.constant.Constant;
 import com.qz.sns.model.vo.UploadImageVO;
 import com.qz.sns.sv.config.MinioConfig;
 import com.qz.sns.sv.service.FileService;
+import com.qz.sns.sv.util.MinioUtil;
 import io.minio.*;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,24 @@ public class FileServiceImpl implements FileService {
 
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
+    private final MinioUtil minioUtil;
+
+    @PostConstruct
+    public void init() {
+        try {
+            String bucketName = minioConfig.getBucketName();
+            log.info("正在初始化MinIO存储桶: {}", bucketName);
+            if (!minioUtil.bucketExists(bucketName)) {
+                log.info("存储桶{}不存在，开始创建", bucketName);
+                minioUtil.makeBucket(bucketName);
+            }
+            // 确保Bucket是公开的，以便前端可以直接访问图片
+            minioUtil.setBucketPublic(bucketName);
+            log.info("MinIO存储桶{}初始化完成并已设置为公开", bucketName);
+        } catch (Exception e) {
+            log.error("初始化MinIO存储桶失败", e);
+        }
+    }
 
     @Override
     public UploadImageVO uploadImage(MultipartFile file) throws Exception {
@@ -60,6 +80,8 @@ public class FileServiceImpl implements FileService {
         } else {
             objectName = minioConfig.getImagePath() + "/" + fileName;
         }
+        
+        log.info("准备上传图片到MinIO, customPath: {}, objectName: {}, bucket: {}", customPath, objectName, minioConfig.getBucketName());
         
         try (InputStream inputStream = file.getInputStream()) {
             // 上传文件

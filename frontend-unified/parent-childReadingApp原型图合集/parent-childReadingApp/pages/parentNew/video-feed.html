@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .video-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        .video-card img {
+            transition: transform 0.3s ease;
+        }
+        .video-card:hover img {
+            transform: scale(1.05);
+        }
+        .video-duration {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .video-play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .video-card:hover .video-play-button {
+            opacity: 1;
+        }
+        .category-pill {
+            white-space: nowrap;
+        }
+        .video-info-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 20px 10px 10px;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 bg-blue-500 z-50">
+        <div class="flex items-center justify-between px-4 py-2">
+            <div class="flex items-center">
+                <h1 class="text-lg font-bold text-white">探索视频</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-search text-white text-lg"></i>
+                <i class="fas fa-qrcode text-white text-lg"></i>
+            </div>
+        </div>
+        <!-- 分类标签 -->
+        <div class="flex space-x-3 px-4 py-2 overflow-x-auto bg-white">
+            <button class="category-pill px-4 py-1 bg-blue-500 text-white rounded-full text-sm">全部</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">故事解读</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">科普知识</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">名著赏析</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">阅读技巧</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">亲子共读</button>
+            <button class="category-pill px-4 py-1 text-gray-600 rounded-full text-sm">英语启蒙</button>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="mt-24 mb-20 px-4">
+        <!-- 推荐视频 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold">推荐视频</h2>
+                <a href="#" class="text-gray-500 text-sm">更多 <i class="fas fa-chevron-right text-xs"></i></a>
+            </div>
+            <div class="video-card bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="relative">
+                    <img src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&auto=format&fit=crop&q=60" 
+                         class="w-full h-48 object-cover" 
+                         alt="视频封面">
+                    <div class="video-duration">05:24</div>
+                    <div class="video-play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <div class="video-info-overlay">
+                        <h3 class="font-medium text-sm mb-1">《哈利·波特》系列的魔法世界解析</h3>
+                        <div class="flex items-center text-xs text-white/80">
+                            <span>3.2万观看</span>
+                            <span class="mx-1">·</span>
+                            <span>2小时前</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 视频列表 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold">热门视频</h2>
+                <div class="flex items-center text-sm text-gray-500">
+                    <span class="mr-2">换一换</span>
+                    <i class="fas fa-sync-alt"></i>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <!-- 视频项 1 -->
+                <div class="flex bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="relative w-40 h-24">
+                        <img src="https://images.unsplash.com/photo-1551029506-0807df4e2031?w=500&auto=format&fit=crop&q=60" 
+                             class="w-full h-full object-cover" 
+                             alt="视频封面">
+                        <div class="video-duration">03:45</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent h-12"></div>
+                    </div>
+                    <div class="flex-1 p-3">
+                        <h3 class="font-medium text-sm line-clamp-2">如何提高阅读理解能力 - 实用技巧分享</h3>
+                        <div class="flex items-center mt-2">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-play-circle mr-1"></i>
+                                <span>2.1万</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500 ml-3">
+                                <i class="fas fa-comment mr-1"></i>
+                                <span>328</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator1" 
+                                 class="w-4 h-4 rounded-full mr-1">
+                            <span class="text-xs text-gray-500">阅读达人</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 视频项 2 -->
+                <div class="flex bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="relative w-40 h-24">
+                        <img src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=500&auto=format&fit=crop&q=60" 
+                             class="w-full h-full object-cover" 
+                             alt="视频封面">
+                        <div class="video-duration">04:12</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent h-12"></div>
+                    </div>
+                    <div class="flex-1 p-3">
+                        <h3 class="font-medium text-sm line-clamp-2">《小王子》中的哲学思考 - 不只是童话</h3>
+                        <div class="flex items-center mt-2">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-play-circle mr-1"></i>
+                                <span>1.8万</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500 ml-3">
+                                <i class="fas fa-comment mr-1"></i>
+                                <span>256</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator2" 
+                                 class="w-4 h-4 rounded-full mr-1">
+                            <span class="text-xs text-gray-500">文学研究社</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 视频项 3 -->
+                <div class="flex bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="relative w-40 h-24">
+                        <img src="https://images.unsplash.com/photo-1589998059171-988d887df646?w=500&auto=format&fit=crop&q=60" 
+                             class="w-full h-full object-cover" 
+                             alt="视频封面">
+                        <div class="video-duration">06:30</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent h-12"></div>
+                    </div>
+                    <div class="flex-1 p-3">
+                        <h3 class="font-medium text-sm line-clamp-2">深海探秘：海洋生物的奇妙世界</h3>
+                        <div class="flex items-center mt-2">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-play-circle mr-1"></i>
+                                <span>3.5万</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500 ml-3">
+                                <i class="fas fa-comment mr-1"></i>
+                                <span>512</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=creator3" 
+                                 class="w-4 h-4 rounded-full mr-1">
+                            <span class="text-xs text-gray-500">科学探索</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 为你推荐 -->
+        <section class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold">为你推荐</h2>
+                <a href="#" class="text-gray-500 text-sm">换一批</a>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="video-card bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="relative">
+                        <img src="https://images.unsplash.com/photo-1633477189729-9290b3261d0a?w=500&auto=format&fit=crop&q=60" 
+                             class="w-full h-28 object-cover" 
+                             alt="视频封面">
+                        <div class="video-duration">03:18</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent h-12 p-2">
+                            <h3 class="text-white text-xs font-medium">《夏洛的网》：友谊的力量</h3>
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-play-circle text-white/80 text-xs"></i>
+                                <span class="text-white/80 text-xs ml-1">1.2万</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="video-card bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="relative">
+                        <img src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&auto=format&fit=crop&q=60" 
+                             class="w-full h-28 object-cover" 
+                             alt="视频封面">
+                        <div class="video-duration">04:05</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent h-12 p-2">
+                            <h3 class="text-white text-xs font-medium">太阳系行星探索：神秘的土星</h3>
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-play-circle text-white/80 text-xs"></i>
+                                <span class="text-white/80 text-xs ml-1">2.3万</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 底部导航栏 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
+        <a href="home.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-home text-xl"></i>
+            <span class="text-xs mt-1">首页</span>
+        </a>
+        <a href="reading.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-book-reader text-xl"></i>
+            <span class="text-xs mt-1">书架</span>
+        </a>
+        <a href="video-feed.html" class="flex flex-col items-center text-blue-500">
+            <i class="fas fa-play-circle text-xl"></i>
+            <span class="text-xs mt-1">视频</span>
+        </a>
+        <a href="ai-chat.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-comments text-xl"></i>
+            <span class="text-xs mt-1">AI对话</span>
+        </a>
+        <a href="profile.html" class="flex flex-col items-center text-gray-400">
+            <i class="fas fa-user text-xl"></i>
+            <span class="text-xs mt-1">我的</span>
+        </a>
+    </nav>
+</body>
+</html> 

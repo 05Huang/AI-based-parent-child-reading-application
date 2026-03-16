@@ -30,11 +30,20 @@ public class AiChatRecord implements Serializable {
     @ApiModelProperty("群组ID")
     private Long groupId;
 
-    @ApiModelProperty("对话内容")
-    private String content;
+    @ApiModelProperty("消息ID")
+    private Long messageId;
 
-    @ApiModelProperty("AI分析建议")
-    private String analysis;
+    @ApiModelProperty("用户ID")
+    private Long userId;
+
+    @ApiModelProperty("用户问题")
+    private String userQuestion;
+
+    @ApiModelProperty("AI回复")
+    private String aiReply;
+
+    @ApiModelProperty("使用的token数")
+    private Integer tokensUsed;
 
     private LocalDateTime createdTime;
 
@@ -54,20 +63,44 @@ public class AiChatRecord implements Serializable {
         this.groupId = groupId;
     }
 
-    public String getContent() {
-        return content;
+    public Long getMessageId() {
+        return messageId;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setMessageId(Long messageId) {
+        this.messageId = messageId;
     }
 
-    public String getAnalysis() {
-        return analysis;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setAnalysis(String analysis) {
-        this.analysis = analysis;
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getUserQuestion() {
+        return userQuestion;
+    }
+
+    public void setUserQuestion(String userQuestion) {
+        this.userQuestion = userQuestion;
+    }
+
+    public String getAiReply() {
+        return aiReply;
+    }
+
+    public void setAiReply(String aiReply) {
+        this.aiReply = aiReply;
+    }
+
+    public Integer getTokensUsed() {
+        return tokensUsed;
+    }
+
+    public void setTokensUsed(Integer tokensUsed) {
+        this.tokensUsed = tokensUsed;
     }
 
     public LocalDateTime getCreatedTime() {
@@ -83,8 +116,11 @@ public class AiChatRecord implements Serializable {
         return "AiChatRecord{" +
         "id = " + id +
         ", groupId = " + groupId +
-        ", content = " + content +
-        ", analysis = " + analysis +
+        ", messageId = " + messageId +
+        ", userId = " + userId +
+        ", userQuestion = " + userQuestion +
+        ", aiReply = " + aiReply +
+        ", tokensUsed = " + tokensUsed +
         ", createdTime = " + createdTime +
         "}";
     }

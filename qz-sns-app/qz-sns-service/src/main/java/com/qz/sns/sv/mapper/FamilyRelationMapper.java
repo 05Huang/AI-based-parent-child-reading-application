@@ -37,8 +37,8 @@ public interface FamilyRelationMapper extends BaseMapper<FamilyRelation> {
     List<Long> getParentUserIds();
 
     /**
-     * 获取用户所在的群组ID（假设第一个群组是家庭群组）
+     * 获取用户所在的群组ID（优先获取最新的群组，假设为当前活跃的家庭群组）
      */
-    @Select("SELECT group_id FROM im_group_member WHERE user_id = #{userId} AND quit = 0 LIMIT 1")
+    @Select("SELECT group_id FROM im_group_member WHERE user_id = #{userId} AND quit = 0 ORDER BY group_id DESC LIMIT 1")
     Long getUserFamilyGroupId(@Param("userId") Long userId);
 }

@@ -31,7 +31,10 @@
     <select id="selectUserPage" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List" />
         FROM user
-        WHERE status = 1
+        WHERE 1=1
+        <if test="queryDTO.status != null">
+            AND status = #{queryDTO.status}
+        </if>
         <if test="queryDTO.username != null and queryDTO.username != ''">
             AND username LIKE CONCAT('%', #{queryDTO.username}, '%')
         </if>
@@ -52,6 +55,9 @@
         </if>
         <if test="queryDTO.wechatId != null and queryDTO.wechatId != ''">
             AND wechat_id = #{queryDTO.wechatId}
+        </if>
+        <if test="queryDTO.excludeAdminAndOfficial != null and queryDTO.excludeAdminAndOfficial">
+            AND (user_type != 2 OR user_type IS NULL) AND id != -999
         </if>
         ORDER BY created_time DESC
     </select>
@@ -81,9 +87,9 @@
     <!-- 插入新用户 -->
     <insert id="insert" parameterType="com.qz.sns.model.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO user (
-            username, phone, email, password, nickname, avatar, role, status, interests
+            username, phone, email, password, nickname, avatar, role, status, interests, user_type, sex, wechat_id, avatar_thumb
         ) VALUES (
-            #{username}, #{phone}, #{email}, #{password}, #{nickname}, #{avatar}, #{role}, #{status}, #{interests}
+            #{username}, #{phone}, #{email}, #{password}, #{nickname}, #{avatar}, #{role}, #{status}, #{interests}, #{userType}, #{sex}, #{wechatId}, #{avatarThumb}
         )
     </insert>
 

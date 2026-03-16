@@ -84,9 +84,10 @@ public interface ContentMapper extends BaseMapper<Content> {
      *
      * @param page 分页参数
      * @param keyword 搜索关键词
+     * @param type 内容类型（可选）
      * @return 分页结果
      */
-    IPage<ContentRequest> searchContent(Page<ContentRequest> page, @Param("keyword") String keyword);
+    IPage<ContentRequest> searchContent(Page<ContentRequest> page, @Param("keyword") String keyword, @Param("type") Integer type);
 
     /**
      * 根据标签获取内容列表
