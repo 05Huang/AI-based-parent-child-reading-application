@@ -1,13 +1,12 @@
-<p align="center">
-<img src="./images/项目截图/公共页面/宣传图.png" width="300"/>
-</p>
+
 
 # AI阅桥亲子阅读平台（AI-based Parent-Child Reading Application）
 
 面向家庭场景的亲子阅读与互动平台：提供家长端与孩子端 APP、后台管理系统、Spring Boot 后端服务，并包含一套可独立运行的 Python 推荐服务（BERT 表征 + 多策略融合 + Redis 缓存）。
-
 本项目为**江苏师范大学人工智能学院**大创项目，已申请**软件著作权**。
-
+<p align="center">
+<img src="./images/项目截图/公共页面/宣传图.png" width="150"/>
+</p>
 <p align="center">
   <a href="https://www.java.com/"><img src="https://img.shields.io/badge/Java-17-ED8B00" /></a>
   <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-3.3.x-6DB33F" /></a>
